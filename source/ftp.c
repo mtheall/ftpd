@@ -968,7 +968,12 @@ ftp_session_read_command(ftp_session_t *session)
                         key.name, args);
     }
     else
+    {
+      /* clear RENAME flag for all commands except RNTO */
+      if(strcasecmp(command->name, "RNTO") != 0)
+        session->flags &= ~SESSION_RENAME;
       command->handler(session, args);
+    }
   }
 }
 
@@ -2048,24 +2053,55 @@ FTP_DECLARE(RMD)
 
 FTP_DECLARE(RNFR)
 {
+#ifdef _3DS
+  Result      ret;
+  Handle      fd;
+#else
+  int         rc;
+  struct stat st;
+#endif
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
-
-  session->flags &= ~SESSION_RENAME;
 
   if(validate_path(args) != 0)
     return ftp_send_response(session, 553, "invalid file name\r\n");
 
   build_path(session, args);
 
+#ifdef _3DS
+  ret = FSUSER_OpenFile(NULL, &fd, sdmcArchive,
+                        FS_makePath(PATH_CHAR, session->buffer),
+                        FS_OPEN_READ, FS_ATTRIBUTE_NONE);
+  if(ret != 0)
+    ret = FSUSER_OpenDirectory(NULL, &fd, sdmcArchive,
+                               FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("no such file or directory\n");
+    return ftp_send_response(session, 450, "no such file or directory\r\n");
+  }
+#else
+  rc = lstat(session->buffer, &st);
+  if(rc != 0)
+  {
+    console_print("lstat: %s\n", strerror(errno));
+    return ftp_send_response(session, 450, "no such file or directory\r\n");
+  }
+#endif
+
   session->flags |= SESSION_RENAME;
 
-  return ftp_send_response(session, 200, "OK\r\n");
+  return ftp_send_response(session, 350, "OK\r\n");
 }
 
 FTP_DECLARE(RNTO)
 {
+#ifdef _3DS
+  Result ret;
+#else
+  int    rc;
+#endif
   char buffer[1024];
 
   console_print("%s %s\n", __func__, args ? args : "");
@@ -2084,8 +2120,28 @@ FTP_DECLARE(RNTO)
 
   build_path(session, args);
 
-  /* TODO perform rename(buffer, session->buffer) */
-  return ftp_send_response(session, 502, "unavailable\r\n");
+#ifdef _3DS
+  ret = FSUSER_RenameFile(NULL,
+                          sdmcArchive, FS_makePath(PATH_CHAR, buffer),
+                          sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+    ret = FSUSER_RenameDirectory(NULL,
+                                 sdmcArchive, FS_makePath(PATH_CHAR, buffer),
+                                 sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("FSUSER_RenameFile/Directory: 0x%08X\n", (unsigned int)ret);
+    return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
+  }
+#else
+  rc = rename(buffer, session->buffer);
+  {
+    console_print("rename: %s\n", strerror(errno));
+    return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
+  }
+#endif
+
+  return ftp_send_response(session, 250, "OK\r\n");
 }
 
 FTP_DECLARE(STOR)
