@@ -1670,12 +1670,41 @@ FTP_DECLARE(LIST)
 
 FTP_DECLARE(MKD)
 {
-  /* TODO */
+#ifdef _3DS
+  Result ret;
+#else
+  int    rc;
+#endif
+
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  return ftp_send_response(session, 502, "unavailable\r\n");
+  if(validate_path(args) != 0)
+  {
+    ftp_session_set_state(session, COMMAND_STATE);
+    return ftp_send_response(session, 553, "invalid file name\r\n");
+  }
+
+  build_path(session, args);
+
+#ifdef _3DS
+  ret = FSUSER_CreateDirectory(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("FSUSER_OpenDirectory: 0x%08X\n", (unsigned int)ret);
+    return ftp_send_response(session, 550, "failed to create directory\r\n");
+  }
+#else
+  rc = mkdir(session->buffer, 0755);
+  if(rc != 0)
+  {
+    console_print("mkdir: %s\n", strerror(errno));
+    return ftp_send_response(session, 550, "failed to create directory\r\n");
+  }
+#endif
+
+  return ftp_send_response(session, 250, "OK\r\n");
 }
 
 FTP_DECLARE(MODE)
