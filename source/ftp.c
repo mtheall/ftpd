@@ -1891,7 +1891,7 @@ FTP_DECLARE(PWD)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  return ftp_send_response(session, 200, "\"%s\"\r\n", session->cwd);
+  return ftp_send_response(session, 257, "\"%s\"\r\n", session->cwd);
 }
 
 FTP_DECLARE(QUIT)
