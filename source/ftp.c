@@ -963,9 +963,17 @@ ftp_session_read_command(ftp_session_t *session)
 
     /* execute the command */
     if(command == NULL)
-      ftp_send_response(session, 502, "invalid command\r\n");
+    {
+      ftp_send_response(session, 502, "invalid command -> %s %s\r\n",
+                        key.name, args);
+    }
     else
+    {
+      /* clear RENAME flag for all commands except RNTO */
+      if(strcasecmp(command->name, "RNTO") != 0)
+        session->flags &= ~SESSION_RENAME;
       command->handler(session, args);
+    }
   }
 }
 
@@ -1542,9 +1550,6 @@ FTP_DECLARE(APPE)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(!(session->flags & SESSION_BINARY))
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-
   return ftp_send_response(session, 502, "unavailable\r\n");
 }
 
@@ -1612,12 +1617,38 @@ FTP_DECLARE(CWD)
 
 FTP_DECLARE(DELE)
 {
-  /* TODO */
+#ifdef _3DS
+  Result ret;
+#else
+  int    rc;
+#endif
+
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  return ftp_send_response(session, 502, "unavailable\r\n");
+  if(validate_path(args) != 0)
+    return ftp_send_response(session, 553, "invalid file name\r\n");
+
+  build_path(session, args);
+
+#ifdef _3DS
+  ret = FSUSER_DeleteFile(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("FSUSER_DeleteFile: 0x%08X\n", (unsigned int)ret);
+    return ftp_send_response(session, 550, "failed to delete file\r\n");
+  }
+#else
+  rc = unlink(session->buffer);
+  if(rc != 0)
+  {
+    console_print("unlink: %s\n", strerror(errno));
+    return ftp_send_response(session, 550, "failed to delete file\r\n");
+  }
+#endif  
+
+  return ftp_send_response(session, 250, "OK\r\n");
 }
 
 FTP_DECLARE(FEAT)
@@ -1670,17 +1701,42 @@ FTP_DECLARE(LIST)
 
 FTP_DECLARE(MKD)
 {
-  /* TODO */
+#ifdef _3DS
+  Result ret;
+#else
+  int    rc;
+#endif
+
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  return ftp_send_response(session, 502, "unavailable\r\n");
+  if(validate_path(args) != 0)
+    return ftp_send_response(session, 553, "invalid file name\r\n");
+
+  build_path(session, args);
+
+#ifdef _3DS
+  ret = FSUSER_CreateDirectory(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("FSUSER_OpenDirectory: 0x%08X\n", (unsigned int)ret);
+    return ftp_send_response(session, 550, "failed to create directory\r\n");
+  }
+#else
+  rc = mkdir(session->buffer, 0755);
+  if(rc != 0)
+  {
+    console_print("mkdir: %s\n", strerror(errno));
+    return ftp_send_response(session, 550, "failed to create directory\r\n");
+  }
+#endif
+
+  return ftp_send_response(session, 250, "OK\r\n");
 }
 
 FTP_DECLARE(MODE)
 {
-  /* TODO */
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
@@ -1713,10 +1769,7 @@ FTP_DECLARE(PASS)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(strcasecmp(args, "anonymous") != 0)
-    return ftp_send_response(session, 430, "Invalid user name\r\n");
-
-  return ftp_send_response(session, 200, "OK\r\n");
+  return ftp_send_response(session, 230, "OK\r\n");
 }
 
 FTP_DECLARE(PASV)
@@ -1891,7 +1944,7 @@ FTP_DECLARE(PWD)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  return ftp_send_response(session, 200, "\"%s\"\r\n", session->cwd);
+  return ftp_send_response(session, 257, "\"%s\"\r\n", session->cwd);
 }
 
 FTP_DECLARE(QUIT)
@@ -1911,9 +1964,6 @@ FTP_DECLARE(REST)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(!(session->flags & SESSION_BINARY))
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-
   return ftp_send_response(session, 502, "unavailable\r\n");
 }
 
@@ -1922,12 +1972,6 @@ FTP_DECLARE(RETR)
   int rc;
 
   console_print("%s %s\n", __func__, args ? args : "");
-
-  if(!(session->flags & SESSION_BINARY))
-  {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-  }
 
   if(validate_path(args) != 0)
   {
@@ -1972,34 +2016,91 @@ FTP_DECLARE(RETR)
 
 FTP_DECLARE(RMD)
 {
-  /* TODO */
+#ifdef _3DS
+  Result ret;
+#else
+  int    rc;
+#endif
+
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
-
-  return ftp_send_response(session, 502, "unavailable\r\n");
-}
-
-FTP_DECLARE(RNFR)
-{
-  console_print("%s %s\n", __func__, args ? args : "");
-
-  ftp_session_set_state(session, COMMAND_STATE);
-
-  session->flags &= ~SESSION_RENAME;
 
   if(validate_path(args) != 0)
     return ftp_send_response(session, 553, "invalid file name\r\n");
 
   build_path(session, args);
 
+#ifdef _3DS
+  ret = FSUSER_DeleteDirectory(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("FSUSER_DeleteDirectory: 0x%08X\n", (unsigned int)ret);
+    return ftp_send_response(session, 550, "failed to delete directory\r\n");
+  }
+#else
+  rc = rmdir(session->buffer);
+  if(rc != 0)
+  {
+    console_print("rmdir: %s\n", strerror(errno));
+    return ftp_send_response(session, 550, "failed to delete directory\r\n");
+  }
+#endif
+
+  return ftp_send_response(session, 250, "OK\r\n");
+}
+
+FTP_DECLARE(RNFR)
+{
+#ifdef _3DS
+  Result      ret;
+  Handle      fd;
+#else
+  int         rc;
+  struct stat st;
+#endif
+  console_print("%s %s\n", __func__, args ? args : "");
+
+  ftp_session_set_state(session, COMMAND_STATE);
+
+  if(validate_path(args) != 0)
+    return ftp_send_response(session, 553, "invalid file name\r\n");
+
+  build_path(session, args);
+
+#ifdef _3DS
+  ret = FSUSER_OpenFile(NULL, &fd, sdmcArchive,
+                        FS_makePath(PATH_CHAR, session->buffer),
+                        FS_OPEN_READ, FS_ATTRIBUTE_NONE);
+  if(ret != 0)
+    ret = FSUSER_OpenDirectory(NULL, &fd, sdmcArchive,
+                               FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("no such file or directory\n");
+    return ftp_send_response(session, 450, "no such file or directory\r\n");
+  }
+#else
+  rc = lstat(session->buffer, &st);
+  if(rc != 0)
+  {
+    console_print("lstat: %s\n", strerror(errno));
+    return ftp_send_response(session, 450, "no such file or directory\r\n");
+  }
+#endif
+
   session->flags |= SESSION_RENAME;
 
-  return ftp_send_response(session, 200, "OK\r\n");
+  return ftp_send_response(session, 350, "OK\r\n");
 }
 
 FTP_DECLARE(RNTO)
 {
+#ifdef _3DS
+  Result ret;
+#else
+  int    rc;
+#endif
   char buffer[1024];
 
   console_print("%s %s\n", __func__, args ? args : "");
@@ -2018,8 +2119,28 @@ FTP_DECLARE(RNTO)
 
   build_path(session, args);
 
-  /* TODO perform rename(buffer, session->buffer) */
-  return ftp_send_response(session, 502, "unavailable\r\n");
+#ifdef _3DS
+  ret = FSUSER_RenameFile(NULL,
+                          sdmcArchive, FS_makePath(PATH_CHAR, buffer),
+                          sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+    ret = FSUSER_RenameDirectory(NULL,
+                                 sdmcArchive, FS_makePath(PATH_CHAR, buffer),
+                                 sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
+  if(ret != 0)
+  {
+    console_print("FSUSER_RenameFile/Directory: 0x%08X\n", (unsigned int)ret);
+    return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
+  }
+#else
+  rc = rename(buffer, session->buffer);
+  {
+    console_print("rename: %s\n", strerror(errno));
+    return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
+  }
+#endif
+
+  return ftp_send_response(session, 250, "OK\r\n");
 }
 
 FTP_DECLARE(STOR)
@@ -2027,12 +2148,6 @@ FTP_DECLARE(STOR)
   int rc;
 
   console_print("%s %s\n", __func__, args ? args : "");
-
-  if(!(session->flags & SESSION_BINARY))
-  {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-  }
 
   if(validate_path(args) != 0)
   {
@@ -2081,9 +2196,6 @@ FTP_DECLARE(STOU)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(!(session->flags & SESSION_BINARY))
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-
   return ftp_send_response(session, 502, "unavailable\r\n");
 }
 
@@ -2114,12 +2226,6 @@ FTP_DECLARE(TYPE)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(strcasecmp("I", args) != 0
-  && strcasecmp("I 8", args) != 0)
-    return ftp_send_response(session, 504, "unavailable\r\n");
-
-  session->flags |= SESSION_BINARY;
-
   return ftp_send_response(session, 200, "OK\r\n");
 }
 
@@ -2129,8 +2235,5 @@ FTP_DECLARE(USER)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(strcasecmp(args, "anonymous") != 0)
-    return ftp_send_response(session, 430, "Invalid user name\r\n");
-
-  return ftp_send_response(session, 200, "OK\r\n");
+  return ftp_send_response(session, 230, "OK\r\n");
 }
