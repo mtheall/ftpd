@@ -1737,7 +1737,6 @@ FTP_DECLARE(MKD)
 
 FTP_DECLARE(MODE)
 {
-  /* TODO */
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
