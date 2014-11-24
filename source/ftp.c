@@ -1713,10 +1713,7 @@ FTP_DECLARE(PASS)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(strcasecmp(args, "anonymous") != 0)
-    return ftp_send_response(session, 430, "Invalid user name\r\n");
-
-  return ftp_send_response(session, 200, "OK\r\n");
+  return ftp_send_response(session, 230, "OK\r\n");
 }
 
 FTP_DECLARE(PASV)
@@ -2105,8 +2102,5 @@ FTP_DECLARE(USER)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(strcasecmp(args, "anonymous") != 0)
-    return ftp_send_response(session, 430, "Invalid user name\r\n");
-
-  return ftp_send_response(session, 200, "OK\r\n");
+  return ftp_send_response(session, 230, "OK\r\n");
 }
