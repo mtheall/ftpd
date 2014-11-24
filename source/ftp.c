@@ -963,7 +963,10 @@ ftp_session_read_command(ftp_session_t *session)
 
     /* execute the command */
     if(command == NULL)
-      ftp_send_response(session, 502, "invalid command\r\n");
+    {
+      ftp_send_response(session, 502, "invalid command -> %s %s\r\n",
+                        key.name, args);
+    }
     else
       command->handler(session, args);
   }
