@@ -1542,9 +1542,6 @@ FTP_DECLARE(APPE)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(!(session->flags & SESSION_BINARY))
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-
   return ftp_send_response(session, 502, "unavailable\r\n");
 }
 
@@ -1911,9 +1908,6 @@ FTP_DECLARE(REST)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(!(session->flags & SESSION_BINARY))
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-
   return ftp_send_response(session, 502, "unavailable\r\n");
 }
 
@@ -1922,12 +1916,6 @@ FTP_DECLARE(RETR)
   int rc;
 
   console_print("%s %s\n", __func__, args ? args : "");
-
-  if(!(session->flags & SESSION_BINARY))
-  {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-  }
 
   if(validate_path(args) != 0)
   {
@@ -2028,12 +2016,6 @@ FTP_DECLARE(STOR)
 
   console_print("%s %s\n", __func__, args ? args : "");
 
-  if(!(session->flags & SESSION_BINARY))
-  {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-  }
-
   if(validate_path(args) != 0)
   {
     ftp_session_set_state(session, COMMAND_STATE);
@@ -2081,9 +2063,6 @@ FTP_DECLARE(STOU)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(!(session->flags & SESSION_BINARY))
-    return ftp_send_response(session, 450, "binary mode required\r\n");
-
   return ftp_send_response(session, 502, "unavailable\r\n");
 }
 
@@ -2113,12 +2092,6 @@ FTP_DECLARE(TYPE)
   console_print("%s %s\n", __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE);
-
-  if(strcasecmp("I", args) != 0
-  && strcasecmp("I 8", args) != 0)
-    return ftp_send_response(session, 504, "unavailable\r\n");
-
-  session->flags |= SESSION_BINARY;
 
   return ftp_send_response(session, 200, "OK\r\n");
 }
