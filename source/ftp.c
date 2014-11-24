@@ -524,7 +524,7 @@ ftp_session_write_file(ftp_session_t *session)
     console_print("FSFILE_Write: 0x%08X\n", (unsigned int)ret);
     return -1;
   }
-  else if(ret == 0)
+  else if(bytes == 0)
     console_print("FSFILE_Write: wrote 0 bytes\n");
 
   /* adjust file position */
