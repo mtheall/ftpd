@@ -45,7 +45,7 @@
 #define DATA_PORT      0 /* ephemeral port */
 #endif
 
-typedef struct ftp_session ftp_session_t;
+typedef struct ftp_session_t ftp_session_t;
 
 #define FTP_DECLARE(x) static int x(ftp_session_t *session, const char *args)
 FTP_DECLARE(ALLO);
@@ -85,7 +85,7 @@ typedef enum
 } session_state_t;
 
 /*! ftp session */
-struct ftp_session
+struct ftp_session_t
 {
   char               cwd[4096]; /*!< current working directory */
   struct sockaddr_in peer_addr; /*!< peer address for data connection */
@@ -230,8 +230,26 @@ convert_name(char      *dst,
 static struct sockaddr_in serv_addr;
 /*! listen file descriptor */
 static int                listenfd = -1;
+/*! current data port */
+in_port_t                 data_port = DATA_PORT;
 /*! list of ftp sessions */
 ftp_session_t             *sessions = NULL;
+
+/*! Allocate a new data port
+ *
+ *  @returns next data port
+ */
+static in_port_t
+next_data_port(void)
+{
+#ifdef _3DS
+  if(++data_port >= 10000)
+    data_port = DATA_PORT;
+  return data_port;
+#else
+  return 0; /* ephemeral port */
+#endif
+}
 
 /*! close a socket
  *
@@ -296,16 +314,6 @@ ftp_session_close_pasv(ftp_session_t *session)
   /* close pasv socket */
   ftp_closesocket(session->pasv_fd, 0);
   session->pasv_fd = -1;
-
-  /* allocate new port for next PASV */
-#ifdef _3DS
-  /* just increment the port */
-  /* TODO: use global port variable so separate sessions don't collide */
-  session->pasv_addr.sin_port = htons(ntohs(session->pasv_addr.sin_port)+1);
-#else
-  /* get an ephemeral port */
-  session->pasv_addr.sin_port = htons(0);
-#endif
 }
 
 /*! close data socket on ftp session
@@ -798,9 +806,6 @@ ftp_session_new(int listen_fd)
     return;
   }
 
-  /* replace pasv port with data port */
-  /* TODO: use global port variable so separate sessions don't collide */
-  session->pasv_addr.sin_port = htons(DATA_PORT);
   session->cmd_fd = new_fd;
 
   /* send initiator response */
@@ -1794,6 +1799,8 @@ FTP_DECLARE(PASV)
     return ftp_send_response(session, 451, "\r\n");
   }
 
+  session->pasv_addr.sin_port = htons(next_data_port());
+
 #ifdef _3DS
   console_print("binding to %s:%u\n",
                 inet_ntoa(session->pasv_addr.sin_addr),
@@ -2134,6 +2141,7 @@ FTP_DECLARE(RNTO)
   }
 #else
   rc = rename(buffer, session->buffer);
+  if(rc != 0)
   {
     console_print("rename: %s\n", strerror(errno));
     return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
