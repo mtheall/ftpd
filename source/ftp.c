@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <malloc.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -14,7 +15,6 @@
 #ifdef _3DS
 #include <3ds.h>
 #else
-#include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #endif
@@ -36,13 +36,15 @@
 #endif
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
 
-#define SOC_ALIGN      0x1000
-#define SOC_BUFFERSIZE 0x100000
-#define LISTEN_PORT    5000
+#define XFER_BUFFERSIZE 4096
+#define CMD_BUFFERSIZE  1024
+#define SOC_ALIGN       0x1000
+#define SOC_BUFFERSIZE  0x100000
+#define LISTEN_PORT     5000
 #ifdef _3DS
-#define DATA_PORT      (LISTEN_PORT+1)
+#define DATA_PORT       (LISTEN_PORT+1)
 #else
-#define DATA_PORT      0 /* ephemeral port */
+#define DATA_PORT       0 /* ephemeral port */
 #endif
 
 typedef struct ftp_session_t ftp_session_t;
@@ -110,8 +112,8 @@ struct ftp_session_t
   ftp_session_t      *next;     /*!< link to next session */
   ftp_session_t      *prev;     /*!< link to prev session */
 
-  void     (*transfer)(ftp_session_t*); /*! data transfer callback */
-  char     buffer[1024];                /*! persistent data between callbacks */
+  int      (*transfer)(ftp_session_t*); /*! data transfer callback */
+  char     buffer[XFER_BUFFERSIZE];     /*! persistent data between callbacks */
   size_t   bufferpos;                   /*! persistent buffer position between callbacks */
   size_t   buffersize;                  /*! persistent buffer size between callbacks */
   uint64_t filepos;                     /*! persistent file position between callbacks */
@@ -249,6 +251,34 @@ next_data_port(void)
 #else
   return 0; /* ephemeral port */
 #endif
+}
+
+/*! set a socket to non-blocking
+ *
+ *  @param[in] fd socket
+ *
+ *  @returns error
+ */
+static int
+ftp_set_socket_nonblocking(int fd)
+{
+  int rc, flags;
+
+  flags = fcntl(fd, F_GETFL, 0);
+  if(flags == -1)
+  {
+    console_print("fcntl: %s\n", strerror(SOC_GetErrno()));
+    return -1;
+  }
+
+  rc = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+  if(rc != 0)
+  {
+    console_print("fcntl: %s\n", strerror(SOC_GetErrno()));
+    return -1;
+  }
+
+  return 0;
 }
 
 /*! close a socket
@@ -654,6 +684,16 @@ ftp_session_set_state(ftp_session_t   *session,
   }
 }
 
+static void
+ftp_session_transfer(ftp_session_t *session)
+{
+  int rc;
+  do
+  {
+    rc = session->transfer(session);
+  } while(rc == 0);
+}
+
 __attribute__((format(printf,3,4)))
 /*! send ftp response to ftp session's peer
  *
@@ -669,7 +709,7 @@ ftp_send_response(ftp_session_t *session,
                   int           code,
                   const char    *fmt, ...)
 {
-  static char buffer[1024];
+  static char buffer[CMD_BUFFERSIZE];
   ssize_t     rc, to_send;
   va_list     ap;
 
@@ -823,7 +863,7 @@ ftp_session_new(int listen_fd)
 static int
 ftp_session_accept(ftp_session_t *session)
 {
-  int                new_fd;
+  int                rc, new_fd;
   struct sockaddr_in addr;
   socklen_t          addrlen = sizeof(addr);
 
@@ -840,7 +880,16 @@ ftp_session_accept(ftp_session_t *session)
     if(new_fd < 0)
     {
       console_print("accept: %s\n", strerror(SOC_GetErrno()));
-      ftp_session_close_pasv(session);
+      ftp_session_set_state(session, COMMAND_STATE);
+      ftp_send_response(session, 425, "Failed to establish connection\r\n");
+      return -1;
+    }
+
+    rc = ftp_set_socket_nonblocking(new_fd);
+    if(rc != 0)
+    {
+      ftp_closesocket(new_fd, 1);
+      ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 425, "Failed to establish connection\r\n");
       return -1;
     }
@@ -872,46 +921,37 @@ ftp_session_connect(ftp_session_t *session)
 {
   int rc;
 
-  if(session->flags & SESSION_PORT)
+  /* clear PORT flag */
+  session->flags &= ~SESSION_PORT;
+
+  /* create a new socket */
+  session->data_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if(session->data_fd < 0)
   {
-    /* clear PORT flag */
-    session->flags &= ~SESSION_PORT;
-
-    /* create a new socket */
-    session->data_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if(session->data_fd < 0)
-    {
-      console_print("socket: %s\n", strerror(SOC_GetErrno()));
-      ftp_send_response(session, 425, "Failed to establish connection\r\n");
-      return -1;
-    }
-
-    /* connect to peer */
-    rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
-                 sizeof(session->peer_addr));
-    if(rc != 0)
-    {
-      console_print("connect: %s\n", strerror(SOC_GetErrno()));
-      ftp_closesocket(session->data_fd, 0);
-      session->data_fd = -1;
-      ftp_send_response(session, 425, "Failed to establish connection\r\n");
-      return -1;
-    }
-
-    console_print("connected to %s:%u\n",
-                  inet_ntoa(session->peer_addr.sin_addr),
-                  ntohs(session->peer_addr.sin_port));
-
-    /* tell peer that connection has been established */
-    ftp_send_response(session, 150, "Ready\r\n");
-    return 0;
-  }
-  else
-  {
-    /* peer didn't send PORT command */
-    ftp_send_response(session, 503, "Bad sequence of commands\r\n");
+    console_print("socket: %s\n", strerror(SOC_GetErrno()));
     return -1;
   }
+
+  /* connect to peer */
+  rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
+               sizeof(session->peer_addr));
+  if(rc != 0)
+  {
+    console_print("connect: %s\n", strerror(SOC_GetErrno()));
+    ftp_closesocket(session->data_fd, 0);
+    session->data_fd = -1;
+    return -1;
+  }
+
+  rc = ftp_set_socket_nonblocking(session->data_fd);
+  if(rc != 0)
+    return -1;
+
+  console_print("connected to %s:%u\n",
+                inet_ntoa(session->peer_addr.sin_addr),
+                ntohs(session->peer_addr.sin_port));
+
+  return 0;
 }
 
 /*! read command for ftp session
@@ -921,7 +961,7 @@ ftp_session_connect(ftp_session_t *session)
 static void
 ftp_session_read_command(ftp_session_t *session)
 {
-  static char   buffer[1024];
+  static char   buffer[CMD_BUFFERSIZE];
   ssize_t       rc;
   char          *args;
   ftp_command_t key, *command;
@@ -1071,7 +1111,7 @@ ftp_session_poll(ftp_session_t *session)
             ftp_send_response(session, 426, "Data connection failed\r\n");
           }
           else if(pollinfo.revents & (POLLIN|POLLOUT))
-            session->transfer(session);
+            ftp_session_transfer(session);
           break;
       }
     }
@@ -1380,7 +1420,7 @@ build_path(ftp_session_t *session,
   return 0;
 }
 
-static void
+static int
 list_transfer(ftp_session_t *session)
 {
 #ifdef _3DS
@@ -1402,7 +1442,7 @@ list_transfer(ftp_session_t *session)
       ftp_session_close_cwd(session);
       ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 450, "failed to read directory\r\n");
-      return;
+      return -1;
     }
 
     if(entries == 0)
@@ -1410,12 +1450,12 @@ list_transfer(ftp_session_t *session)
       ftp_session_close_cwd(session);
       ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 226, "OK\r\n");
-      return;
+      return -1;
     }
 
     convert_name(name, dent.name);
     if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-      return;
+      return 0;
 
     session->buffersize =
         sprintf(session->buffer,
@@ -1431,11 +1471,11 @@ list_transfer(ftp_session_t *session)
       ftp_session_close_cwd(session);
       ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 226, "OK\r\n");
-      return;
+      return -1;
     }
 
     if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0)
-      return;
+      return 0;
 
     snprintf(session->buffer, sizeof(session->buffer),
              "%s/%s", session->cwd, dent->d_name);
@@ -1446,7 +1486,7 @@ list_transfer(ftp_session_t *session)
       ftp_session_close_cwd(session);
       ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 550, "unavailable\r\n");
-      return;
+      return -1;
     }
 
     session->buffersize =
@@ -1465,20 +1505,25 @@ list_transfer(ftp_session_t *session)
   if(rc <= 0)
   {
     if(rc < 0)
+    {
+      if(SOC_GetErrno() == EWOULDBLOCK)
+        return -1;
       console_print("send: %s\n", strerror(SOC_GetErrno()));
+    }
     else
       console_print("send: %s\n", strerror(ECONNRESET));
 
     ftp_session_close_cwd(session);
     ftp_session_set_state(session, COMMAND_STATE);
     ftp_send_response(session, 426, "Connection broken during transfer\r\n");
-    return;
+    return -1;
   }
 
   session->bufferpos += rc;
+  return 0;
 }
 
-static void
+static int
 retrieve_transfer(ftp_session_t *session)
 {
   ssize_t rc;
@@ -1494,7 +1539,7 @@ retrieve_transfer(ftp_session_t *session)
         ftp_send_response(session, 451, "Failed to read file\r\n");
       else
         ftp_send_response(session, 226, "OK\r\n");
-      return;
+      return -1;
     }
 
     session->bufferpos  = 0;
@@ -1506,20 +1551,25 @@ retrieve_transfer(ftp_session_t *session)
   if(rc <= 0)
   {
     if(rc < 0)
+    {
+      if(SOC_GetErrno() == EWOULDBLOCK)
+        return -1;
       console_print("send: %s\n", strerror(SOC_GetErrno()));
+    }
     else
       console_print("send: %s\n", strerror(ECONNRESET));
 
     ftp_session_close_file(session);
     ftp_session_set_state(session, COMMAND_STATE);
     ftp_send_response(session, 426, "Connection broken during transfer\r\n");
-    return;
+    return -1;
   }
 
   session->bufferpos += rc;
+  return 0;
 }
 
-static void
+static int
 store_transfer(ftp_session_t *session)
 {
   ssize_t rc;
@@ -1530,7 +1580,11 @@ store_transfer(ftp_session_t *session)
     if(rc <= 0)
     {
       if(rc < 0)
+      {
+        if(SOC_GetErrno() == EWOULDBLOCK)
+          return -1;
         console_print("recv: %s\n", strerror(SOC_GetErrno()));
+      }
 
       ftp_session_close_file(session);
       ftp_session_set_state(session, COMMAND_STATE);
@@ -1539,7 +1593,7 @@ store_transfer(ftp_session_t *session)
         ftp_send_response(session, 226, "OK\r\n");
       else
         ftp_send_response(session, 426, "Connection broken during transfer\r\n");
-      return;
+      return -1;
     }
 
     session->bufferpos  = 0;
@@ -1552,10 +1606,11 @@ store_transfer(ftp_session_t *session)
     ftp_session_close_file(session);
     ftp_session_set_state(session, COMMAND_STATE);
     ftp_send_response(session, 451, "Failed to write file\r\n");
-    return;
+    return -1;
   }
 
   session->bufferpos += rc;
+  return 0;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -1707,22 +1762,31 @@ FTP_DECLARE(LIST)
       ftp_session_set_state(session, COMMAND_STATE);
       return ftp_send_response(session, 425, "can't open data connection\r\n");
     }
+
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    session->flags |= SESSION_SEND;
+
+    session->transfer   = list_transfer;
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
+    return ftp_send_response(session, 150, "Ready\r\n");
   }
   else if(session->flags & SESSION_PASV)
-    ftp_session_set_state(session, DATA_CONNECT_STATE);
-  else
   {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    session->flags |= SESSION_SEND;
+
+    session->transfer   = list_transfer;
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
+    ftp_session_set_state(session, DATA_CONNECT_STATE);
+    return 0;
   }
 
-  session->flags &= ~(SESSION_RECV|SESSION_SEND);
-  session->flags |= SESSION_SEND;
-
-  session->transfer   = list_transfer;
-  session->bufferpos  = 0;
-  session->buffersize = 0;
-  return 0;
+  ftp_session_set_state(session, COMMAND_STATE);
+  return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
 }
 
 FTP_DECLARE(MKD)
@@ -2021,22 +2085,31 @@ FTP_DECLARE(RETR)
       ftp_session_set_state(session, COMMAND_STATE);
       return ftp_send_response(session, 425, "can't open data connection\r\n");
     }
+
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    session->flags |= SESSION_SEND;
+
+    session->transfer   = retrieve_transfer;
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
+    return ftp_send_response(session, 150, "Ready\r\n");
   }
   else if(session->flags & SESSION_PASV)
-    ftp_session_set_state(session, DATA_CONNECT_STATE);
-  else
   {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    session->flags |= SESSION_SEND;
+
+    session->transfer   = retrieve_transfer;
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
+    ftp_session_set_state(session, DATA_CONNECT_STATE);
+    return 0;
   }
 
-  session->flags &= ~(SESSION_RECV|SESSION_SEND);
-  session->flags |= SESSION_SEND;
-
-  session->transfer   = retrieve_transfer;
-  session->bufferpos  = 0;
-  session->buffersize = 0;
-  return 0;
+  ftp_session_set_state(session, COMMAND_STATE);
+  return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
 }
 
 FTP_DECLARE(RMD)
@@ -2122,7 +2195,7 @@ FTP_DECLARE(RNTO)
 #else
   int    rc;
 #endif
-  char buffer[1024];
+  char buffer[XFER_BUFFERSIZE];
 
   console_print("%s %s\n", __func__, args ? args : "");
 
@@ -2133,7 +2206,7 @@ FTP_DECLARE(RNTO)
 
   session->flags &= ~SESSION_RENAME;
 
-  memcpy(buffer, session->buffer, 1024);
+  memcpy(buffer, session->buffer, XFER_BUFFERSIZE);
 
   if(build_path(session, args) != 0)
     return ftp_send_response(session, 554, "%s\r\n", strerror(errno));
@@ -2191,22 +2264,31 @@ FTP_DECLARE(STOR)
       ftp_session_set_state(session, COMMAND_STATE);
       return ftp_send_response(session, 425, "can't open data connection\r\n");
     }
+
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    session->flags |= SESSION_RECV;
+
+    session->transfer   = store_transfer;
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
+    return ftp_send_response(session, 150, "Ready\r\n");
   }
   else if(session->flags & SESSION_PASV)
-    ftp_session_set_state(session, DATA_CONNECT_STATE);
-  else
   {
-    ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
+    session->flags &= ~(SESSION_RECV|SESSION_SEND);
+    session->flags |= SESSION_RECV;
+
+    session->transfer   = store_transfer;
+    session->bufferpos  = 0;
+    session->buffersize = 0;
+
+    ftp_session_set_state(session, DATA_CONNECT_STATE);
+    return 0;
   }
 
-  session->flags &= ~(SESSION_RECV|SESSION_SEND);
-  session->flags |= SESSION_RECV;
-
-  session->transfer   = store_transfer;
-  session->bufferpos  = 0;
-  session->buffersize = 0;
-  return 0;
+  ftp_session_set_state(session, COMMAND_STATE);
+  return ftp_send_response(session, 503, "Bad sequence of commands\r\n");
 }
 
 FTP_DECLARE(STOU)
