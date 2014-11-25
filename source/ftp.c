@@ -1330,25 +1330,54 @@ validate_path(const char *args)
   return 0;
 }
 
-static void
+static int
 build_path(ftp_session_t *session,
            const char    *args)
 {
+  int  rc;
+  char *p;
+
   memset(session->buffer, 0, sizeof(session->buffer));
+
+  if(validate_path(args) != 0)
+  {
+    errno = EINVAL;
+    return -1;
+  }
 
   if(args[0] == '/')
   {
+    if(strlen(args) > sizeof(session->buffer)-1)
+    {
+      errno = ENAMETOOLONG;
+      return -1;
+    }
     strncpy(session->buffer, args, sizeof(session->buffer));
   }
   else
   {
     if(strcmp(session->cwd, "/") == 0)
-      snprintf(session->buffer, sizeof(session->buffer), "/%s",
-               args);
+      rc = snprintf(session->buffer, sizeof(session->buffer), "/%s",
+                    args);
     else
-      snprintf(session->buffer, sizeof(session->buffer), "%s/%s",
-               session->cwd, args);
+      rc = snprintf(session->buffer, sizeof(session->buffer), "%s/%s",
+                    session->cwd, args);
+
+    if(rc >= sizeof(session->buffer))
+    {
+      errno = ENAMETOOLONG;
+      return -1;
+    }
   }
+
+  p = session->buffer + strlen(session->buffer);
+  while(p > session->buffer && *--p == '/')
+    *p = 0;
+
+  if(strlen(session->buffer) == 0)
+    strcpy(session->buffer, "/");
+
+  return 0;
 }
 
 static void
@@ -1577,10 +1606,8 @@ FTP_DECLARE(CWD)
     return ftp_send_response(session, 200, "OK\r\n");
   }
 
-  if(validate_path(args) != 0)
-    return ftp_send_response(session, 553, "invalid file name\r\n");
-
-  build_path(session, args);
+  if(build_path(session, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
    
   {
 #ifdef _3DS
@@ -1628,10 +1655,8 @@ FTP_DECLARE(DELE)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(validate_path(args) != 0)
-    return ftp_send_response(session, 553, "invalid file name\r\n");
-
-  build_path(session, args);
+  if(build_path(session, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
 
 #ifdef _3DS
   ret = FSUSER_DeleteFile(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
@@ -1712,10 +1737,8 @@ FTP_DECLARE(MKD)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(validate_path(args) != 0)
-    return ftp_send_response(session, 553, "invalid file name\r\n");
-
-  build_path(session, args);
+  if(build_path(session, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
 
 #ifdef _3DS
   ret = FSUSER_CreateDirectory(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
@@ -1976,13 +1999,12 @@ FTP_DECLARE(RETR)
 
   console_print("%s %s\n", __func__, args ? args : "");
 
-  if(validate_path(args) != 0)
+  if(build_path(session, args) != 0)
   {
+    rc = errno;
     ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 553, "invalid file name\r\n");
+    return ftp_send_response(session, 553, "%s\r\n", strerror(rc));
   }
-
-  build_path(session, args);
 
   if(ftp_session_open_file_read(session) != 0)
   {
@@ -2029,10 +2051,8 @@ FTP_DECLARE(RMD)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(validate_path(args) != 0)
-    return ftp_send_response(session, 553, "invalid file name\r\n");
-
-  build_path(session, args);
+  if(build_path(session, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
 
 #ifdef _3DS
   ret = FSUSER_DeleteDirectory(NULL, sdmcArchive, FS_makePath(PATH_CHAR, session->buffer));
@@ -2066,10 +2086,8 @@ FTP_DECLARE(RNFR)
 
   ftp_session_set_state(session, COMMAND_STATE);
 
-  if(validate_path(args) != 0)
-    return ftp_send_response(session, 553, "invalid file name\r\n");
-
-  build_path(session, args);
+  if(build_path(session, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
 
 #ifdef _3DS
   ret = FSUSER_OpenFile(NULL, &fd, sdmcArchive,
@@ -2117,10 +2135,8 @@ FTP_DECLARE(RNTO)
 
   memcpy(buffer, session->buffer, 1024);
 
-  if(validate_path(args) != 0)
-    return ftp_send_response(session, 554, "invalid file name\r\n");
-
-  build_path(session, args);
+  if(build_path(session, args) != 0)
+    return ftp_send_response(session, 554, "%s\r\n", strerror(errno));
 
 #ifdef _3DS
   ret = FSUSER_RenameFile(NULL,
@@ -2153,13 +2169,12 @@ FTP_DECLARE(STOR)
 
   console_print("%s %s\n", __func__, args ? args : "");
 
-  if(validate_path(args) != 0)
+  if(build_path(session, args) != 0)
   {
+    rc = errno;
     ftp_session_set_state(session, COMMAND_STATE);
-    return ftp_send_response(session, 553, "invalid file name\r\n");
+    return ftp_send_response(session, 553, "%s\r\n", strerror(rc));
   }
-
-  build_path(session, args);
 
   if(ftp_session_open_file_write(session) != 0)
   {
