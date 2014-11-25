@@ -15,21 +15,9 @@ static void
 loop(int (*callback)(void))
 {
 #ifdef _3DS
-  int        rc;
-  APP_STATUS status;
-
-  /* check apt status */
-  while((status = aptGetStatus()) != APP_EXITING)
+  while(aptMainLoop())
   {
-    rc = 0;
-    if(status == APP_RUNNING)
-      rc = callback();
-    else if(status == APP_SUSPENDING)
-      aptReturnToMenu();
-    else if(status == APP_SLEEPMODE)
-      aptWaitStatusEvent();
-
-    if(rc == 0)
+    if(callback() == 0)
       console_render();
     else
       return;
