@@ -1334,8 +1334,6 @@ static void
 build_path(ftp_session_t *session,
            const char    *args)
 {
-  char *p;
-
   memset(session->buffer, 0, sizeof(session->buffer));
 
   if(args[0] == '/')
@@ -1344,14 +1342,12 @@ build_path(ftp_session_t *session,
   }
   else
   {
-    p = session->cwd + strlen(session->cwd);
-    while(*--p == '/')
-      *p = 0;
-    snprintf(session->buffer, sizeof(session->buffer), "%s/%s",
-             session->cwd, args);
-    p = session->buffer + strlen(session->buffer);
-    while(*--p == '/')
-      *p = 0;
+    if(strcmp(session->cwd, "/") == 0)
+      snprintf(session->buffer, sizeof(session->buffer), "/%s",
+               args);
+    else
+      snprintf(session->buffer, sizeof(session->buffer), "%s/%s",
+               session->cwd, args);
   }
 }
 
