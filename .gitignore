@@ -1,4 +1,6 @@
 build/
+build.linux/
+ftbrony
 *.3dsx
 *.smdh
 *.elf
