@@ -18,6 +18,7 @@
 #include "sans_14_render_bin.h"
 #include "sans_16_kerning_bin.h"
 #include "sans_16_render_bin.h"
+#include "banner_bin.h"
 
 /* TODO: add support for non-ASCII characters */
 
@@ -666,6 +667,34 @@ draw_text(gfxScreen_t screen,
   }
 }
 
+/* Function to draw sprite, from smea/3ds_hb_menu */
+void gfxDrawSprite(gfxScreen_t screen, gfx3dSide_t side, u8* spriteData, u16 width, u16 height, s16 x, s16 y)
+{
+    if(!spriteData)return;
+
+    u16 fbWidth, fbHeight;
+    u8* fbAdr=gfxGetFramebuffer(screen, side, &fbWidth, &fbHeight);
+
+    if(x+width<0 || x>=fbWidth)return;
+    if(y+height<0 || y>=fbHeight)return;
+
+    u16 xOffset=0, yOffset=0;
+    u16 widthDrawn=width, heightDrawn=height;
+
+    if(x<0)xOffset=-x;
+    if(y<0)yOffset=-y;
+    if(x+width>=fbWidth)widthDrawn=fbWidth-x;
+    if(y+height>=fbHeight)heightDrawn=fbHeight-y;
+    widthDrawn-=xOffset;
+    heightDrawn-=yOffset;
+
+    int j;
+    for(j=yOffset; j<yOffset+heightDrawn; j++)
+    {
+        memcpy(&fbAdr[((x+xOffset)+(y+j)*fbWidth)*3], &spriteData[((xOffset)+(j)*width)*3], widthDrawn*3);
+    }
+}
+
 /*! draw console to screen */
 void
 console_render(void)
@@ -675,7 +704,7 @@ console_render(void)
   /* clear all screens */
   u8 bluish[] = { 0, 0, 127 };
   clear_screen(GFX_TOP,    GFX_LEFT,  bluish);
-  clear_screen(GFX_BOTTOM, GFX_LEFT,  bluish);
+  gfxDrawSprite(GFX_BOTTOM, GFX_LEFT, (u8*)banner_bin, 240, 320, 0, 0);
 
   /* look up font for status bar and draw status bar */
   font = find_font("sans", 10);
