@@ -20,18 +20,8 @@
 #endif
 #include "console.h"
 
-#ifdef _3DS
-/* not sure what's correct yet */
-#undef POLLIN
-#define POLLIN          0x001 // looks correct
-#undef POLLOUT
-#define POLLOUT         0x010 // looks reasonable
-#undef POLLERR
-#define POLLERR         0x000 // ???
-#undef POLLHUP
-#define POLLHUP         0x000 // ???
-#else
-#define SOC_GetErrno() errno
+#ifndef _3DS
+#define Errno() errno
 #define closesocket(x) close(x)
 #endif
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
@@ -175,6 +165,14 @@ static ftp_command_t ftp_commands[] =
 /*! number of ftp commands */
 static const size_t num_ftp_commands = sizeof(ftp_commands)/sizeof(ftp_commands[0]);
 
+static inline int Errno(void)
+{
+  int err = SOC_GetErrno();
+  if(err < 0)
+    return -err;
+  return err;
+}
+
 /*! compare ftp command descriptors
  *
  *  @param[in] p1 left side of comparison (ftp_command_t*)
@@ -267,14 +265,14 @@ ftp_set_socket_nonblocking(int fd)
   flags = fcntl(fd, F_GETFL, 0);
   if(flags == -1)
   {
-    console_print("fcntl: %s\n", strerror(SOC_GetErrno()));
+    console_print("fcntl: %d %s\n", Errno(), strerror(Errno()));
     return -1;
   }
 
   rc = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
   if(rc != 0)
   {
-    console_print("fcntl: %s\n", strerror(SOC_GetErrno()));
+    console_print("fcntl: %d %s\n", Errno(), strerror(Errno()));
     return -1;
   }
 
@@ -299,7 +297,7 @@ ftp_closesocket(int fd, int connected)
     rc = getpeername(fd, (struct sockaddr*)&addr, &addrlen);
     if(rc != 0)
     {
-      console_print("getpeername: %s\n", strerror(SOC_GetErrno()));
+      console_print("getpeername: %d %s\n", Errno(), strerror(Errno()));
       console_print("closing connection to fd=%d\n", fd);
     }
     else
@@ -309,13 +307,13 @@ ftp_closesocket(int fd, int connected)
     /* shutdown connection */
     rc = shutdown(fd, SHUT_RDWR);
     if(rc != 0)
-      console_print("shutdown: %s\n", strerror(SOC_GetErrno()));
+      console_print("shutdown: %d %s\n", Errno(), strerror(Errno()));
   }
 
   /* close socket */
   rc = closesocket(fd);
   if(rc != 0)
-    console_print("closesocket: %s\n", strerror(SOC_GetErrno()));
+    console_print("closesocket: %d %s\n", Errno(), strerror(Errno()));
 }
 
 /*! close command socket on ftp session
@@ -379,7 +377,7 @@ ftp_session_close_file(ftp_session_t *session)
 
   rc = close(session->fd);
   if(rc != 0)
-    console_print("close: %s\n", strerror(errno));
+    console_print("close: %d %s\n", errno, strerror(errno));
   session->fd = -1;
 #endif
 }
@@ -424,7 +422,7 @@ ftp_session_open_file_read(ftp_session_t *session)
   session->fd = open(session->buffer, O_RDONLY);
   if(session->fd < 0)
   {
-    console_print("open '%s': %s\n", session->buffer, strerror(errno));
+    console_print("open '%s': %d %s\n", session->buffer, errno, strerror(errno));
     return -1;
   }
 
@@ -432,7 +430,7 @@ ftp_session_open_file_read(ftp_session_t *session)
   rc = fstat(session->fd, &st);
   if(rc != 0)
   {
-    console_print("fstat '%s': %s\n", session->buffer, strerror(errno));
+    console_print("fstat '%s': %d %s\n", session->buffer, errno, strerror(errno));
     ftp_session_close_file(session);
     return -1;
   }
@@ -480,7 +478,7 @@ ftp_session_read_file(ftp_session_t *session)
   rc = read(session->fd, session->buffer, sizeof(session->buffer));
   if(rc < 0)
   {
-    console_print("read: %s\n", strerror(errno));
+    console_print("read: %d %s\n", errno, strerror(errno));
     return -1;
   }
 
@@ -527,7 +525,7 @@ ftp_session_open_file_write(ftp_session_t *session)
   session->fd = open(session->buffer, O_WRONLY|O_CREAT|O_TRUNC, 0644);
   if(session->fd < 0)
   {
-    console_print("open '%s': %s\n", session->buffer, strerror(errno));
+    console_print("open '%s': %d %s\n", session->buffer, errno, strerror(errno));
     return -1;
   }
 #endif
@@ -578,7 +576,7 @@ ftp_session_write_file(ftp_session_t *session)
              session->buffersize - session->bufferpos);
   if(rc < 0)
   {
-    console_print("write: %s\n", strerror(errno));
+    console_print("write: %d %s\n", errno, strerror(errno));
     return -1;
   }
   else if(rc == 0)
@@ -612,7 +610,7 @@ ftp_session_close_cwd(ftp_session_t *session)
   /* close open directory pointer */
   rc = closedir(session->dp);
   if(rc != 0)
-    console_print("closedir: %s\n", strerror(errno));
+    console_print("closedir: %d %s\n", errno, strerror(errno));
   session->dp = NULL;
 #endif
 }
@@ -642,7 +640,7 @@ ftp_session_open_cwd(ftp_session_t *session)
   session->dp = opendir(session->cwd);
   if(session->dp == NULL)
   {
-    console_print("opendir '%s': %s\n", session->cwd, strerror(errno));
+    console_print("opendir '%s': %d %s\n", session->cwd, errno, strerror(errno));
     return -1;
   }
 #endif
@@ -731,7 +729,7 @@ ftp_send_response(ftp_session_t *session,
   console_print("%s", buffer);
   rc = send(session->cmd_fd, buffer, to_send, 0);
   if(rc < 0)
-    console_print("send: %s\n", strerror(SOC_GetErrno()));
+    console_print("send: %d %s\n", Errno(), strerror(Errno()));
   else if(rc != to_send)
     console_print("only sent %u/%u bytes\n",
                   (unsigned int)rc, (unsigned int)to_send);
@@ -793,7 +791,7 @@ ftp_session_new(int listen_fd)
   new_fd = accept(listen_fd, (struct sockaddr*)&addr, &addrlen);
   if(new_fd < 0)
   {
-    console_print("accept: %s\n", strerror(SOC_GetErrno()));
+    console_print("accept: %d %s\n", Errno(), strerror(Errno()));
     return;
   }
 
@@ -840,7 +838,7 @@ ftp_session_new(int listen_fd)
   rc = getsockname(new_fd, (struct sockaddr*)&session->pasv_addr, &addrlen);
   if(rc != 0)
   {
-    console_print("getsockname: %s\n", strerror(SOC_GetErrno()));
+    console_print("getsockname: %d %s\n", Errno(), strerror(Errno()));
     ftp_send_response(session, 451, "Failed to get connection info\r\n");
     ftp_session_destroy(session);
     return;
@@ -879,7 +877,7 @@ ftp_session_accept(ftp_session_t *session)
     new_fd = accept(session->pasv_fd, (struct sockaddr*)&addr, &addrlen);
     if(new_fd < 0)
     {
-      console_print("accept: %s\n", strerror(SOC_GetErrno()));
+      console_print("accept: %d %s\n", Errno(), strerror(Errno()));
       ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 425, "Failed to establish connection\r\n");
       return -1;
@@ -928,7 +926,7 @@ ftp_session_connect(ftp_session_t *session)
   session->data_fd = socket(AF_INET, SOCK_STREAM, 0);
   if(session->data_fd < 0)
   {
-    console_print("socket: %s\n", strerror(SOC_GetErrno()));
+    console_print("socket: %d %s\n", Errno(), strerror(Errno()));
     return -1;
   }
 
@@ -937,7 +935,7 @@ ftp_session_connect(ftp_session_t *session)
                sizeof(session->peer_addr));
   if(rc != 0)
   {
-    console_print("connect: %s\n", strerror(SOC_GetErrno()));
+    console_print("connect: %d %s\n", Errno(), strerror(Errno()));
     ftp_closesocket(session->data_fd, 0);
     session->data_fd = -1;
     return -1;
@@ -973,7 +971,7 @@ ftp_session_read_command(ftp_session_t *session)
   if(rc < 0)
   {
     /* error retrieving command */
-    console_print("recv: %s\n", strerror(SOC_GetErrno()));
+    console_print("recv: %d %s\n", Errno(), strerror(Errno()));
     ftp_session_close_cmd(session);
     return;
   }
@@ -1064,7 +1062,7 @@ ftp_session_poll(ftp_session_t *session)
   /* poll the selected socket */
   rc = poll(&pollinfo, 1, 0);
   if(rc < 0)
-    console_print("poll: %s\n", strerror(SOC_GetErrno()));
+    console_print("poll: %d %s\n", Errno(), strerror(Errno()));
   else if(rc > 0)
   {
     if(pollinfo.revents != 0)
@@ -1187,7 +1185,7 @@ ftp_init(void)
   listenfd = socket(AF_INET, SOCK_STREAM, 0);
   if(listenfd < 0)
   {
-    console_print("socket: %s\n", strerror(SOC_GetErrno()));
+    console_print("socket: %d %s\n", Errno(), strerror(Errno()));
     ftp_exit();
     return -1;
   }
@@ -1207,7 +1205,7 @@ ftp_init(void)
     rc = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
     if(rc != 0)
     {
-      console_print("setsockopt: %s\n", strerror(SOC_GetErrno()));
+      console_print("setsockopt: %d %s\n", Errno(), strerror(Errno()));
       ftp_exit();
       return -1;
     }
@@ -1218,7 +1216,7 @@ ftp_init(void)
   rc = bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
   if(rc != 0)
   {
-    console_print("bind: %s\n", strerror(SOC_GetErrno()));
+    console_print("bind: %d %s\n", Errno(), strerror(Errno()));
     ftp_exit();
     return -1;
   }
@@ -1227,7 +1225,7 @@ ftp_init(void)
   rc = listen(listenfd, 5);
   if(rc != 0)
   {
-    console_print("listen: %s\n", strerror(SOC_GetErrno()));
+    console_print("listen: %d %s\n", Errno(), strerror(Errno()));
     ftp_exit();
     return -1;
   }
@@ -1244,7 +1242,7 @@ ftp_init(void)
     rc = getsockname(listenfd, (struct sockaddr*)&serv_addr, &addrlen);
     if(rc != 0)
     {
-      console_print("getsockname: %s\n", strerror(SOC_GetErrno()));
+      console_print("getsockname: %d %s\n", Errno(), strerror(Errno()));
       ftp_exit();
       return -1;
     }
@@ -1252,7 +1250,7 @@ ftp_init(void)
     rc = gethostname(hostname, sizeof(hostname));
     if(rc != 0)
     {
-      console_print("gethostname: %s\n", strerror(SOC_GetErrno()));
+      console_print("gethostname: %d %s\n", Errno(), strerror(Errno()));
       ftp_exit();
       return -1;
     }
@@ -1309,7 +1307,7 @@ ftp_loop(void)
 
   rc = poll(&pollinfo, 1, 0);
   if(rc < 0)
-    console_print("poll: %s\n", strerror(SOC_GetErrno()));
+    console_print("poll: %d %s\n", Errno(), strerror(Errno()));
   else if(rc > 0)
   {
     if(pollinfo.revents & POLLIN)
@@ -1482,7 +1480,7 @@ list_transfer(ftp_session_t *session)
     rc = lstat(session->buffer, &st);
     if(rc != 0)
     {
-      console_print("stat '%s': %s\n", session->buffer, strerror(errno));
+      console_print("stat '%s': %d %s\n", session->buffer, errno, strerror(errno));
       ftp_session_close_cwd(session);
       ftp_session_set_state(session, COMMAND_STATE);
       ftp_send_response(session, 550, "unavailable\r\n");
@@ -1506,12 +1504,12 @@ list_transfer(ftp_session_t *session)
   {
     if(rc < 0)
     {
-      if(SOC_GetErrno() == EWOULDBLOCK)
+      if(Errno() == EWOULDBLOCK)
         return -1;
-      console_print("send: %s\n", strerror(SOC_GetErrno()));
+      console_print("send: %d %s\n", Errno(), strerror(Errno()));
     }
     else
-      console_print("send: %s\n", strerror(ECONNRESET));
+      console_print("send: %d %s\n", ECONNRESET, strerror(ECONNRESET));
 
     ftp_session_close_cwd(session);
     ftp_session_set_state(session, COMMAND_STATE);
@@ -1552,12 +1550,12 @@ retrieve_transfer(ftp_session_t *session)
   {
     if(rc < 0)
     {
-      if(SOC_GetErrno() == EWOULDBLOCK)
+      if(Errno() == EWOULDBLOCK)
         return -1;
-      console_print("send: %s\n", strerror(SOC_GetErrno()));
+      console_print("send: %d %s\n", Errno(), strerror(Errno()));
     }
     else
-      console_print("send: %s\n", strerror(ECONNRESET));
+      console_print("send: %d %s\n", ECONNRESET, strerror(ECONNRESET));
 
     ftp_session_close_file(session);
     ftp_session_set_state(session, COMMAND_STATE);
@@ -1581,16 +1579,19 @@ store_transfer(ftp_session_t *session)
     {
       if(rc < 0)
       {
-        if(SOC_GetErrno() == EWOULDBLOCK)
+        if(Errno() == EWOULDBLOCK)
           return -1;
-        console_print("recv: %s\n", strerror(SOC_GetErrno()));
+        console_print("recv: %d %s\n", Errno(), strerror(Errno()));
       }
 
       ftp_session_close_file(session);
       ftp_session_set_state(session, COMMAND_STATE);
 
       if(rc == 0)
+      {
+        console_print("Wrote %llu bytes\n", session->filepos);
         ftp_send_response(session, 226, "OK\r\n");
+      }
       else
         ftp_send_response(session, 426, "Connection broken during transfer\r\n");
       return -1;
@@ -1684,7 +1685,7 @@ FTP_DECLARE(CWD)
     rc = stat(session->buffer, &st);
     if(rc != 0)
     {
-      console_print("stat '%s': %s\n", session->buffer, strerror(errno));
+      console_print("stat '%s': %d %s\n", session->buffer, errno, strerror(errno));
       return ftp_send_response(session, 550, "unavailable\r\n");
     }
 
@@ -1724,7 +1725,7 @@ FTP_DECLARE(DELE)
   rc = unlink(session->buffer);
   if(rc != 0)
   {
-    console_print("unlink: %s\n", strerror(errno));
+    console_print("unlink: %d %s\n", errno, strerror(errno));
     return ftp_send_response(session, 550, "failed to delete file\r\n");
   }
 #endif  
@@ -1815,7 +1816,7 @@ FTP_DECLARE(MKD)
   rc = mkdir(session->buffer, 0755);
   if(rc != 0)
   {
-    console_print("mkdir: %s\n", strerror(errno));
+    console_print("mkdir: %d %s\n", errno, strerror(errno));
     return ftp_send_response(session, 550, "failed to create directory\r\n");
   }
 #endif
@@ -1878,7 +1879,7 @@ FTP_DECLARE(PASV)
   session->pasv_fd = socket(AF_INET, SOCK_STREAM, 0);
   if(session->pasv_fd < 0)
   {
-    console_print("socket: %s\n", strerror(SOC_GetErrno()));
+    console_print("socket: %d %s\n", Errno(), strerror(Errno()));
     return ftp_send_response(session, 451, "\r\n");
   }
 
@@ -1893,8 +1894,7 @@ FTP_DECLARE(PASV)
             sizeof(session->pasv_addr));
   if(rc != 0)
   {
-    console_print("bind: ret=%d errno=%d %s\n",
-                  rc, SOC_GetErrno(), strerror(SOC_GetErrno()));
+    console_print("bind: %d %s\n", Errno(), strerror(Errno()));
     ftp_session_close_pasv(session);
     return ftp_send_response(session, 451, "\r\n");
   }
@@ -1902,7 +1902,7 @@ FTP_DECLARE(PASV)
   rc = listen(session->pasv_fd, 5);
   if(rc != 0)
   {
-    console_print("listen: %s\n", strerror(SOC_GetErrno()));
+    console_print("listen: %d %s\n", Errno(), strerror(Errno()));
     ftp_session_close_pasv(session);
     return ftp_send_response(session, 451, "\r\n");
   }
@@ -1914,7 +1914,7 @@ FTP_DECLARE(PASV)
                      &addrlen);
     if(rc != 0)
     {
-      console_print("getsockname: %s\n", strerror(SOC_GetErrno()));
+      console_print("getsockname: %d %s\n", Errno(), strerror(Errno()));
       ftp_session_close_pasv(session);
       return ftp_send_response(session, 451, "\r\n");
     }
@@ -2138,7 +2138,7 @@ FTP_DECLARE(RMD)
   rc = rmdir(session->buffer);
   if(rc != 0)
   {
-    console_print("rmdir: %s\n", strerror(errno));
+    console_print("rmdir: %d %s\n", errno, strerror(errno));
     return ftp_send_response(session, 550, "failed to delete directory\r\n");
   }
 #endif
@@ -2178,7 +2178,7 @@ FTP_DECLARE(RNFR)
   rc = lstat(session->buffer, &st);
   if(rc != 0)
   {
-    console_print("lstat: %s\n", strerror(errno));
+    console_print("lstat: %d %s\n", errno, strerror(errno));
     return ftp_send_response(session, 450, "no such file or directory\r\n");
   }
 #endif
@@ -2228,7 +2228,7 @@ FTP_DECLARE(RNTO)
   rc = rename(buffer, session->buffer);
   if(rc != 0)
   {
-    console_print("rename: %s\n", strerror(errno));
+    console_print("rename: %d %s\n", errno, strerror(errno));
     return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
   }
 #endif
