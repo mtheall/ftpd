@@ -2167,8 +2167,17 @@ FTP_DECLARE(RNFR)
                         FS_makePath(PATH_CHAR, session->buffer),
                         FS_OPEN_READ, FS_ATTRIBUTE_NONE);
   if(ret != 0)
+  {
     ret = FSUSER_OpenDirectory(NULL, &fd, sdmcArchive,
                                FS_makePath(PATH_CHAR, session->buffer));
+    if(ret == 0)
+      ret = FSDIR_Close(fd);
+  }
+  else
+  {
+    ret = FSFILE_Close(fd);
+  }
+
   if(ret != 0)
   {
     console_print("no such file or directory\n");
