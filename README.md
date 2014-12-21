@@ -10,6 +10,19 @@ Features
 - Supports multiple simultaneous clients.
 - Cutting-edge graphics.
 
+Build and install
+------------------
+
+You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
+Clone this repository and cd in the resulting directory.
+
+    make
+
+Create a **ftbrony** (double check that it is spelt **exactly** like this) directory inside the 3ds directory on the root of your SD card and copy the following files in it:
+- ftbrony.3dsx
+- ftbrony.smdh
+
+
 Supported Commands
 ------------------
 
