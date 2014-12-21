@@ -10,6 +10,19 @@ Features
 - Supports multiple simultaneous clients.
 - Cutting-edge graphics.
 
+Build and install
+------------------
+
+You must first install and set up [devkitARM](http://devkitpro.org/).
+Clone this repository and cd in the resulting directory.
+
+    make 3ds
+
+Create a **ftbrony** (double check that it is splelt **exactly** like this) directory inside the 3ds directory on your SD card and copy the following files in it:
+- ftbrony.3ds
+- ftbrony.png
+- ftbrony.smdh
+
 Supported Commands
 ------------------
 
