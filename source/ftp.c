@@ -1339,7 +1339,7 @@ ftp_exit(void)
   if(fclose(stderr) != 0)
     console_print(RED "fclose: 0x%08X\n" RESET, errno);
 
-  /* deinitialize sdmc_dev
+  /* deinitialize sdmc_dev */
   ret = sdmcExit();
   if(ret != 0)
     console_print(RED "sdmcExit: 0x%08X\n" RESET, (unsigned int)ret);
