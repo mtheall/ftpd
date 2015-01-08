@@ -1,6 +1,6 @@
 #ifdef _3DS
+#include <string.h>
 #include <3ds.h>
-#endif
 
 /* Function to draw sprite, from smea/3ds_hb_menu */
 void gfxDrawSprite(gfxScreen_t screen, gfx3dSide_t side, u8* spriteData, u16 width, u16 height, s16 x, s16 y)
@@ -29,3 +29,4 @@ void gfxDrawSprite(gfxScreen_t screen, gfx3dSide_t side, u8* spriteData, u16 wid
         memcpy(&fbAdr[((x+xOffset)+(y+j)*fbWidth)*3], &spriteData[((xOffset)+(j)*width)*3], widthDrawn*3);
     }
 }
+#endif
