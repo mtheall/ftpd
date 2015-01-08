@@ -25,6 +25,8 @@ console_init(void)
   consoleSetWindow(&main_console, 0, 1, 50, 29);
 
   consoleSelect(&main_console);
+
+  consoleDebugInit(debugDevice_NULL);
 }
 
 /*! set status bar contents
@@ -40,6 +42,7 @@ console_set_status(const char *fmt, ...)
   consoleSelect(&status_console);
   va_start(ap, fmt);
   vprintf(fmt, ap);
+  vfprintf(stderr, fmt, ap);
   va_end(ap);
   consoleSelect(&main_console);
 }
@@ -56,6 +59,7 @@ console_print(const char *fmt, ...)
 
   va_start(ap, fmt);
   vprintf(fmt, ap);
+  vfprintf(stderr, fmt, ap);
   va_end(ap);
 }
 

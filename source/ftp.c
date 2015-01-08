@@ -1150,6 +1150,31 @@ ftp_init(void)
     goto archive_fail;
   }
 
+#if ENABLE_LOGGING
+  /* initialize sdmc_dev */
+  ret = sdmcInit();
+  if(ret != 0)
+  {
+    console_print(RED "sdmcInit: 0x%08X\n" RESET, (unsigned int)ret);
+    goto sdmc_fail;
+  }
+
+  /* open log file */
+  FILE *fp = freopen("/ftbrony.log", "wb", stderr);
+  if(fp == NULL)
+  {
+    console_print(RED "freopen: 0x%08X\n" RESET, errno);
+    goto stderr_fail;
+  }
+
+  /* truncate log file */
+  if(ftruncate(fileno(fp), 0) != 0)
+  {
+    console_print(RED "ftruncate: 0x%08X\n" RESET, errno);
+    goto ftruncate_fail;
+  }
+#endif
+
   /* allocate buffer for SOC service */
   SOC_buffer = (u32*)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
   if(SOC_buffer == NULL)
@@ -1260,6 +1285,18 @@ soc_fail:
   free(SOC_buffer);
 
 memalign_fail:
+#ifdef ENABLE_LOGGING
+ftruncate_fail:
+  if(fclose(stderr) != 0)
+    console_print(RED "fclose: 0x%08X\n" RESET, errno);
+
+stderr_fail:
+  ret = sdmcExit();
+  if(ret != 0)
+    console_print(RED "sdmcExit: 0x%08X\n" RESET, (unsigned int)ret);
+
+sdmc_fail:
+#endif
   ret = FSUSER_CloseArchive(NULL, &sdmcArchive);
   if(ret != 0)
     console_print(RED "FSUSER_CloseArchive: 0x%08X\n" RESET, (unsigned int)ret);
@@ -1296,6 +1333,17 @@ ftp_exit(void)
   if(ret != 0)
     console_print(RED "SOC_Shutdown: 0x%08X\n" RESET, (unsigned int)ret);
   free(SOC_buffer);
+
+#ifdef ENABLE_LOGGING
+  /* close log file */
+  if(fclose(stderr) != 0)
+    console_print(RED "fclose: 0x%08X\n" RESET, errno);
+
+  /* deinitialize sdmc_dev
+  ret = sdmcExit();
+  if(ret != 0)
+    console_print(RED "sdmcExit: 0x%08X\n" RESET, (unsigned int)ret);
+#endif
 
   /* deinitialize FS service */
   ret = fsExit();
