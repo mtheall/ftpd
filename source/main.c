@@ -63,10 +63,7 @@ main(int  argc,
 {
 #ifdef _3DS
   /* initialize needed 3DS services */
-  srvInit();
-  aptInit();
-  hidInit(NULL);
-  gfxInit();
+  gfxInitDefault();
   gfxSet3D(false);
 #endif
 
@@ -91,9 +88,6 @@ main(int  argc,
 #ifdef _3DS
   /* deinitialize 3DS services */
   gfxExit();
-  hidExit();
-  aptExit();
-  srvExit();
 #endif
 
   return 0;
