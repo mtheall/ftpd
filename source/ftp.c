@@ -167,10 +167,9 @@ static const size_t num_ftp_commands = sizeof(ftp_commands)/sizeof(ftp_commands[
 
 static inline int Errno(void)
 {
-  int err = SOC_GetErrno();
-  if(err < 0)
-    return -err;
-  return err;
+  if(errno < 0)
+    return -errno;
+  return errno;
 }
 
 /*! compare ftp command descriptors
