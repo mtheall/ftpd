@@ -35,6 +35,7 @@ INCLUDES := include
 APP_TITLE       := ftBRONY
 APP_DESCRIPTION := Like ftPONY but magical.
 APP_AUTHOR      := mtheall
+ICON            := ftbrony.png
 
 #---------------------------------------------------------------------------------
 # options for code generation
