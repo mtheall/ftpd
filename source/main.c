@@ -69,7 +69,7 @@ main(int  argc,
 
   /* initialize console subsystem */
   console_init();
-  console_set_status(STATUS_STRING);
+  console_set_status("\n" GREEN STATUS_STRING RESET);
 
   /* initialize ftp subsystem */
   if(ftp_init() == 0)
@@ -83,7 +83,6 @@ main(int  argc,
 
   console_print("Press B to exit\n");
   loop(wait_for_b);
-  console_exit();
 
 #ifdef _3DS
   /* deinitialize 3DS services */

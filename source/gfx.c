@@ -1,6 +1,6 @@
 #ifdef _3DS
+#include <string.h>
 #include <3ds.h>
-#endif
 
 #include <string.h>
 
@@ -31,3 +31,4 @@ void gfxDrawSprite(gfxScreen_t screen, gfx3dSide_t side, u8* spriteData, u16 wid
         memcpy(&fbAdr[((x+xOffset)+(y+j)*fbWidth)*3], &spriteData[((xOffset)+(j)*width)*3], widthDrawn*3);
     }
 }
+#endif
