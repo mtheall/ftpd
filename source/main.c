@@ -61,6 +61,9 @@ int
 main(int  argc,
      char *argv[])
 {
+    aptOpenSession();
+		APT_SetAppCpuTimeLimit(NULL,0);
+		aptCloseSession();
 #ifdef _3DS
   /* initialize needed 3DS services */
   gfxInitDefault();
