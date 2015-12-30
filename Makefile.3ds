@@ -43,7 +43,6 @@ ICON            := ftbrony.png
 ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard
 
 CFLAGS   := -g -Wall -O3 -mword-relocations \
-            -fomit-frame-pointer -ffast-math \
             $(ARCH) \
             -DSTATUS_STRING="\"ftbrony v1.1\""
 
@@ -117,6 +116,14 @@ else
 	export APP_ICON := $(TOPDIR)/$(ICON)
 endif
 
+ifeq ($(strip $(NO_SMDH)),)
+	export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
+endif
+
+ifneq ($(ROMFS),)
+	export _3DSXFLAGS += --romfs=$(CURDIR)/$(ROMFS)
+endif
+
 .PHONY: $(BUILD) clean all
 
 #---------------------------------------------------------------------------------
@@ -143,6 +150,8 @@ DEPENDS := $(OFILES:.o=.d)
 ifeq ($(strip $(NO_SMDH)),)
 .PHONY: all
 all	:	$(OUTPUT).3dsx $(OUTPUT).smdh
+$(OUTPUT).smdh : $(TOPDIR)/Makefile
+$(OUTPUT).3dsx: $(OUTPUT).smdh
 endif
 $(OUTPUT).3dsx: $(OUTPUT).elf
 $(OUTPUT).elf:  $(OFILES)
