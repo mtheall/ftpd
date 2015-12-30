@@ -968,22 +968,6 @@ ftp_init(void)
 #ifdef _3DS
   Result  ret;
 
-  /* initialize FS service */
-  ret = fsInit();
-  if(ret != 0)
-  {
-    console_print(RED "fsInit: 0x%08X\n" RESET, (unsigned int)ret);
-    goto fs_fail;
-  }
-
-  /* initialize sdmc_dev */
-  ret = sdmcInit();
-  if(ret != 0)
-  {
-    console_print(RED "sdmcInit: 0x%08X\n" RESET, (unsigned int)ret);
-    goto sdmc_fail;
-  }
-
 #if ENABLE_LOGGING
   /* open log file */
   FILE *fp = freopen("/ftbrony.log", "wb", stderr);
@@ -1010,7 +994,7 @@ ftp_init(void)
   }
 
   /* initialize SOC service */
-  ret = SOC_Initialize(SOC_buffer, SOC_BUFFERSIZE);
+  ret = socInit(SOC_buffer, SOC_BUFFERSIZE);
   if(ret != 0)
   {
     console_print(RED "SOC_Initialize: 0x%08X\n" RESET, (unsigned int)ret);
@@ -1118,17 +1102,8 @@ ftruncate_fail:
 
 stderr_fail:
 #endif
-  ret = sdmcExit();
-  if(ret != 0)
-    console_print(RED "sdmcExit: 0x%08X\n" RESET, (unsigned int)ret);
-
-sdmc_fail:
-  ret = fsExit();
-  if(ret != 0)
-    console_print(RED "fsExit: 0x%08X\n" RESET, (unsigned int)ret);
-
-fs_fail:
   return -1;
+
 #endif
 }
 
@@ -1150,7 +1125,7 @@ ftp_exit(void)
 
 #ifdef _3DS
   /* deinitialize SOC service */
-  ret = SOC_Shutdown();
+  ret = socExit();
   if(ret != 0)
     console_print(RED "SOC_Shutdown: 0x%08X\n" RESET, (unsigned int)ret);
   free(SOC_buffer);
@@ -1160,16 +1135,8 @@ ftp_exit(void)
   if(fclose(stderr) != 0)
     console_print(RED "fclose: 0x%08X\n" RESET, errno);
 
-  /* deinitialize sdmc_dev */
-  ret = sdmcExit();
-  if(ret != 0)
-    console_print(RED "sdmcExit: 0x%08X\n" RESET, (unsigned int)ret);
 #endif
 
-  /* deinitialize FS service */
-  ret = fsExit();
-  if(ret != 0)
-    console_print(RED "fsExit: 0x%08X\n" RESET, (unsigned int)ret);
 #endif
 }
 
