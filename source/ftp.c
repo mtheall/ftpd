@@ -22,7 +22,8 @@
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
 
-#define XFER_BUFFERSIZE 4096
+#define XFER_BUFFERSIZE 32768
+#define FTP_RCVBUF 32768
 #define CMD_BUFFERSIZE  1024
 #define SOC_ALIGN       0x1000
 #define SOC_BUFFERSIZE  0x100000
@@ -766,6 +767,11 @@ ftp_session_connect(ftp_session_t *session)
     return -1;
   }
 
+  int rcvbuf = FTP_RCVBUF;
+  if(setsockopt(session->data_fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+
   /* connect to peer */
   rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
                sizeof(session->peer_addr));
@@ -1010,7 +1016,12 @@ ftp_init(void)
     ftp_exit();
     return -1;
   }
-
+  
+  int rcvbuf = FTP_RCVBUF;
+  if(setsockopt(listenfd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+  
   /* get address to listen on */
   serv_addr.sin_family      = AF_INET;
 #ifdef _3DS
@@ -1671,6 +1682,11 @@ FTP_DECLARE(PASV)
     return ftp_send_response(session, 451, "\r\n");
   }
 
+  int rcvbuf = FTP_RCVBUF;
+  if(setsockopt(session->pasv_fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+  
   session->pasv_addr.sin_port = htons(next_data_port());
 
 #ifdef _3DS
