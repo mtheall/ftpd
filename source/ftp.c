@@ -19,6 +19,7 @@
 #define lstat stat
 #endif
 #include "console.h"
+#include "fsfile.h"
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
 
@@ -109,7 +110,7 @@ struct ftp_session_t
   union
   {
     DIR    *dp;                         /*! persistent open directory pointer between callbacks */
-    int    fd;                          /*! persistent open file descriptor between callbacks */
+    FSFILE *fd;                          /*! persistent open file descriptor between callbacks */
   };
 };
 
@@ -326,10 +327,10 @@ ftp_session_close_file(ftp_session_t *session)
 {
   int rc;
 
-  rc = close(session->fd);
+  rc = FSFILE_Fclose(session->fd);
   if(rc != 0)
     console_print(RED "close: %d %s\n" RESET, errno, strerror(errno));
-  session->fd = -1;
+  session->fd = NULL;
 }
 
 /*! open file for reading for ftp session
@@ -341,26 +342,23 @@ ftp_session_close_file(ftp_session_t *session)
 static int
 ftp_session_open_file_read(ftp_session_t *session)
 {
-  int         rc;
-  struct stat st;
-
   /* open file in read mode */
-  session->fd = open(session->buffer, O_RDONLY);
-  if(session->fd < 0)
+  session->fd = FSFILE_Fopen(session->buffer, "r");
+  if(session->fd == NULL)
   {
     console_print(RED "open '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
   }
 
   /* get the file size */
-  rc = fstat(session->fd, &st);
-  if(rc != 0)
+  int64_t size = FSFILE_Fsize(session->fd);
+  if(size < 0)
   {
     console_print(RED "fstat '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     ftp_session_close_file(session);
     return -1;
   }
-  session->filesize = st.st_size;
+  session->filesize = size;
 
   /* reset file position */
   /* TODO: support REST command */
@@ -381,7 +379,7 @@ ftp_session_read_file(ftp_session_t *session)
   ssize_t rc;
 
   /* read file at current position */
-  rc = read(session->fd, session->buffer, sizeof(session->buffer));
+  rc = FSFILE_Fread(session->fd, session->buffer, sizeof(session->buffer));
   if(rc < 0)
   {
     console_print(RED "read: %d %s\n" RESET, errno, strerror(errno));
@@ -406,8 +404,8 @@ static int
 ftp_session_open_file_write(ftp_session_t *session)
 {
   /* open file in write and create mode with truncation */
-  session->fd = open(session->buffer, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-  if(session->fd < 0)
+  session->fd = FSFILE_Fopen(session->buffer, "w");
+  if(session->fd == NULL)
   {
     console_print(RED "open '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
@@ -432,7 +430,7 @@ ftp_session_write_file(ftp_session_t *session)
   ssize_t rc;
 
   /* write to file at current position */
-  rc = write(session->fd, session->buffer + session->bufferpos,
+  rc = FSFILE_Fwrite(session->fd, session->buffer + session->bufferpos,
              session->buffersize - session->bufferpos);
   if(rc < 0)
   {
