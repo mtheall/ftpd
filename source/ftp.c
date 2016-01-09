@@ -971,6 +971,7 @@ ftp_init(void)
 
 #ifdef _3DS
   Result  ret;
+  FSFILE_Init();
 
 #if ENABLE_LOGGING
   /* open log file */
@@ -1122,6 +1123,7 @@ ftp_exit(void)
 {
 #ifdef _3DS
   Result ret;
+  FSFILE_Exit();
 #endif
 
   /* clean up all sessions */
