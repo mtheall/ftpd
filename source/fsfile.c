@@ -56,6 +56,10 @@ int FSFILE_Fread(FSFILE *f, void *buf, size_t count) {
     int ret = FSFILE_Read(f->fileHandle, (u32*)&readSize, f->offset, (u32*)buf, count);
     if(ret != 0 || readSize == 0) {
         //should set errno?
+        if(readSize == 0) {
+            //eof
+            return 0;
+        }
         return -1;
     }
 
