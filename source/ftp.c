@@ -19,10 +19,13 @@
 #define lstat stat
 #endif
 #include "console.h"
+#include "fsfile.h"
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
 
 #define XFER_BUFFERSIZE 4096
+#define FILE_BUFFERSIZE 131072
+#define FTP_RCVBUF 32768
 #define CMD_BUFFERSIZE  1024
 #define SOC_ALIGN       0x1000
 #define SOC_BUFFERSIZE  0x100000
@@ -108,7 +111,7 @@ struct ftp_session_t
   union
   {
     DIR    *dp;                         /*! persistent open directory pointer between callbacks */
-    int    fd;                          /*! persistent open file descriptor between callbacks */
+    FSFILE *fd;                          /*! persistent open file descriptor between callbacks */
   };
 };
 
@@ -325,10 +328,10 @@ ftp_session_close_file(ftp_session_t *session)
 {
   int rc;
 
-  rc = close(session->fd);
+  rc = FSFILE_Fclose(session->fd);
   if(rc != 0)
     console_print(RED "close: %d %s\n" RESET, errno, strerror(errno));
-  session->fd = -1;
+  session->fd = NULL;
 }
 
 /*! open file for reading for ftp session
@@ -340,26 +343,23 @@ ftp_session_close_file(ftp_session_t *session)
 static int
 ftp_session_open_file_read(ftp_session_t *session)
 {
-  int         rc;
-  struct stat st;
-
   /* open file in read mode */
-  session->fd = open(session->buffer, O_RDONLY);
-  if(session->fd < 0)
+  session->fd = FSFILE_Fopen(session->buffer, "r");
+  if(session->fd == NULL)
   {
     console_print(RED "open '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
   }
 
   /* get the file size */
-  rc = fstat(session->fd, &st);
-  if(rc != 0)
+  int64_t size = FSFILE_Fsize(session->fd);
+  if(size < 0)
   {
     console_print(RED "fstat '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     ftp_session_close_file(session);
     return -1;
   }
-  session->filesize = st.st_size;
+  session->filesize = size;
 
   /* reset file position */
   /* TODO: support REST command */
@@ -380,7 +380,7 @@ ftp_session_read_file(ftp_session_t *session)
   ssize_t rc;
 
   /* read file at current position */
-  rc = read(session->fd, session->buffer, sizeof(session->buffer));
+  rc = FSFILE_Fread(session->fd, session->buffer, sizeof(session->buffer));
   if(rc < 0)
   {
     console_print(RED "read: %d %s\n" RESET, errno, strerror(errno));
@@ -405,8 +405,8 @@ static int
 ftp_session_open_file_write(ftp_session_t *session)
 {
   /* open file in write and create mode with truncation */
-  session->fd = open(session->buffer, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-  if(session->fd < 0)
+  session->fd = FSFILE_Fopen(session->buffer, "w");
+  if(session->fd == NULL)
   {
     console_print(RED "open '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
@@ -417,34 +417,6 @@ ftp_session_open_file_write(ftp_session_t *session)
   session->filepos = 0;
 
   return 0;
-}
-
-/*! write to an open file for ftp session
- *
- *  @param[in] session ftp session
- *
- *  @returns bytes written
- */
-static ssize_t
-ftp_session_write_file(ftp_session_t *session)
-{
-  ssize_t rc;
-
-  /* write to file at current position */
-  rc = write(session->fd, session->buffer + session->bufferpos,
-             session->buffersize - session->bufferpos);
-  if(rc < 0)
-  {
-    console_print(RED "write: %d %s\n" RESET, errno, strerror(errno));
-    return -1;
-  }
-  else if(rc == 0)
-    console_print(RED "write: wrote 0 bytes\n" RESET);
-
-  /* adjust file position */
-  session->filepos += rc;
-
-  return rc;
 }
 
 /*! close current working directory for ftp session
@@ -766,6 +738,11 @@ ftp_session_connect(ftp_session_t *session)
     return -1;
   }
 
+  int rcvbuf = FTP_RCVBUF;
+  if(setsockopt(session->data_fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+
   /* connect to peer */
   rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
                sizeof(session->peer_addr));
@@ -967,6 +944,7 @@ ftp_init(void)
 
 #ifdef _3DS
   Result  ret;
+  FSFILE_Init();
 
 #if ENABLE_LOGGING
   /* open log file */
@@ -1010,7 +988,12 @@ ftp_init(void)
     ftp_exit();
     return -1;
   }
-
+  
+  int rcvbuf = FTP_RCVBUF;
+  if(setsockopt(listenfd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+  
   /* get address to listen on */
   serv_addr.sin_family      = AF_INET;
 #ifdef _3DS
@@ -1113,6 +1096,7 @@ ftp_exit(void)
 {
 #ifdef _3DS
   Result ret;
+  FSFILE_Exit();
 #endif
 
   /* clean up all sessions */
@@ -1385,47 +1369,40 @@ retrieve_transfer(ftp_session_t *session)
 static int
 store_transfer(ftp_session_t *session)
 {
-  ssize_t rc;
-
-  if(session->bufferpos == session->buffersize)
-  {
-    rc = recv(session->data_fd, session->buffer, sizeof(session->buffer), 0);
-    if(rc <= 0)
-    {
-      if(rc < 0)
-      {
-        if(errno == EWOULDBLOCK)
-          return -1;
-        console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
-      }
-
+  int ret = 0;
+  char *filebuf = (char *)malloc(FILE_BUFFERSIZE);
+  while(1) {
+    ssize_t rc = recv(session->data_fd, filebuf, FILE_BUFFERSIZE, 0);
+    if(rc < 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+      continue;
+    } else if(rc < 0) {
+      ret = -1;
+      console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
       ftp_session_close_file(session);
       ftp_session_set_state(session, COMMAND_STATE);
-
-      if(rc == 0)
+      ftp_send_response(session, 426, "Connection broken during transfer\r\n");
+      break;
+    } else if(rc == 0) {
+      ret = -1;
+      console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
+      ftp_session_close_file(session);
+      ftp_session_set_state(session, COMMAND_STATE);
+      ftp_send_response(session, 226, "OK\r\n");
+      break;
+    } else {
+      int nwrite = FSFILE_Fwriten(session->fd, filebuf, rc);
+      if(nwrite <= 0)
       {
-        ftp_send_response(session, 226, "OK\r\n");
+        ftp_session_close_file(session);
+        ftp_session_set_state(session, COMMAND_STATE);
+        ftp_send_response(session, 451, "Failed to write file\r\n");
+        ret = -1;
+        break;
       }
-      else
-        ftp_send_response(session, 426, "Connection broken during transfer\r\n");
-      return -1;
     }
-
-    session->bufferpos  = 0;
-    session->buffersize = rc;
   }
-
-  rc = ftp_session_write_file(session);
-  if(rc <= 0)
-  {
-    ftp_session_close_file(session);
-    ftp_session_set_state(session, COMMAND_STATE);
-    ftp_send_response(session, 451, "Failed to write file\r\n");
-    return -1;
-  }
-
-  session->bufferpos += rc;
-  return 0;
+  free(filebuf);
+  return ret;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -1671,6 +1648,11 @@ FTP_DECLARE(PASV)
     return ftp_send_response(session, 451, "\r\n");
   }
 
+  int rcvbuf = FTP_RCVBUF;
+  if(setsockopt(session->pasv_fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0) {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+  
   session->pasv_addr.sin_port = htons(next_data_port());
 
 #ifdef _3DS
