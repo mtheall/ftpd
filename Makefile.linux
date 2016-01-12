@@ -3,7 +3,7 @@ TARGET  := $(notdir $(CURDIR))
 CFILES  := $(wildcard source/*.c)
 OFILES  := $(patsubst source/%,build.linux/%,$(CFILES:.c=.o))
 
-CFLAGS  := -g -Wall -Iinclude -DSTATUS_STRING="\"ftpd v1.0\""
+CFLAGS  := -g -Wall -Iinclude -DSTATUS_STRING="\"ftpd v1.2\""
 LDFLAGS :=
 
 .PHONY: all clean

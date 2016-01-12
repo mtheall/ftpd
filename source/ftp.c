@@ -22,10 +22,12 @@
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
 
-#define XFER_BUFFERSIZE 4096
+#define XFER_BUFFERSIZE 32768
+#define SOCK_BUFFERSIZE 32768
+#define FILE_BUFFERSIZE 65536
 #define CMD_BUFFERSIZE  1024
-#define SOC_ALIGN       0x1000
-#define SOC_BUFFERSIZE  0x100000
+#define SOCU_ALIGN      0x1000
+#define SOCU_BUFFERSIZE 0x100000
 #define LISTEN_PORT     5000
 #ifdef _3DS
 #define DATA_PORT       (LISTEN_PORT+1)
@@ -99,16 +101,18 @@ struct ftp_session_t
   ftp_session_t      *next;     /*!< link to next session */
   ftp_session_t      *prev;     /*!< link to prev session */
 
-  int      (*transfer)(ftp_session_t*); /*! data transfer callback */
-  char     buffer[XFER_BUFFERSIZE];     /*! persistent data between callbacks */
-  size_t   bufferpos;                   /*! persistent buffer position between callbacks */
-  size_t   buffersize;                  /*! persistent buffer size between callbacks */
-  uint64_t filepos;                     /*! persistent file position between callbacks */
-  uint64_t filesize;                    /*! persistent file size between callbacks */
+  int      (*transfer)(ftp_session_t*);  /*! data transfer callback */
+  char     buffer[XFER_BUFFERSIZE];      /*! persistent data between callbacks */
+  char     tmp_buffer[XFER_BUFFERSIZE];  /*! persistent data between callbacks */
+  char     file_buffer[FILE_BUFFERSIZE]; /*! stdio file buffer */
+  size_t   bufferpos;                    /*! persistent buffer position between callbacks */
+  size_t   buffersize;                   /*! persistent buffer size between callbacks */
+  uint64_t filepos;                      /*! persistent file position between callbacks */
+  uint64_t filesize;                     /*! persistent file size between callbacks */
   union
   {
-    DIR    *dp;                         /*! persistent open directory pointer between callbacks */
-    int    fd;                          /*! persistent open file descriptor between callbacks */
+    DIR    *dp;                          /*! persistent open directory pointer between callbacks */
+    FILE   *fp;                          /*! persistent open file pointer between callbacks */
   };
 };
 
@@ -181,17 +185,21 @@ ftp_command_cmp(const void *p1,
 
 #ifdef _3DS
 /*! SOC service buffer */
-static u32 *SOC_buffer = NULL;
+static u32 *SOCU_buffer = NULL;
 #endif
 
 /*! server listen address */
 static struct sockaddr_in serv_addr;
 /*! listen file descriptor */
 static int                listenfd = -1;
+#ifdef _3DS
 /*! current data port */
 static in_port_t          data_port = DATA_PORT;
+#endif
 /*! list of ftp sessions */
 static ftp_session_t      *sessions = NULL;
+/*! socket buffersize */
+static int                sock_buffersize = SOCK_BUFFERSIZE;
 
 /*! Allocate a new data port
  *
@@ -235,6 +243,32 @@ ftp_set_socket_nonblocking(int fd)
   }
 
   return 0;
+}
+
+/*! set socket options
+ *
+ *  @param[in] fd socket
+ */
+static void
+ftp_set_socket_options(int fd)
+{
+  int rc;
+
+  /* it's okay if this fails */
+  rc = setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
+                  &sock_buffersize, sizeof(sock_buffersize));
+  if(rc != 0)
+  {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
+
+  /* it's okay if this fails */
+  rc = setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
+                  &sock_buffersize, sizeof(sock_buffersize));
+  if(rc != 0)
+  {
+    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+  }
 }
 
 /*! close a socket
@@ -325,10 +359,10 @@ ftp_session_close_file(ftp_session_t *session)
 {
   int rc;
 
-  rc = close(session->fd);
+  rc = fclose(session->fp);
   if(rc != 0)
-    console_print(RED "close: %d %s\n" RESET, errno, strerror(errno));
-  session->fd = -1;
+    console_print(RED "fclose: %d %s\n" RESET, errno, strerror(errno));
+  session->fp = NULL;
 }
 
 /*! open file for reading for ftp session
@@ -344,15 +378,23 @@ ftp_session_open_file_read(ftp_session_t *session)
   struct stat st;
 
   /* open file in read mode */
-  session->fd = open(session->buffer, O_RDONLY);
-  if(session->fd < 0)
+  session->fp = fopen(session->buffer, "rb");
+  if(session->fp == NULL)
   {
-    console_print(RED "open '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
+    console_print(RED "fopen '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
   }
 
+  /* it's okay if this fails */
+  errno = 0;
+  rc = setvbuf(session->fp, session->file_buffer, _IOFBF, FILE_BUFFERSIZE);
+  if(rc != 0)
+  {
+    console_print(RED "setvbuf: %d %s\n" RESET, errno, strerror(errno));
+  }
+
   /* get the file size */
-  rc = fstat(session->fd, &st);
+  rc = fstat(fileno(session->fp), &st);
   if(rc != 0)
   {
     console_print(RED "fstat '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
@@ -380,10 +422,10 @@ ftp_session_read_file(ftp_session_t *session)
   ssize_t rc;
 
   /* read file at current position */
-  rc = read(session->fd, session->buffer, sizeof(session->buffer));
+  rc = fread(session->buffer, 1, sizeof(session->buffer), session->fp);
   if(rc < 0)
   {
-    console_print(RED "read: %d %s\n" RESET, errno, strerror(errno));
+    console_print(RED "fread: %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
 
@@ -404,12 +446,22 @@ ftp_session_read_file(ftp_session_t *session)
 static int
 ftp_session_open_file_write(ftp_session_t *session)
 {
+  int rc;
+
   /* open file in write and create mode with truncation */
-  session->fd = open(session->buffer, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-  if(session->fd < 0)
+  session->fp = fopen(session->buffer, "wb");
+  if(session->fp == NULL)
   {
-    console_print(RED "open '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
+    console_print(RED "fopen '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
+  }
+
+  /* it's okay if this fails */
+  errno = 0;
+  rc = setvbuf(session->fp, session->file_buffer, _IOFBF, FILE_BUFFERSIZE);
+  if(rc != 0)
+  {
+    console_print(RED "setvbuf: %d %s\n" RESET, errno, strerror(errno));
   }
 
   /* reset file position */
@@ -431,15 +483,16 @@ ftp_session_write_file(ftp_session_t *session)
   ssize_t rc;
 
   /* write to file at current position */
-  rc = write(session->fd, session->buffer + session->bufferpos,
-             session->buffersize - session->bufferpos);
+  rc = fwrite(session->buffer + session->bufferpos,
+              1, session->buffersize - session->bufferpos,
+              session->fp);
   if(rc < 0)
   {
-    console_print(RED "write: %d %s\n" RESET, errno, strerror(errno));
+    console_print(RED "fwrite: %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
   else if(rc == 0)
-    console_print(RED "write: wrote 0 bytes\n" RESET);
+    console_print(RED "fwrite: wrote 0 bytes\n" RESET);
 
   /* adjust file position */
   session->filepos += rc;
@@ -766,6 +819,9 @@ ftp_session_connect(ftp_session_t *session)
     return -1;
   }
 
+  /* set socket options */
+  ftp_set_socket_options(session->data_fd);
+
   /* connect to peer */
   rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
                sizeof(session->peer_addr));
@@ -986,18 +1042,18 @@ ftp_init(void)
 #endif
 
   /* allocate buffer for SOC service */
-  SOC_buffer = (u32*)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
-  if(SOC_buffer == NULL)
+  SOCU_buffer = (u32*)memalign(SOCU_ALIGN, SOCU_BUFFERSIZE);
+  if(SOCU_buffer == NULL)
   {
     console_print(RED "memalign: failed to allocate\n" RESET);
     goto memalign_fail;
   }
 
   /* initialize SOC service */
-  ret = socInit(SOC_buffer, SOC_BUFFERSIZE);
+  ret = socInit(SOCU_buffer, SOCU_BUFFERSIZE);
   if(ret != 0)
   {
-    console_print(RED "SOC_Initialize: 0x%08X\n" RESET, (unsigned int)ret);
+    console_print(RED "socInit: 0x%08X\n" RESET, (unsigned int)ret);
     goto soc_fail;
   }
 #endif
@@ -1011,6 +1067,9 @@ ftp_init(void)
     return -1;
   }
 
+  /* set socket options */
+  ftp_set_socket_options(listenfd);
+
   /* get address to listen on */
   serv_addr.sin_family      = AF_INET;
 #ifdef _3DS
@@ -1019,6 +1078,7 @@ ftp_init(void)
 #else
   serv_addr.sin_addr.s_addr = INADDR_ANY;
   serv_addr.sin_port        = htons(LISTEN_PORT);
+#endif
 
   /* reuse address */
   {
@@ -1031,7 +1091,6 @@ ftp_init(void)
       return -1;
     }
   }
-#endif
 
   /* bind socket to listen address */
   rc = bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
@@ -1092,7 +1151,7 @@ ftp_init(void)
 
 #ifdef _3DS
 soc_fail:
-  free(SOC_buffer);
+  free(SOCU_buffer);
 
 memalign_fail:
 #ifdef ENABLE_LOGGING
@@ -1127,8 +1186,8 @@ ftp_exit(void)
   /* deinitialize SOC service */
   ret = socExit();
   if(ret != 0)
-    console_print(RED "SOC_Shutdown: 0x%08X\n" RESET, (unsigned int)ret);
-  free(SOC_buffer);
+    console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
+  free(SOCU_buffer);
 
 #ifdef ENABLE_LOGGING
   /* close log file */
@@ -1671,6 +1730,8 @@ FTP_DECLARE(PASV)
     return ftp_send_response(session, 451, "\r\n");
   }
 
+  ftp_set_socket_options(session->pasv_fd);
+
   session->pasv_addr.sin_port = htons(next_data_port());
 
 #ifdef _3DS
@@ -1946,8 +2007,7 @@ FTP_DECLARE(RNFR)
 
 FTP_DECLARE(RNTO)
 {
-  int  rc;
-  char buffer[XFER_BUFFERSIZE];
+  int rc;
 
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
@@ -1958,12 +2018,12 @@ FTP_DECLARE(RNTO)
 
   session->flags &= ~SESSION_RENAME;
 
-  memcpy(buffer, session->buffer, XFER_BUFFERSIZE);
+  memcpy(session->tmp_buffer, session->buffer, XFER_BUFFERSIZE);
 
   if(build_path(session, args) != 0)
     return ftp_send_response(session, 554, "%s\r\n", strerror(errno));
 
-  rc = rename(buffer, session->buffer);
+  rc = rename(session->tmp_buffer, session->buffer);
   if(rc != 0)
   {
     console_print(RED "rename: %d %s\n" RESET, errno, strerror(errno));

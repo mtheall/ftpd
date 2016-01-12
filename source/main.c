@@ -65,6 +65,7 @@ main(int  argc,
   /* initialize needed 3DS services */
   gfxInitDefault();
   gfxSet3D(false);
+  sdmcWriteSafe(false);
 #endif
 
   /* initialize console subsystem */
