@@ -23,7 +23,8 @@
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLOUT))
 
-#define XFER_BUFFERSIZE 32768
+#define XFER_BUFFERSIZE 4096
+#define FILE_BUFFERSIZE 131072
 #define FTP_RCVBUF 32768
 #define CMD_BUFFERSIZE  1024
 #define SOC_ALIGN       0x1000
@@ -416,34 +417,6 @@ ftp_session_open_file_write(ftp_session_t *session)
   session->filepos = 0;
 
   return 0;
-}
-
-/*! write to an open file for ftp session
- *
- *  @param[in] session ftp session
- *
- *  @returns bytes written
- */
-static ssize_t
-ftp_session_write_file(ftp_session_t *session)
-{
-  ssize_t rc;
-
-  /* write to file at current position */
-  rc = FSFILE_Fwrite(session->fd, session->buffer + session->bufferpos,
-             session->buffersize - session->bufferpos);
-  if(rc < 0)
-  {
-    console_print(RED "write: %d %s\n" RESET, errno, strerror(errno));
-    return -1;
-  }
-  else if(rc == 0)
-    console_print(RED "write: wrote 0 bytes\n" RESET);
-
-  /* adjust file position */
-  session->filepos += rc;
-
-  return rc;
 }
 
 /*! close current working directory for ftp session
@@ -1396,47 +1369,40 @@ retrieve_transfer(ftp_session_t *session)
 static int
 store_transfer(ftp_session_t *session)
 {
-  ssize_t rc;
-
-  if(session->bufferpos == session->buffersize)
-  {
-    rc = recv(session->data_fd, session->buffer, sizeof(session->buffer), 0);
-    if(rc <= 0)
-    {
-      if(rc < 0)
-      {
-        if(errno == EWOULDBLOCK)
-          return -1;
-        console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
-      }
-
+  int ret = 0;
+  char *filebuf = (char *)malloc(FILE_BUFFERSIZE);
+  while(1) {
+    ssize_t rc = recv(session->data_fd, filebuf, FILE_BUFFERSIZE, 0);
+    if(rc < 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+      continue;
+    } else if(rc < 0) {
+      ret = -1;
+      console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
       ftp_session_close_file(session);
       ftp_session_set_state(session, COMMAND_STATE);
-
-      if(rc == 0)
+      ftp_send_response(session, 426, "Connection broken during transfer\r\n");
+      break;
+    } else if(rc == 0) {
+      ret = -1;
+      console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
+      ftp_session_close_file(session);
+      ftp_session_set_state(session, COMMAND_STATE);
+      ftp_send_response(session, 226, "OK\r\n");
+      break;
+    } else {
+      int nwrite = FSFILE_Fwriten(session->fd, filebuf, rc);
+      if(nwrite <= 0)
       {
-        ftp_send_response(session, 226, "OK\r\n");
+        ftp_session_close_file(session);
+        ftp_session_set_state(session, COMMAND_STATE);
+        ftp_send_response(session, 451, "Failed to write file\r\n");
+        ret = -1;
+        break;
       }
-      else
-        ftp_send_response(session, 426, "Connection broken during transfer\r\n");
-      return -1;
     }
-
-    session->bufferpos  = 0;
-    session->buffersize = rc;
   }
-
-  rc = ftp_session_write_file(session);
-  if(rc <= 0)
-  {
-    ftp_session_close_file(session);
-    ftp_session_set_state(session, COMMAND_STATE);
-    ftp_send_response(session, 451, "Failed to write file\r\n");
-    return -1;
-  }
-
-  session->bufferpos += rc;
-  return 0;
+  free(filebuf);
+  return ret;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

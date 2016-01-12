@@ -177,3 +177,20 @@ s64 FSFILE_Fsize(FSFILE *f) {
 }
 
 #endif
+
+#define WRITEN_MAX_RETRY 32
+int FSFILE_Fwriten(FSFILE *f, void *buf, size_t count) {
+    int i;
+    size_t nleft;
+    char *ptr = buf;
+    nleft = count;
+    for (i = 0; i < WRITEN_MAX_RETRY && nleft > 0; ++i) {
+        int nwritten;
+        if((nwritten = FSFILE_Fwrite(f, ptr,nleft)) <= 0)
+            return -1;
+        nleft -= nwritten;
+        ptr += nwritten;
+    }
+    if(i == WRITEN_MAX_RETRY) return -1;
+    return count;
+}

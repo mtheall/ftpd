@@ -29,6 +29,7 @@ void FSFILE_Exit();
 FSFILE* FSFILE_Fopen(const char *path, const char *mode);
 int FSFILE_Fread(FSFILE *f, void *buf, size_t count);
 int FSFILE_Fwrite(FSFILE *f, void *buf, size_t count);
+int FSFILE_Fwriten(FSFILE *f, void *buf, size_t count);
 int FSFILE_Fflush(FSFILE *f);
 int FSFILE_Fclose(FSFILE *f);
 s64 FSFILE_Fsize(FSFILE *f);
