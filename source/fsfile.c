@@ -73,7 +73,7 @@ int FSFILE_Fwrite(FSFILE *f, void *buf, size_t count) {
 
     //flags: FS_WRITE_FLUSH, FS_WRITE_UPDATE_TIME
     //       strange flag 0x10001 in ftpony?
-    int ret = FSFILE_Write(f->fileHandle, (u32*)&writeSize, f->offset, (u32*)buf, count, 0);
+    int ret = FSFILE_Write(f->fileHandle, (u32*)&writeSize, f->offset, (u32*)buf, count, FS_WRITE_UPDATE_TIME);
     if(ret != 0 || writeSize == 0) {
         return -1;
     }
