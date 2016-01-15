@@ -748,7 +748,7 @@ ftp_session_new(int listen_fd)
   session->cmd_fd = new_fd;
 
   /* send initiator response */
-  rc = ftp_send_response(session, 200, "Hello!\r\n");
+  rc = ftp_send_response(session, 220, "Hello!\r\n");
   if(rc <= 0)
     ftp_session_destroy(session);
 }
