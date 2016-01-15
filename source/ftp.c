@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -675,6 +676,8 @@ ftp_session_new(int listen_fd)
   ftp_session_t      *session;
   struct sockaddr_in addr;
   socklen_t          addrlen = sizeof(addr);
+  char               host[NI_MAXHOST+1];
+  char               serv[NI_MAXSERV+1];
 
   /* accept connection */
   new_fd = accept(listen_fd, (struct sockaddr*)&addr, &addrlen);
@@ -684,8 +687,17 @@ ftp_session_new(int listen_fd)
     return;
   }
 
-  console_print(CYAN "accepted connection from %s:%u\n" RESET,
-                inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  memset(host, 0, sizeof(host));
+  memset(serv, 0, sizeof(serv));
+
+  rc = getnameinfo((struct sockaddr*)&addr, addrlen,
+                   host, 15, serv, 2, 0);
+  if(rc != 0)
+    console_print(CYAN "accepted connection from %s:%u\n" RESET,
+                  inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  else
+    console_print(CYAN "accepted connection from %s:%s\n" RESET,
+                  host, serv);
 
   /* allocate a new session */
   session = (ftp_session_t*)malloc(sizeof(ftp_session_t));
