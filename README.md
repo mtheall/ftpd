@@ -34,6 +34,7 @@ Supported Commands
 - LIST
 - MKD
 - MODE (no-op)
+- NLST
 - NOOP
 - PASS (no-op)
 - PASV
@@ -58,6 +59,5 @@ Planned Commands
 ----------------
 
 - ALLO
-- NLST
 - REST
 - STOU
