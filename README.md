@@ -26,6 +26,7 @@ Create a **ftbrony** (double check that it is spelt **exactly** like this) direc
 Supported Commands
 ------------------
 
+- APPE
 - CDUP
 - CWD
 - DELE
@@ -57,7 +58,6 @@ Planned Commands
 ----------------
 
 - ALLO
-- APPE
 - NLST
 - REST
 - STOU
