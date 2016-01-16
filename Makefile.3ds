@@ -44,7 +44,7 @@ ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard
 
 CFLAGS   := -g -Wall -O3 -mword-relocations \
             $(ARCH) \
-            -DSTATUS_STRING="\"ftbrony v1.2\""
+            -DSTATUS_STRING="\"ftbrony v2.0\""
 
 CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS
 
