@@ -32,8 +32,8 @@ SOURCES  := source
 DATA     := data
 INCLUDES := include
 
-APP_TITLE       := ftBRONY
-APP_DESCRIPTION := ftBRONY v1.2
+APP_TITLE       := Super ftBRONY II Turbo
+APP_DESCRIPTION := v2.0
 APP_AUTHOR      := mtheall
 ICON            := ftbrony.png
 
