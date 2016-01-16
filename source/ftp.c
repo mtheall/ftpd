@@ -1429,6 +1429,16 @@ list_transfer(ftp_session_t *session)
     }
     else
     {
+#ifdef _3DS
+      sdmc_dir_t *dir = (sdmc_dir_t*)session->dp->dirData->dirStruct;
+
+      if(dir->entry_data.attributes & FS_ATTRIBUTE_DIRECTORY)
+        st.st_mode = S_IFDIR;
+      else
+        st.st_mode = S_IFREG;
+
+      st.st_size = dir->entry_data.fileSize;
+#else
       rc = lstat(session->buffer, &st);
       if(rc != 0)
       {
@@ -1437,6 +1447,7 @@ list_transfer(ftp_session_t *session)
         ftp_send_response(session, 550, "unavailable\r\n");
         return -1;
       }
+#endif
 
       session->buffersize =
           sprintf(session->buffer,
