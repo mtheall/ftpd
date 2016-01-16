@@ -1065,7 +1065,34 @@ ftp_init(void)
   int rc;
 
 #ifdef _3DS
-  Result  ret;
+  Result ret  = 0;
+  u32    wifi = 0;
+  bool   loop;
+
+  console_print(GREEN "Waiting for wifi...\n" RESET);
+
+  /* wait for wifi to be available */
+  while((loop = aptMainLoop()) && !wifi && (ret == 0 || ret == 0xE0A09D2E))
+  {
+    hidScanInput();
+    if(hidKeysDown() & KEY_B)
+    {
+      loop = false;
+      break;
+    }
+
+    ret = ACU_GetWifiStatus(&wifi);
+    if(ret != 0)
+      wifi = 0;
+  }
+
+  if(ret != 0)
+    console_print(RED "ACU_GetWifiStatus returns 0x%lx\n" RESET, ret);
+
+  if(!loop || ret != 0)
+    return -1;
+
+  console_print(GREEN "Ready!\n" RESET);
 
 #if ENABLE_LOGGING
   /* open log file */

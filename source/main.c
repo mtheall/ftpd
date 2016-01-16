@@ -63,6 +63,7 @@ main(int  argc,
 {
 #ifdef _3DS
   /* initialize needed 3DS services */
+  acInit();
   gfxInitDefault();
   gfxSet3D(false);
   sdmcWriteSafe(false);
@@ -88,6 +89,7 @@ main(int  argc,
 #ifdef _3DS
   /* deinitialize 3DS services */
   gfxExit();
+  acExit();
 #endif
 
   return 0;
