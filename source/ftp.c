@@ -268,7 +268,7 @@ ftp_set_socket_options(int fd)
                   &sock_buffersize, sizeof(sock_buffersize));
   if(rc != 0)
   {
-    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+    console_print(RED "setsockopt: SO_RCVBUF %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
 
@@ -276,7 +276,7 @@ ftp_set_socket_options(int fd)
                   &sock_buffersize, sizeof(sock_buffersize));
   if(rc != 0)
   {
-    console_print(RED "setsockopt: %d %s\n" RESET, errno, strerror(errno));
+    console_print(RED "setsockopt: SO_SNDBUF %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
 
@@ -1094,13 +1094,13 @@ ftp_init(void)
 
   console_print(GREEN "Ready!\n" RESET);
 
-#if ENABLE_LOGGING
+#ifdef ENABLE_LOGGING
   /* open log file */
   FILE *fp = freopen("/ftbrony.log", "wb", stderr);
   if(fp == NULL)
   {
     console_print(RED "freopen: 0x%08X\n" RESET, errno);
-    goto stderr_fail;
+    goto log_fail;
   }
 
   /* truncate log file */
@@ -1226,7 +1226,7 @@ ftruncate_fail:
   if(fclose(stderr) != 0)
     console_print(RED "fclose: 0x%08X\n" RESET, errno);
 
-stderr_fail:
+log_fail:
 #endif
   return -1;
 
@@ -1251,6 +1251,7 @@ ftp_exit(void)
 
 #ifdef _3DS
   /* deinitialize SOC service */
+  console_print(CYAN "Waiting for socExit()...\n" RESET);
   ret = socExit();
   if(ret != 0)
     console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
