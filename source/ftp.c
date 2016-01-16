@@ -1266,7 +1266,7 @@ ftp_exit(void)
 #endif
 }
 
-int
+loop_status_t
 ftp_loop(void)
 {
   int           rc;
@@ -1280,8 +1280,11 @@ ftp_loop(void)
   rc = poll(&pollinfo, 1, 0);
   if(rc < 0)
   {
+    if(errno == ENETDOWN)
+      return LOOP_RESTART;
+
     console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
-    return -1;
+    return LOOP_EXIT;
   }
   else if(rc > 0)
   {
@@ -1302,10 +1305,10 @@ ftp_loop(void)
 #ifdef _3DS
   hidScanInput();
   if(hidKeysDown() & KEY_B)
-    return -1;
+    return LOOP_EXIT;
 #endif
 
-  return 0;
+  return LOOP_CONTINUE;
 }
 
 static void
