@@ -29,8 +29,9 @@ loop(loop_status_t (*callback)(void))
 
   return LOOP_EXIT;
 #else
-  for(;;)
-    callback();
+  while(status == LOOP_CONTINUE)
+    status = callback();
+  return status;
 #endif
 }
 
