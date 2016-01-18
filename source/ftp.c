@@ -295,6 +295,7 @@ ftp_closesocket(int  fd,
   int                rc;
   struct sockaddr_in addr;
   socklen_t          addrlen = sizeof(addr);
+  struct pollfd      pollinfo;
 
   if(connected)
   {
@@ -310,9 +311,17 @@ ftp_closesocket(int  fd,
                     inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
     /* shutdown connection */
-    rc = shutdown(fd, SHUT_RDWR);
+    rc = shutdown(fd, SHUT_WR);
     if(rc != 0)
       console_print(RED "shutdown: %d %s\n" RESET, errno, strerror(errno));
+
+    /* wait for client to close connection */
+    pollinfo.fd      = fd;
+    pollinfo.events  = POLLIN;
+    pollinfo.revents = 0;
+    rc = poll(&pollinfo, 1, 250);
+    if(rc < 0)
+      console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
   }
 
   /* close socket */
