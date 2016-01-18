@@ -38,6 +38,7 @@ Supported Commands
 - PORT
 - PWD
 - QUIT
+- REST
 - RETR
 - RMD
 - RNFR
@@ -56,5 +57,4 @@ Planned Commands
 ----------------
 
 - ALLO
-- REST
 - STOU

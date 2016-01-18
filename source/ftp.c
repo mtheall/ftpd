@@ -394,7 +394,8 @@ ftp_session_close_file(ftp_session_t *session)
       console_print(RED "fclose: %d %s\n" RESET, errno, strerror(errno));
   }
 
-  session->fp = NULL;
+  session->fp      = NULL;
+  session->filepos = 0;
 }
 
 /*! open file for reading for ftp session
@@ -434,9 +435,15 @@ ftp_session_open_file_read(ftp_session_t *session)
   }
   session->filesize = st.st_size;
 
-  /* reset file position */
-  /* TODO: support REST command */
-  session->filepos = 0;
+  if(session->filepos != 0)
+  {
+    rc = fseek(session->fp, session->filepos, SEEK_SET);
+    if(rc != 0)
+    {
+      console_print(RED "fseek '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
+      return -1;
+    }
+  }
 
   return 0;
 }
@@ -484,8 +491,10 @@ ftp_session_open_file_write(ftp_session_t *session,
 
   if(append)
     mode = "ab";
+  else if(session->filepos != 0)
+    mode = "r+b";
 
-  /* open file in write and create mode with truncation */
+  /* open file in write mode */
   session->fp = fopen(session->buffer, mode);
   if(session->fp == NULL)
   {
@@ -501,9 +510,15 @@ ftp_session_open_file_write(ftp_session_t *session,
     console_print(RED "setvbuf: %d %s\n" RESET, errno, strerror(errno));
   }
 
-  /* reset file position */
-  /* TODO: support REST command */
-  session->filepos = 0;
+  if(session->filepos != 0 && !append)
+  {
+    rc = fseek(session->fp, session->filepos, SEEK_SET);
+    if(rc != 0)
+    {
+      console_print(RED "fseek '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
+      return -1;
+    }
+  }
 
   return 0;
 }
@@ -731,7 +746,7 @@ ftp_session_new(int listen_fd)
                   host, serv);
 
   /* allocate a new session */
-  session = (ftp_session_t*)malloc(sizeof(ftp_session_t));
+  session = (ftp_session_t*)calloc(1, sizeof(ftp_session_t));
   if(session == NULL)
   {
     console_print(RED "failed to allocate session\n" RESET);
@@ -740,17 +755,12 @@ ftp_session_new(int listen_fd)
   }
 
   /* initialize session */
-  memset(session->cwd, 0, sizeof(session->cwd));
   strcpy(session->cwd, "/");
   session->peer_addr.sin_addr.s_addr = INADDR_ANY;
   session->cmd_fd   = new_fd;
   session->pasv_fd  = -1;
   session->data_fd  = -1;
-  session->flags    = 0;
   session->state    = COMMAND_STATE;
-  session->next     = NULL;
-  session->prev     = NULL;
-  session->transfer = NULL;
 
   /* link to the sessions list */
   if(sessions == NULL)
@@ -2115,12 +2125,35 @@ FTP_DECLARE(QUIT)
 
 FTP_DECLARE(REST)
 {
-  /* TODO */
+  const char *p;
+  uint64_t   pos = 0;
+
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
   ftp_session_set_state(session, COMMAND_STATE, 0);
 
-  return ftp_send_response(session, 502, "unavailable\r\n");
+  if(args == NULL)
+    return ftp_send_response(session, 504, "invalid argument\r\n");
+
+  for(p = args; *p; ++p)
+  {
+    if(!isdigit((int)*p))
+      return ftp_send_response(session, 504, "invalid argument\r\n");
+
+    if(UINT64_MAX / 10 < pos)
+      return ftp_send_response(session, 504, "invalid argument\r\n");
+
+    pos *= 10;
+
+    if(UINT64_MAX - (*p - '0') < pos)
+      return ftp_send_response(session, 504, "invalid argument\r\n");
+
+    pos += (*p - '0');
+  }
+
+  session->filepos = pos;
+
+  return ftp_send_response(session, 200, "OK\r\n");
 }
 
 FTP_DECLARE(RETR)
