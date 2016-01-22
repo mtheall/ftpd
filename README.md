@@ -1,4 +1,4 @@
-[ftp] - Generic McBrandX edition
+[ftp] - Generic McBrandX Edition
 =======
 
 ftbrony is originally created by mtheall. This fork is soley for aesthetic modifications and CFW/Flashcart builds.
@@ -18,14 +18,14 @@ Clone this repository and cd in the resulting directory.
 
     make
 
-Homebrew:
-Copy the `ftbrony.3dsx` and `ftbrony.smdh` to a folder named `ftbrony`. Copy this folder to the `3ds` folder on your SD card and launch it via homebrew.
+**Homebrew:**
+Copy the `FTP-GMX-2.2.3dsx` and `FTP-GMX-2.2.smdh` to a folder named `FTP-GMX-2.2`. Copy this folder to the `3ds` folder on your SD card and launch it via homebrew.
 
-CFW:
-Copy `ftbrony.cia` to your SD card and install it with a CIA installer.
+**CFW:**
+Copy `FTP-GMX-2.2.cia` to your SD card and install it with a CIA installer.
 
-Flashcarts:
-Copy `ftbrony.3ds` to your SD card.
+**Flashcarts:**
+Copy `FTP-GMX-2.2.3ds` to your SD card.
 
 
 Supported Commands
