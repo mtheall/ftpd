@@ -93,6 +93,8 @@ main(int  argc,
       /* done with ftp */
       ftp_exit();
     }
+    else
+      status = LOOP_EXIT;
   }
 
   console_print("Press B to exit\n");

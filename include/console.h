@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef _3DS
 #define ESC(x) "\x1b[" #x
 #define RESET   ESC(0m)
 #define BLACK   ESC(30m)
@@ -10,6 +11,18 @@
 #define MAGENTA ESC(35;1m)
 #define CYAN    ESC(36;1m)
 #define WHITE   ESC(37;1m)
+#else
+#define ESC(x)
+#define RESET
+#define BLACK
+#define RED
+#define GREEN
+#define YELLOW
+#define BLUE
+#define MAGENTA
+#define CYAN
+#define WHITE
+#endif
 
 void console_init(void);
 

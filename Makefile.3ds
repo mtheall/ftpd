@@ -33,7 +33,7 @@ DATA     := data
 INCLUDES := include
 
 APP_TITLE       := Super ftBRONY II Turbo
-APP_DESCRIPTION := v2.1
+APP_DESCRIPTION := v2.2
 APP_AUTHOR      := mtheall
 ICON            := ftbrony.png
 
@@ -44,7 +44,7 @@ ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard
 
 CFLAGS   := -g -Wall -O3 -mword-relocations \
             $(ARCH) \
-            -DSTATUS_STRING="\"ftbrony v2.1\""
+            -DSTATUS_STRING="\"ftbrony v2.2\""
 
 CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS
 

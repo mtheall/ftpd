@@ -23,11 +23,14 @@ Copy the `ftbrony.3dsx` file to your SD card and launch it.
 Supported Commands
 ------------------
 
+- ABOR
+- ALLO (no-op)
 - APPE
 - CDUP
 - CWD
 - DELE
-- FEAT (no-op)
+- FEAT
+- HELP
 - LIST
 - MKD
 - MODE (no-op)
@@ -42,7 +45,8 @@ Supported Commands
 - RETR
 - RMD
 - RNFR
-- RNTO (rename syscall is broken?)
+- RNTO
+- STAT
 - STOR
 - STRU (no-op)
 - SYST
@@ -56,5 +60,4 @@ Supported Commands
 Planned Commands
 ----------------
 
-- ALLO
 - STOU
