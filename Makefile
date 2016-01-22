@@ -1,5 +1,7 @@
 .PHONY: all clean linux
 
+export VERSION := 2.2
+
 all:
 	@$(MAKE) -f Makefile.3ds
 
