@@ -2883,7 +2883,7 @@ FTP_DECLARE(PWD)
   path = escape_buffer(session->cwd, &len, true);
   if(path != NULL)
   {
-    i = sprintf(buffer, "256 \"");
+    i = sprintf(buffer, "257 \"");
     if(i + len + 3 > sizeof(buffer))
     {
       /* buffer will overflow */
