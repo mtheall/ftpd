@@ -1,7 +1,7 @@
-ftbrony
+ftp -Generic McBrandX edition
 =======
 
-FTP Server for 3DS.
+ftbrony is originally created by mtheall. This fork is soley for aesthetic modifications and CFW/Flashcart builds.
 
 Features
 --------
@@ -18,7 +18,15 @@ Clone this repository and cd in the resulting directory.
 
     make
 
-Copy the `ftbrony.3dsx` file to your SD card and launch it.
+Homebrew:
+Copy the `ftbrony.3dsx` and `ftbrony.smdh` to a folder named `ftbrony`. Copy this folder to the `3ds` folder on your SD card and launch it via homebrew.
+
+CFW:
+Copy `ftbrony.cia` to your SD card and install it with a CIA installer.
+
+Flashcarts:
+Copy `ftbrony.3ds` to your SD card.
+
 
 Supported Commands
 ------------------
@@ -56,8 +64,3 @@ Supported Commands
 - XMKD
 - XPWD
 - XRMD
-
-Planned Commands
-----------------
-
-- STOU
