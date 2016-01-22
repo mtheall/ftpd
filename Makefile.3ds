@@ -26,7 +26,7 @@ include $(DEVKITARM)/3ds_rules
 #     - icon.png
 #     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
-TARGET   := ftbrony
+TARGET   := FTP-GMX-$(VERSION)
 BUILD    := build
 SOURCES  := source
 DATA     := data
@@ -35,7 +35,7 @@ INCLUDES := include
 APP_TITLE       := [ftp] 2.2
 APP_DESCRIPTION := Fork: Super ftBRONY II Turbo v$(VERSION)
 APP_AUTHOR      := mtheall/Vorpal Blade
-ICON            := ftbrony.png
+ICON            := ftp.png
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -44,7 +44,7 @@ ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard
 
 CFLAGS   := -g -Wall -O3 -mword-relocations \
             $(ARCH) \
-            -DSTATUS_STRING="\"ftbrony v$(VERSION)\""
+            -DSTATUS_STRING="\"[ftp] v$(VERSION)\""
 
 CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS
 
