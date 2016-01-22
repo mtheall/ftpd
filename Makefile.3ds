@@ -32,9 +32,9 @@ SOURCES  := source
 DATA     := data
 INCLUDES := include
 
-APP_TITLE       := Super ftBRONY II Turbo
-APP_DESCRIPTION := v$(VERSION)
-APP_AUTHOR      := mtheall
+APP_TITLE       := [ftp] 2.2
+APP_DESCRIPTION := Fork: Super ftBRONY II Turbo v$(VERSION)
+APP_AUTHOR      := mtheall/Vorpal Blade
 ICON            := ftbrony.png
 
 #---------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia $(TARGET).3ds
 
 
 #---------------------------------------------------------------------------------
@@ -153,8 +153,21 @@ all	:	$(OUTPUT).3dsx $(OUTPUT).smdh
 $(OUTPUT).smdh : $(TOPDIR)/Makefile
 $(OUTPUT).3dsx: $(OUTPUT).smdh
 endif
-$(OUTPUT).3dsx: $(OUTPUT).elf
+
+$(OUTPUT).3dsx: $(OUTPUT).elf $(OUTPUT).cia $(OUTPUT).3ds
+
 $(OUTPUT).elf:  $(OFILES)
+
+$(OUTPUT).cia    :     $(OUTPUT).elf
+	@cp $(OUTPUT).elf $(TARGET)_stripped.elf
+	@$(PREFIX)strip $(TARGET)_stripped.elf
+	$(TOPDIR)/extra/makerom -f cia -o $(OUTPUT).cia -DAPP_ENCRYPTED=false -rsf $(TOPDIR)/extra/info.rsf -target t -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/extra/icon.icn -banner $(TOPDIR)/extra/banner.bnr
+
+$(OUTPUT).3ds    :     $(OUTPUT).elf
+	@cp $(OUTPUT).elf $(TARGET)_stripped.elf
+	@$(PREFIX)strip $(TARGET)_stripped.elf
+	$(TOPDIR)/extra/makerom -f cci -o $(OUTPUT).3ds -DAPP_ENCRYPTED=true -rsf $(TOPDIR)/extra/info.rsf -target t -exefslogo -elf $(TARGET)_stripped.elf -icon $(TOPDIR)/extra/icon.icn -banner $(TOPDIR)/extra/banner.bnr
+
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
