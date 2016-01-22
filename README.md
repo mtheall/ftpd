@@ -1,4 +1,4 @@
-ftp -Generic McBrandX edition
+[ftp] - Generic McBrandX edition
 =======
 
 ftbrony is originally created by mtheall. This fork is soley for aesthetic modifications and CFW/Flashcart builds.
