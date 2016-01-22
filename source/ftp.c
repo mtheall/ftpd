@@ -1,3 +1,7 @@
+/* This is FTP server implementation is based on RFC 959
+ * (https://tools.ietf.org/html/rfc959) and suggested implementation details
+ * from https://cr.yp.to/ftp/filesystem.html
+ */
 #include "ftp.h"
 #include <arpa/inet.h>
 #include <ctype.h>
@@ -659,42 +663,36 @@ ftp_session_transfer(ftp_session_t *session)
   } while(rc == 0);
 }
 
-/*! escape a buffer
+/*! encode a path
  *
- *  @param[in]     buffer buffer to escape
- *  @param[in,out] len    buffer length
- *  @param[in]     quotes whether to escape quotes
+ *  @param[in]     path   path to encode
+ *  @param[in,out] len    path length
+ *  @param[in]     quotes whether to encode quotes
  *
- *  @returns escaped buffer
+ *  @returns encoded path
  *
- *  @note The caller must free the returned buffer
+ *  @note The caller must free the returned path
  */
 static char*
-escape_buffer(const char *buffer,
-              size_t     *len,
-              bool       quotes)
+encode_path(const char *path,
+            size_t     *len,
+            bool       quotes)
 {
+  bool   enc = false;
   size_t i, diff = 0;
-  char   *out, *p = (char*)buffer;
+  char   *out, *p = (char*)path;
 
-  /* check for \r that needs to be escaped */
-  do
-  {
-    p = memchr(p, '\r', buffer + *len - p);
-    if(p != NULL)
-    {
-      ++p;
-      ++diff;
-    }
-  } while(p != NULL);
+  /* check for \n that needs to be encoded */
+  if(memchr(p, '\n', *len) != NULL)
+    enc = true;
 
   if(quotes)
   {
-    /* check for " that needs to be escaped */
-    p = (char*)buffer;
+    /* check for " that needs to be encoded */
+    p = (char*)path;
     do
     {
-      p = memchr(p, '"', buffer + *len - p);
+      p = memchr(p, '"', path + *len - p);
       if(p != NULL)
       {
         ++p;
@@ -703,36 +701,69 @@ escape_buffer(const char *buffer,
     } while(p != NULL);
   }
 
-  /* check if an escape was needed */
-  if(diff == 0)
-    return strdup(buffer);
+  /* check if an encode was needed */
+  if(!enc && diff == 0)
+    return strdup(path);
 
-  /* escape \r */
+  /* allocate space for encoded path */
   p = out = (char*)malloc(*len + diff);
   if(out == NULL)
     return NULL;
 
-  /* copy the buffer while performing escapes */
+  /* copy the path while performing encoding */
   for(i = 0; i < *len; ++i)
   {
-    if(*buffer == '\r')
+    if(*path == '\n')
     {
-      /* escaped \r is \r\0 */
-      *p++ = *buffer++;
+      /* encoded \n is \0 */
       *p++ = 0;
     }
-    else if(quotes && *buffer == '"')
+    else if(quotes && *path == '"')
     {
-      /* escaped " is "" */
-      *p++ = *buffer++;
+      /* encoded " is "" */
+      *p++ = '"';
       *p++ = '"';
     }
     else
-      *p++ = *buffer++;
+      *p++ = *path;
+    ++path;
   }
 
   *len += diff;
   return out;
+}
+
+/*! decode a path
+ *
+ *  @param[in] session ftp session
+ */
+static void
+decode_path(ftp_session_t *session)
+{
+  size_t in, out;
+  size_t diff = 0;
+
+  /* decode \0 from the first command */
+  for(in = out = 0; in < session->cmd_buffersize && session->cmd_buffer[in] != 0; ++in)
+  {
+    if(session->cmd_buffer[in] == 0)
+    {
+      /* this is an encoded \r */
+      session->cmd_buffer[out++] = session->cmd_buffer[in++];
+      ++diff;
+    }
+    else
+    {
+      session->cmd_buffer[out++] = session->cmd_buffer[in];
+    }
+  }
+
+  /* copy remaining buffer */
+  if(diff > 0)
+    memmove(session->cmd_buffer + out, session->cmd_buffer + in, session->cmd_buffersize - in);
+
+  /* adjust the buffer size */
+  session->cmd_buffersize -= diff;
 }
 
 /*! send a response on the command socket
@@ -1037,41 +1068,6 @@ ftp_session_connect(ftp_session_t *session)
   return 0;
 }
 
-/*! unescape a command
- *
- *  @param[in] session ftp session
- */
-static void
-ftp_session_unescape_command(ftp_session_t *session)
-{
-  size_t in, out;
-  size_t diff = 0;
-
-  /* escape \r\0 from the first command */
-  for(in = out = 0; in < session->cmd_buffersize && session->cmd_buffer[in] != 0; ++in)
-  {
-    if(session->cmd_buffer[in] == '\r'
-    && in < session->cmd_buffersize - 1
-    && session->cmd_buffer[in+1] == 0)
-    {
-      /* this is an escaped \r */
-      session->cmd_buffer[out++] = session->cmd_buffer[in++];
-      ++diff;
-    }
-    else
-    {
-      session->cmd_buffer[out++] = session->cmd_buffer[in];
-    }
-  }
-
-  /* copy remaining buffer */
-  if(diff > 0)
-    memmove(session->cmd_buffer + out, session->cmd_buffer + in, session->cmd_buffersize - in);
-
-  /* adjust the buffer size */
-  session->cmd_buffersize -= diff;
-}
-
 /*! read command for ftp session
  *
  *  @param[in] session ftp session
@@ -1185,28 +1181,36 @@ ftp_session_read_command(ftp_session_t *session,
     while(true)
     {
       /* must have at least enough data for the delimiter */
-      if(session->cmd_buffersize < 2)
+      if(session->cmd_buffersize < 1)
         return;
 
-      /* look for \r\n delimiter */
-      for(i = 0; i < session->cmd_buffersize-1; ++i)
+      /* look for \r\n or \n delimiter */
+      for(i = 0; i < session->cmd_buffersize; ++i)
       {
-        if(session->cmd_buffer[i]   == '\r'
+        if(i < session->cmd_buffersize-1
+        && session->cmd_buffer[i]   == '\r'
         && session->cmd_buffer[i+1] == '\n')
         {
-          /* we found a delimiter */
+          /* we found a \r\n delimiter */
           session->cmd_buffer[i] = 0;
           next = &session->cmd_buffer[i+2];
+          break;
+        }
+        else if(session->cmd_buffer[i] == '\n')
+        {
+          /* we found a \n delimiter */
+          session->cmd_buffer[i] = 0;
+          next = &session->cmd_buffer[i+1];
           break;
         }
       }
 
       /* check if a delimiter was found */
-      if(i == session->cmd_buffersize-1)
+      if(i == session->cmd_buffersize)
         return;
 
-      /* unescape the command */
-      ftp_session_unescape_command(session);
+      /* decode the command */
+      decode_path(session);
 
       /* split command from arguments */
       args = buffer = session->cmd_buffer;
@@ -1812,9 +1816,9 @@ list_transfer(ftp_session_t *session)
       session->buffersize = 0;
       if(build_path(session, session->lwd, dent->d_name) == 0)
       {
-        /* escape \r as per telnet standard */
+        /* encode \n in path */
         len = strlen(session->buffer);
-        buffer = escape_buffer(session->buffer, &len, false);
+        buffer = encode_path(session->buffer, &len, false);
         if(buffer != NULL)
         {
           /* copy to the session buffer to send */
@@ -1854,9 +1858,9 @@ list_transfer(ftp_session_t *session)
       }
 #endif
 
-      /* escape \r as per telnet standard */
+      /* encode \n in path */
       len = strlen(dent->d_name);
-      buffer = escape_buffer(dent->d_name, &len, false);
+      buffer = encode_path(dent->d_name, &len, false);
       if(buffer != NULL)
       {
         /* copy to the session buffer to send */
@@ -2185,9 +2189,9 @@ ftp_xfer_dir(ftp_session_t   *session,
         /* get the base name */
         base = strrchr(args, '/') + 1;
 
-        /* escape \r as per telnet standard */
+        /* encode \n in path */
         len = strlen(base);
-        buffer = escape_buffer(base, &len, false);
+        buffer = encode_path(base, &len, false);
         if(buffer != NULL)
         {
           /* copy to the session buffer to send */
@@ -2878,9 +2882,9 @@ FTP_DECLARE(PWD)
 
   ftp_session_set_state(session, COMMAND_STATE, 0);
 
-  /* escape the cwd */
+  /* encode the cwd */
   len = strlen(session->cwd);
-  path = escape_buffer(session->cwd, &len, true);
+  path = encode_path(session->cwd, &len, true);
   if(path != NULL)
   {
     i = sprintf(buffer, "257 \"");
