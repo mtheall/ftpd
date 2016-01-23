@@ -6,10 +6,8 @@
 #include <3ds.h>
 #endif
 #include "debug.h"
-#include "gfx.h"
 
 #ifdef _3DS
-#include "banner_bin.h"
 
 static PrintConsole status_console;
 static PrintConsole main_console;
@@ -64,17 +62,8 @@ console_print(const char *fmt, ...)
 }
 
 /*! draw console to screen */
-void
-console_render(void)
-{
-  /* clear all screens */
-  gfxDrawSprite(GFX_BOTTOM, GFX_LEFT, (u8*)banner_bin, 240, 320, 0, 0);
+/*! graphics rendering has moved to main.c*/
 
-  /* flush framebuffer */
-  gfxFlushBuffers();
-  gspWaitForVBlank();
-  gfxSwapBuffers();
-}
 #else
 
 /* this is a lot easier when you have a real console */

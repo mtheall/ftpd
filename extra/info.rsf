@@ -1,6 +1,6 @@
 BasicInfo:
-  Title                   : "[ftp]"
-  ProductCode             : "FTPcia2.2" # You can make this whatever you want, it doesn't have to follow the Nintendo standard
+  Title                   : "FTP-GMX"
+  ProductCode             : "FTP-GMX" # You can make this whatever you want, it doesn't have to follow the Nintendo standard
   Logo                    : Nintendo # Nintendo / Licensed / Distributed / iQue / iQueForSystem
 
 #RomFs:
