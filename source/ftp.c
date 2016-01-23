@@ -902,7 +902,7 @@ ftp_session_new(int listen_fd)
 
   /* reverse dns lookup */
   rc = getnameinfo((struct sockaddr*)&addr, addrlen,
-                   host, 15, serv, 2, 0);
+                   host, sizeof(host), serv, sizeof(serv), 0);
   if(rc != 0)
     console_print(CYAN "accepted connection from %s:%u\n" RESET,
                   inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
