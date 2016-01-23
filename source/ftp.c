@@ -57,6 +57,7 @@ FTP_DECLARE(DELE);
 FTP_DECLARE(FEAT);
 FTP_DECLARE(HELP);
 FTP_DECLARE(LIST);
+FTP_DECLARE(MDTM);
 FTP_DECLARE(MKD);
 FTP_DECLARE(MODE);
 FTP_DECLARE(NLST);
@@ -118,6 +119,7 @@ struct ftp_session_t
   int                cmd_fd;    /*!< socket for command connection */
   int                pasv_fd;   /*!< listen socket for PASV */
   int                data_fd;   /*!< socket for data transfer */
+  time_t             timestamp; /*!< time from last command */
   session_flags_t    flags;     /*!< session flags */
   session_state_t    state;     /*!< session state */
   ftp_session_t      *next;     /*!< link to next session */
@@ -160,6 +162,7 @@ static ftp_command_t ftp_commands[] =
   FTP_COMMAND(FEAT),
   FTP_COMMAND(HELP),
   FTP_COMMAND(LIST),
+  FTP_COMMAND(MDTM),
   FTP_COMMAND(MKD),
   FTP_COMMAND(MODE),
   FTP_COMMAND(NLST),
@@ -1225,6 +1228,9 @@ ftp_session_read_command(ftp_session_t *session,
                         num_ftp_commands, sizeof(ftp_command_t),
                         ftp_command_cmp);
 
+      /* update command timestamp */
+      session->timestamp = time(NULL);
+
       /* execute the command */
       if(command == NULL)
       {
@@ -1773,6 +1779,9 @@ list_transfer(ftp_session_t *session)
 {
   ssize_t       rc;
   size_t        len;
+  uint64_t      mtime;
+  time_t        t_mtime;
+  struct tm     *tm;
   char          *buffer;
   struct stat   st;
   struct dirent *dent;
@@ -1842,6 +1851,14 @@ list_transfer(ftp_session_t *session)
         st.st_mode = S_IFREG;
 
       st.st_size = dir->entry_data.fileSize;
+
+      if((rc = build_path(session, session->lwd, dent->d_name)) != 0)
+        console_print(RED "build_path: %d %s\n" RESET, errno, strerror(errno));
+      else if((rc = sdmc_getmtime(session->buffer, &mtime)) != 0)
+      {
+        console_print(RED "sdmc_getmtime '%s': 0x%x\n" RESET, session->buffer, rc);
+        mtime = 0;
+      }
 #else
       /* lstat the entry */
       if((rc = build_path(session, session->lwd, dent->d_name)) != 0)
@@ -1856,8 +1873,9 @@ list_transfer(ftp_session_t *session)
         ftp_send_response(session, 550, "unavailable\r\n");
         return LOOP_EXIT;
       }
-#endif
 
+      mtime = st.st_mtime;
+#endif
       /* encode \n in path */
       len = strlen(dent->d_name);
       buffer = encode_path(dent->d_name, &len, false);
@@ -1866,10 +1884,29 @@ list_transfer(ftp_session_t *session)
         /* copy to the session buffer to send */
         session->buffersize =
             sprintf(session->buffer,
-                    "%crwxrwxrwx 1 3DS 3DS %llu Jan 1 1970 ",
+                    "%crwxrwxrwx 1 3DS 3DS %llu ",
                     S_ISDIR(st.st_mode) ? 'd' :
                     S_ISLNK(st.st_mode) ? 'l' : '-',
                     (unsigned long long)st.st_size);
+
+        t_mtime = mtime;
+        tm = gmtime(&t_mtime);
+        if(tm != NULL)
+        {
+          const char *fmt = "%b %e %Y ";
+          if(session->timestamp > mtime && session->timestamp - mtime < (60*60*24*365/2))
+            fmt = "%b %e %H:%M ";
+          session->buffersize +=
+              strftime(session->buffer + session->buffersize,
+                       sizeof(session->buffer) - session->buffersize,
+                       fmt, tm);
+        }
+        else
+        {
+          session->buffersize +=
+              sprintf(session->buffer + session->buffersize, "Jan 1 1970 ");
+        }
+
         if(session->buffersize + len + 2 > sizeof(session->buffer))
         {
           /* buffer will overflow */
@@ -2471,8 +2508,12 @@ FTP_DECLARE(FEAT)
 
   ftp_session_set_state(session, COMMAND_STATE, 0);
 
-  /* our only feature is UTF-8 */
-  return ftp_send_response(session, -211, "\r\n UTF8\r\n211 End\r\n");
+  /* list our features */
+  return ftp_send_response(session, -211, "\r\n"
+                                          " MDTM\r\n"
+                                          " UTF8\r\n"
+                                          "\r\n"
+                                          "211 End\r\n");
 }
 
 /*! @fn static int HELP(ftp_session_t *session, const char *args)
@@ -2493,9 +2534,9 @@ FTP_DECLARE(HELP)
   /* list our accepted commands */
   return ftp_send_response(session, -214,
       "The following commands are recognized\r\n"
-      " ABOR ALLO APPE CDUP CWD DELE FEAT HELP LIST MKD MODE NLST NOOP OPTS\r\n"
-      " PASS PASV PORT PWD QUIT REST RETR RMD RNFR RNTO STAT STOR STOU STRU\r\n"
-      " SYST TYPE USER XCUP XCWD XMKD XPWD XRMD\r\n"
+      " ABOR ALLO APPE CDUP CWD DELE FEAT HELP LIST MDTM MKD MODE NLST NOOP\r\n"
+      " OPTS PASS PASV PORT PWD QUIT REST RETR RMD RNFR RNTO STAT STOR STOU\r\n"
+      " STRU SYST TYPE USER XCUP XCWD XMKD XPWD XRMD\r\n"
       "214 End\r\n");
 }
 
@@ -2518,6 +2559,46 @@ FTP_DECLARE(LIST)
   return ftp_xfer_dir(session, args, XFER_DIR_LIST);
 }
 
+/*! @fn static int MDTM(ftp_session_t *session, const char *args)
+ *
+ *  @brief get last modification time
+ *
+ *  @param[in] session ftp session
+ *  @param[in] args    arguments
+ *
+ *  @returns error
+ */
+FTP_DECLARE(MDTM)
+{
+  int       rc;
+  uint64_t  mtime;
+  time_t    t_mtime;
+  struct tm *tm;
+
+  console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
+
+  ftp_session_set_state(session, COMMAND_STATE, 0);
+
+  /* build the path */
+  if(build_path(session, session->cwd, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
+
+  rc = sdmc_getmtime(session->buffer, &mtime);
+  if(rc != 0)
+    return ftp_send_response(session, 550, "Error getting mtime\r\n");
+
+  t_mtime = mtime;
+  tm = gmtime(&t_mtime);
+  if(tm == NULL)
+    return ftp_send_response(session, 550, "Error getting mtime\r\n");
+
+  session->buffersize = strftime(session->buffer, sizeof(session->buffer), "%Y%m%d%H%M%S", tm);
+  if(session->buffersize == 0)
+    return ftp_send_response(session, 550, "Error getting mtime\r\n");
+  session->buffer[session->buffersize] = 0;
+
+  return ftp_send_response(session, 213, "%s\r\n", session->buffer);
+}
 /*! @fn static int MKD(ftp_session_t *session, const char *args)
  *
  *  @brief create a directory
