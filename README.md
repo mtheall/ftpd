@@ -5,7 +5,7 @@ ftbrony is originally created by mtheall. This fork is soley for aesthetic modif
 
 Custom Graphics
 ---------------
-Modify the .png files in the `gfx` to add your own graphics.
+Modify the .png files in the `gfx`folder to add your own graphics.
 
 **app_banner:** 
 this image will appear on the top screen before you run the application (.3ds and .cia)
@@ -16,14 +16,12 @@ this is the static in-app image on the bottom screen
 **app_icon:** 
 this is the icon for the .cia, .3ds, and .3dsx
 
-*the default folder is the original [ftp] theme; feel free to delete it*
-
 Features
 --------
 - Appears to work well with a variety of clients.
 - Also compiles for Linux.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
-- Cutting-edge graphics.
+- *Your own* cutting-edge graphics.
 
 Before building
 ---------------
