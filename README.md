@@ -26,8 +26,14 @@ Features
 Before building
 ---------------
 
-You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
-You must also install sf2dlib (https://gbatemp.net/threads/release-beta-sf2dlib-simple-and-fast-2d-library-using-the-gpu.384796/)
+1) install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment)
+
+2) install the latest ctrulib from smealum's git (https://github.com/smealum/ctrulib/tree/master/libctru)
+*Note: devKitPro updater may not have the necessary files*
+
+3) install sf2dlib (xerpi) (https://gbatemp.net/threads/release-beta-sf2dlib-simple-and-fast-2d-library-using-the-gpu.384796/)
+
+4) install portlibs (xerpi) (https://github.com/xerpi/3ds_portlibs)
 
 How to build
 ------------
@@ -52,6 +58,19 @@ Copy `FTP-GMX-2.2.cia` to your SD card and install it with a CIA installer.
 **Flashcarts:**
 Copy `FTP-GMX-2.2.3ds` to your SD card.
 
+Troubleshooting
+---------------
+
+    error: 'NI_MAXHOST'
+    error: 'NI_MAXSERV'
+    error: 'sdmc_dir_t'
+You do not have an updated ctrulib
+
+    ../arm-none-eabi/bin/ld.exe: cannot find -lsfil
+    ...
+    collect2.exe: error: ld returned 1 exit status
+    
+You do not have portlibs installed
 
 Supported Commands
 ------------------
