@@ -5,12 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _3DS
-#include <3ds.h>
-#endif
-#include "gfx.h"
 
 #ifdef _3DS
+#include <3ds.h>
 
 static PrintConsole status_console;
 static PrintConsole main_console;
