@@ -1,13 +1,13 @@
 #include "console.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <string.h>
 #ifdef _3DS
 #include <3ds.h>
 #endif
-#include "debug.h"
 #include "gfx.h"
 
 #ifdef _3DS
