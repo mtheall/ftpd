@@ -35,6 +35,8 @@ Before building
 
 4) install portlibs (xerpi) (https://github.com/xerpi/3ds_portlibs)
 
+*Express install portlibs: download here (http://filebin.ca/2UjEzj4BslHV/portlibs.zip) and put the* `portlibs` *folder in your* `devKitPro` *folder*
+
 How to build
 ------------
 1) Download the .zip for this repo
