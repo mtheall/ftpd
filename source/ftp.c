@@ -2242,7 +2242,7 @@ ftp_xfer_dir(ftp_session_t   *session,
               return rc;
             }
 
-	    rc = ENOMEM;
+            rc = ENOMEM;
           }
         }
 
