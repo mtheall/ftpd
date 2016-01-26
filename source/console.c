@@ -79,8 +79,8 @@ print_tcp_table(void)
   consoleSelect(&tcp_console);
   console_print("\x1b[0;0H\x1b[K\n");
   optlen = sizeof(tcp_entries);
-  rc = SOCU_GetNetworkOpt(0xFFFE, NETOPT_TCP_TABLE, tcp_entries, &optlen);
-  if(rc != 0 && errno != ENODEV)
+  rc = SOCU_GetNetworkOpt(SOL_CONFIG, NETOPT_TCP_TABLE, tcp_entries, &optlen);
+  if(rc != 0)
     console_print(RED "tcp table: %d %s\x1b[K\n" RESET, errno, strerror(errno));
   else if(rc == 0)
   {
