@@ -2598,10 +2598,14 @@ FTP_DECLARE(LIST)
  */
 FTP_DECLARE(MDTM)
 {
-  int       rc;
-  uint64_t  mtime;
-  time_t    t_mtime;
-  struct tm *tm;
+  int         rc;
+#ifdef _3DS
+  uint64_t    mtime;
+#else
+  struct stat st;
+#endif
+  time_t      t_mtime;
+  struct tm   *tm;
 
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
@@ -2611,11 +2615,18 @@ FTP_DECLARE(MDTM)
   if(build_path(session, session->cwd, args) != 0)
     return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
 
+#ifdef _3DS
   rc = sdmc_getmtime(session->buffer, &mtime);
   if(rc != 0)
     return ftp_send_response(session, 550, "Error getting mtime\r\n");
-
   t_mtime = mtime;
+#else
+  rc = stat(session->buffer, &st);
+  if(rc != 0)
+    return ftp_send_response(session, 550, "Error getting mtime\r\n");
+  t_mtime = st.st_mtime;
+#endif
+
   tm = gmtime(&t_mtime);
   if(tm == NULL)
     return ftp_send_response(session, 550, "Error getting mtime\r\n");
