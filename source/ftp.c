@@ -1587,6 +1587,7 @@ ftp_exit(void)
 
 #ifdef _3DS
   /* deinitialize SOC service */
+  console_render();
   console_print(CYAN "Waiting for socExit()...\n" RESET);
   ret = socExit();
   if(ret != 0)
