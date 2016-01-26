@@ -1432,7 +1432,7 @@ ftp_init(void)
 
 #ifdef ENABLE_LOGGING
   /* open log file */
-  FILE *fp = freopen("/ftbrony.log", "wb", stderr);
+  FILE *fp = freopen("/ftpd.log", "wb", stderr);
   if(fp == NULL)
   {
     console_print(RED "freopen: 0x%08X\n" RESET, errno);

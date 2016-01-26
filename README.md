@@ -1,5 +1,5 @@
-ftbrony
-=======
+ftpd
+====
 
 FTP Server for 3DS.
 
@@ -18,7 +18,7 @@ Clone this repository and cd in the resulting directory.
 
     make
 
-Copy the `ftbrony.3dsx` file to your SD card and launch it.
+Copy the `ftpd.3dsx` file to your SD card and launch it.
 
 Supported Commands
 ------------------

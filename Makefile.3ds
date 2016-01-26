@@ -26,16 +26,16 @@ include $(DEVKITARM)/3ds_rules
 #     - icon.png
 #     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
-TARGET   := ftbrony
+TARGET   := ftpd
 BUILD    := build
 SOURCES  := source
 DATA     := data
 INCLUDES := include
 
-APP_TITLE       := Super ftBRONY II Turbo
+APP_TITLE       := Super ftpd II Turbo
 APP_DESCRIPTION := v$(VERSION)
 APP_AUTHOR      := mtheall
-ICON            := ftbrony.png
+ICON            := ftpd.png
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -44,7 +44,7 @@ ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard
 
 CFLAGS   := -g -Wall -O3 -mword-relocations \
             $(ARCH) \
-            -DSTATUS_STRING="\"ftbrony v$(VERSION)\""
+            -DSTATUS_STRING="\"ftpd v$(VERSION)\""
 
 CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS
 
