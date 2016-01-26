@@ -1885,8 +1885,13 @@ list_transfer(ftp_session_t *session)
         session->buffersize =
             sprintf(session->buffer,
                     "%crwxrwxrwx 1 3DS 3DS %llu ",
-                    S_ISDIR(st.st_mode) ? 'd' :
-                    S_ISLNK(st.st_mode) ? 'l' : '-',
+                    S_ISREG(st.st_mode)  ? '-' :
+                    S_ISDIR(st.st_mode)  ? 'd' :
+                    S_ISLNK(st.st_mode)  ? 'l' :
+                    S_ISCHR(st.st_mode)  ? 'c' :
+                    S_ISBLK(st.st_mode)  ? 'b' :
+                    S_ISFIFO(st.st_mode) ? 'p' :
+                    S_ISSOCK(st.st_mode) ? 's' : '?',
                     (unsigned long long)st.st_size);
 
         t_mtime = mtime;
