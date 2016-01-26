@@ -2177,16 +2177,18 @@ typedef enum
 
 /*! Transfer a directory
  *
- *  @param[in] session ftp session
- *  @param[in] args    ftp arguments
- *  @param[in] mode    transfer mode
+ *  @param[in] session    ftp session
+ *  @param[in] args       ftp arguments
+ *  @param[in] mode       transfer mode
+ *  @param[in] workaround whether to workaround LIST -a
  *
  *  @returns failure
  */
 static int
 ftp_xfer_dir(ftp_session_t   *session,
              const char      *args,
-             xfer_dir_mode_t mode)
+             xfer_dir_mode_t mode,
+             bool            workaround)
 {
   ssize_t     rc;
   size_t      len;
@@ -2212,24 +2214,45 @@ ftp_xfer_dir(ftp_session_t   *session,
       return ftp_send_response(session, 550, "%s\r\n", strerror(errno));
     }
 
-    args = session->buffer;
-
     /* check if this is a directory */
-    session->dp = opendir(args);
+    session->dp = opendir(session->buffer);
     if(session->dp == NULL)
     {
       /* not a directory; check if it is a file */
-      rc = stat(args, &st);
+      rc = stat(session->buffer, &st);
       if(rc != 0)
       {
         /* error getting stat */
+        rc = errno;
+
+        /* work around broken clients that think LIST -a is a thing */
+        if(workaround && mode == XFER_DIR_LIST)
+        {
+          if(args[0] == '-' && args[1] == 'a')
+          {
+            if(args[2] == 0)
+              buffer = strdup(args+2);
+            else
+              buffer = strdup(args+3);
+
+            if(buffer != NULL)
+            {
+              rc = ftp_xfer_dir(session, buffer, mode, false);
+              free(buffer);
+              return rc;
+            }
+
+	    rc = ENOMEM;
+          }
+        }
+
         ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
-        return ftp_send_response(session, 550, "%s\r\n", strerror(errno));
+        return ftp_send_response(session, 550, "%s\r\n", strerror(rc));
       }
       else
       {
         /* get the base name */
-        base = strrchr(args, '/') + 1;
+        base = strrchr(session->buffer, '/') + 1;
 
         /* encode \n in path */
         len = strlen(base);
@@ -2561,7 +2584,7 @@ FTP_DECLARE(LIST)
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
   /* open the path in LIST mode */
-  return ftp_xfer_dir(session, args, XFER_DIR_LIST);
+  return ftp_xfer_dir(session, args, XFER_DIR_LIST, true);
 }
 
 /*! @fn static int MDTM(ftp_session_t *session, const char *args)
@@ -2675,7 +2698,7 @@ FTP_DECLARE(NLST)
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
   /* open the path in NLST mode */
-  return ftp_xfer_dir(session, args, XFER_DIR_NLST);
+  return ftp_xfer_dir(session, args, XFER_DIR_NLST, false);
 }
 
 /*! @fn static int NOOP(ftp_session_t *session, const char *args)
@@ -3244,7 +3267,7 @@ FTP_DECLARE(STAT)
   }
 
   /* argument provided, open the path in STAT mode */
-  return ftp_xfer_dir(session, args, XFER_DIR_STAT);
+  return ftp_xfer_dir(session, args, XFER_DIR_STAT, false);
 }
 
 /*! @fn static int STOR(ftp_session_t *session, const char *args)
