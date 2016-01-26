@@ -29,8 +29,6 @@ console_init(void)
   consoleInit(GFX_BOTTOM, &tcp_console);
 
   consoleSelect(&main_console);
-
-  consoleDebugInit(debugDevice_NULL);
 }
 
 /*! set status bar contents
@@ -46,7 +44,9 @@ console_set_status(const char *fmt, ...)
   consoleSelect(&status_console);
   va_start(ap, fmt);
   vprintf(fmt, ap);
+#ifdef ENABLE_LOGGING
   vfprintf(stderr, fmt, ap);
+#endif
   va_end(ap);
   consoleSelect(&main_console);
 }
@@ -63,7 +63,9 @@ console_print(const char *fmt, ...)
 
   va_start(ap, fmt);
   vprintf(fmt, ap);
+#ifdef ENABLE_LOGGING
   vfprintf(stderr, fmt, ap);
+#endif
   va_end(ap);
 }
 
@@ -80,8 +82,8 @@ print_tcp_table(void)
   console_print("\x1b[0;0H\x1b[K\n");
   optlen = sizeof(tcp_entries);
   rc = SOCU_GetNetworkOpt(SOL_CONFIG, NETOPT_TCP_TABLE, tcp_entries, &optlen);
-  if(rc != 0)
-    console_print(RED "tcp table: %d %s\x1b[K\n" RESET, errno, strerror(errno));
+  if(rc != 0 && errno != ENODEV)
+    console_print(RED "tcp table: %d %s\n\x1b[J\n" RESET, errno, strerror(errno));
   else if(rc == 0)
   {
     for(i = 0; i < optlen / sizeof(SOCU_TCPTableEntry); ++i)
@@ -117,8 +119,8 @@ print_tcp_table(void)
                                ntohs(local->sin_port));
       console_print(" Peer  %s:%u\x1b[K\n", inet_ntoa(remote->sin_addr),
                                 ntohs(remote->sin_port));
-      console_print(RESET "\x1b[J");
     }
+    console_print(RESET "\x1b[J");
   }
   else
     console_print("\x1b[2J");
