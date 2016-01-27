@@ -902,7 +902,7 @@ ftp_session_new(int listen_fd)
 
   /* reverse dns lookup */
   rc = getnameinfo((struct sockaddr*)&addr, addrlen,
-                   host, 15, serv, 2, 0);
+                   host, sizeof(host), serv, sizeof(serv), 0);
   if(rc != 0)
     console_print(CYAN "accepted connection from %s:%u\n" RESET,
                   inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
@@ -1432,7 +1432,7 @@ ftp_init(void)
 
 #ifdef ENABLE_LOGGING
   /* open log file */
-  FILE *fp = freopen("/ftbrony.log", "wb", stderr);
+  FILE *fp = freopen("/ftpd.log", "wb", stderr);
   if(fp == NULL)
   {
     console_print(RED "freopen: 0x%08X\n" RESET, errno);
@@ -1587,6 +1587,7 @@ ftp_exit(void)
 
 #ifdef _3DS
   /* deinitialize SOC service */
+  console_render();
   console_print(CYAN "Waiting for socExit()...\n" RESET);
   ret = socExit();
   if(ret != 0)
@@ -1885,8 +1886,13 @@ list_transfer(ftp_session_t *session)
         session->buffersize =
             sprintf(session->buffer,
                     "%crwxrwxrwx 1 3DS 3DS %llu ",
-                    S_ISDIR(st.st_mode) ? 'd' :
-                    S_ISLNK(st.st_mode) ? 'l' : '-',
+                    S_ISREG(st.st_mode)  ? '-' :
+                    S_ISDIR(st.st_mode)  ? 'd' :
+                    S_ISLNK(st.st_mode)  ? 'l' :
+                    S_ISCHR(st.st_mode)  ? 'c' :
+                    S_ISBLK(st.st_mode)  ? 'b' :
+                    S_ISFIFO(st.st_mode) ? 'p' :
+                    S_ISSOCK(st.st_mode) ? 's' : '?',
                     (unsigned long long)st.st_size);
         
         t_mtime = mtime;
@@ -2172,16 +2178,18 @@ typedef enum
 
 /*! Transfer a directory
  *
- *  @param[in] session ftp session
- *  @param[in] args    ftp arguments
- *  @param[in] mode    transfer mode
+ *  @param[in] session    ftp session
+ *  @param[in] args       ftp arguments
+ *  @param[in] mode       transfer mode
+ *  @param[in] workaround whether to workaround LIST -a
  *
  *  @returns failure
  */
 static int
 ftp_xfer_dir(ftp_session_t   *session,
              const char      *args,
-             xfer_dir_mode_t mode)
+             xfer_dir_mode_t mode,
+             bool            workaround)
 {
   ssize_t     rc;
   size_t      len;
@@ -2207,24 +2215,45 @@ ftp_xfer_dir(ftp_session_t   *session,
       return ftp_send_response(session, 550, "%s\r\n", strerror(errno));
     }
 
-    args = session->buffer;
-
     /* check if this is a directory */
-    session->dp = opendir(args);
+    session->dp = opendir(session->buffer);
     if(session->dp == NULL)
     {
       /* not a directory; check if it is a file */
-      rc = stat(args, &st);
+      rc = stat(session->buffer, &st);
       if(rc != 0)
       {
         /* error getting stat */
+        rc = errno;
+
+        /* work around broken clients that think LIST -a is a thing */
+        if(workaround && mode == XFER_DIR_LIST)
+        {
+          if(args[0] == '-' && args[1] == 'a')
+          {
+            if(args[2] == 0)
+              buffer = strdup(args+2);
+            else
+              buffer = strdup(args+3);
+
+            if(buffer != NULL)
+            {
+              rc = ftp_xfer_dir(session, buffer, mode, false);
+              free(buffer);
+              return rc;
+            }
+
+            rc = ENOMEM;
+          }
+        }
+
         ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
-        return ftp_send_response(session, 550, "%s\r\n", strerror(errno));
+        return ftp_send_response(session, 550, "%s\r\n", strerror(rc));
       }
       else
       {
         /* get the base name */
-        base = strrchr(args, '/') + 1;
+        base = strrchr(session->buffer, '/') + 1;
 
         /* encode \n in path */
         len = strlen(base);
@@ -2556,7 +2585,7 @@ FTP_DECLARE(LIST)
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
   /* open the path in LIST mode */
-  return ftp_xfer_dir(session, args, XFER_DIR_LIST);
+  return ftp_xfer_dir(session, args, XFER_DIR_LIST, true);
 }
 
 /*! @fn static int MDTM(ftp_session_t *session, const char *args)
@@ -2570,10 +2599,14 @@ FTP_DECLARE(LIST)
  */
 FTP_DECLARE(MDTM)
 {
-  int       rc;
-  uint64_t  mtime;
-  time_t    t_mtime;
-  struct tm *tm;
+  int         rc;
+#ifdef _3DS
+  uint64_t    mtime;
+#else
+  struct stat st;
+#endif
+  time_t      t_mtime;
+  struct tm   *tm;
 
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
@@ -2583,11 +2616,18 @@ FTP_DECLARE(MDTM)
   if(build_path(session, session->cwd, args) != 0)
     return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
 
+#ifdef _3DS
   rc = sdmc_getmtime(session->buffer, &mtime);
   if(rc != 0)
     return ftp_send_response(session, 550, "Error getting mtime\r\n");
-
   t_mtime = mtime;
+#else
+  rc = stat(session->buffer, &st);
+  if(rc != 0)
+    return ftp_send_response(session, 550, "Error getting mtime\r\n");
+  t_mtime = st.st_mtime;
+#endif
+
   tm = gmtime(&t_mtime);
   if(tm == NULL)
     return ftp_send_response(session, 550, "Error getting mtime\r\n");
@@ -2670,7 +2710,7 @@ FTP_DECLARE(NLST)
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
   /* open the path in NLST mode */
-  return ftp_xfer_dir(session, args, XFER_DIR_NLST);
+  return ftp_xfer_dir(session, args, XFER_DIR_NLST, false);
 }
 
 /*! @fn static int NOOP(ftp_session_t *session, const char *args)
@@ -3239,7 +3279,7 @@ FTP_DECLARE(STAT)
   }
 
   /* argument provided, open the path in STAT mode */
-  return ftp_xfer_dir(session, args, XFER_DIR_STAT);
+  return ftp_xfer_dir(session, args, XFER_DIR_STAT, false);
 }
 
 /*! @fn static int STOR(ftp_session_t *session, const char *args)

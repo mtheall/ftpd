@@ -1,6 +1,7 @@
 #pragma once
 
 #ifdef _3DS
+#include <3ds.h>
 #define ESC(x) "\x1b[" #x
 #define RESET   ESC(0m)
 #define BLACK   ESC(30m)
