@@ -25,17 +25,20 @@ Features
 
 Before building
 ---------------
+**Update: 1-27-16**
 
 1) install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment)
 
-2) install the latest ctrulib from smealum's git (https://github.com/smealum/ctrulib/tree/master/libctru)
+2) install the latest [ctrulib](https://github.com/smealum/ctrulib/tree/master/libctru)
 *Note: devKitPro updater may not have the necessary files*
 
-3) install sf2dlib (xerpi) (https://gbatemp.net/threads/release-beta-sf2dlib-simple-and-fast-2d-library-using-the-gpu.384796/)
+3) install [sf2dlib](https://github.com/xerpi/sf2dlib)
 
-4) install portlibs (xerpi) (https://github.com/xerpi/3ds_portlibs)
+4) install [sfillib](https://github.com/xerpi/sfillib)
 
-*Express install portlibs: download here (http://filebin.ca/2UjEzj4BslHV/portlibs.zip) and put the* `portlibs` *folder in your* `devKitPro` *folder*
+5) install [portlibs](https://github.com/devkitPro/3ds_portlibs)
+
+**pre-compiled portlibs:** [download here](http://filebin.ca/2UjEzj4BslHV/portlibs.zip) *and put the* `portlibs` *folder in your* `devKitPro` *folder*
 
 How to build
 ------------
