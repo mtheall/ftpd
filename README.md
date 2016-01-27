@@ -38,7 +38,7 @@ Before building
 
 5) install [portlibs](https://github.com/devkitPro/3ds_portlibs)
 
-**pre-compiled portlibs:** [download here](http://filebin.ca/2UjEzj4BslHV/portlibs.zip) *and put the* `portlibs` *folder in your* `devKitPro` *folder*
+**pre-compiled portlibs:** [download here](http://s000.tinyupload.com/index.php?file_id=00483951764104679443) *and put the* `portlibs` *folder in your* `devKitPro` *folder*
 
 How to build
 ------------
