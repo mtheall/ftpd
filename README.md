@@ -1,24 +1,78 @@
-ftpd
-====
+FTP - Graphic ModifierX Edition
+=======
 
-FTP Server for 3DS.
+ftpd is originally created by mtheall. This fork is soley for aesthetic modifications and CFW/Flashcart builds.
+
+Custom Graphics
+---------------
+Modify the .png files in the `gfx`folder to add your own graphics.
+
+**app_banner:** 
+this image will appear on the top screen before you run the application (.3ds and .cia)
+
+**app_bottom:** 
+this is the static in-app image on the bottom screen
+
+**app_icon:** 
+this is the icon for the .cia, .3ds, and .3dsx
 
 Features
 --------
 - Appears to work well with a variety of clients.
 - Also compiles for Linux.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
-- Cutting-edge graphics.
+- *Your own* cutting-edge graphics.
 
-Build and install
-------------------
+Before building
+---------------
 
-You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
-Clone this repository and cd in the resulting directory.
+1) install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment)
+
+2) install the latest ctrulib from smealum's git (https://github.com/smealum/ctrulib/tree/master/libctru)
+*Note: devKitPro updater may not have the necessary files*
+
+3) install sf2dlib (xerpi) (https://gbatemp.net/threads/release-beta-sf2dlib-simple-and-fast-2d-library-using-the-gpu.384796/)
+
+4) install portlibs (xerpi) (https://github.com/xerpi/3ds_portlibs)
+
+*Express install portlibs: download here (http://filebin.ca/2UjEzj4BslHV/portlibs.zip) and put the* `portlibs` *folder in your* `devKitPro` *folder*
+
+How to build
+------------
+1) Download the .zip for this repo
+
+2) extract
+
+3) while holding *left shift* on your keyboard, right click FTP-GMX-master and hit `Open command window here`
+
+4) run the following command
 
     make
+    
+5) You will have new files created in the folder
 
-Copy the `ftpd.3dsx` file to your SD card and launch it.
+**Homebrew:**
+Copy the `FTP-GMX-2.2.3dsx` and `FTP-GMX-2.2.smdh` to a folder named `FTP-GMX-2.2`. Copy this folder to the `3ds` folder on your SD card and launch it via homebrew.
+
+**CFW:**
+Copy `FTP-GMX-2.2.cia` to your SD card and install it with a CIA installer.
+
+**Flashcarts:**
+Copy `FTP-GMX-2.2.3ds` to your SD card.
+
+Troubleshooting
+---------------
+
+    error: 'NI_MAXHOST'
+    error: 'NI_MAXSERV'
+    error: 'sdmc_dir_t'
+You do not have an updated ctrulib
+
+    ../arm-none-eabi/bin/ld.exe: cannot find -lsfil
+    ...
+    collect2.exe: error: ld returned 1 exit status
+    
+You do not have portlibs installed
 
 Supported Commands
 ------------------
@@ -60,7 +114,7 @@ Supported Commands
 - XPWD
 - XRMD
 
-Planned Commands
-----------------
+Planned Commands (ftpd)
+-----------------------
 
 - STOU

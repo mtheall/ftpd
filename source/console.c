@@ -23,7 +23,7 @@ console_init(void)
   consoleInit(GFX_TOP, &main_console);
   consoleSetWindow(&main_console, 0, 1, 50, 29);
 
-  consoleInit(GFX_BOTTOM, &tcp_console);
+  //consoleInit(GFX_BOTTOM, &tcp_console);	glitched image fix
 
   consoleSelect(&main_console);
 }
