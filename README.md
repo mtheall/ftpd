@@ -86,10 +86,12 @@ Supported Commands
 - FEAT
 - HELP
 - LIST
+- MDTM
 - MKD
 - MODE (no-op)
 - NLST
 - NOOP
+- OPTS
 - PASS (no-op)
 - PASV
 - PORT
@@ -107,6 +109,7 @@ Supported Commands
 - TYPE (no-op)
 - USER (no-op)
 - XCUP
+- XCWD
 - XMKD
 - XPWD
 - XRMD
