@@ -1234,7 +1234,11 @@ ftp_session_read_command(ftp_session_t *session,
       /* execute the command */
       if(command == NULL)
       {
-        ftp_send_response(session, 502, "invalid command\r\n");
+        /* remove CRLF from buffer, if exists */
+        char *crlf_loc = strstr(buffer, "\r\n");
+        if (crlf_loc)
+          *crlf_loc = '\0';
+        ftp_send_response(session, 502, "Invalid command \"%s\"\r\n", buffer);
       }
       else if(session->state != COMMAND_STATE)
       {
