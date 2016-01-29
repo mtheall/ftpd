@@ -16,6 +16,7 @@ endif
 # COMMON CONFIGURATION #
 
 NAME := ftpd
+TITLE := Super ftpd II Turbo
 
 BUILD_DIR := build
 OUTPUT_DIR := output
