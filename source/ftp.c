@@ -739,34 +739,21 @@ encode_path(const char *path,
 /*! decode a path
  *
  *  @param[in] session ftp session
+ *  @param[in] len     command length
  */
 static void
-decode_path(ftp_session_t *session)
+decode_path(ftp_session_t *session,
+            size_t        len)
 {
-  size_t in, out;
-  size_t diff = 0;
+  size_t i;
 
   /* decode \0 from the first command */
-  for(in = out = 0; in < session->cmd_buffersize && session->cmd_buffer[in] != 0; ++in)
+  for(i = 0; i < len; ++i)
   {
-    if(session->cmd_buffer[in] == 0)
-    {
-      /* this is an encoded \r */
-      session->cmd_buffer[out++] = session->cmd_buffer[in++];
-      ++diff;
-    }
-    else
-    {
-      session->cmd_buffer[out++] = session->cmd_buffer[in];
-    }
+    /* this is an encoded \n */
+    if(session->cmd_buffer[i] == 0)
+      session->cmd_buffer[i] = '\n';
   }
-
-  /* copy remaining buffer */
-  if(diff > 0)
-    memmove(session->cmd_buffer + out, session->cmd_buffer + in, session->cmd_buffersize - in);
-
-  /* adjust the buffer size */
-  session->cmd_buffersize -= diff;
 }
 
 /*! send a response on the command socket
@@ -1213,7 +1200,7 @@ ftp_session_read_command(ftp_session_t *session,
         return;
 
       /* decode the command */
-      decode_path(session);
+      decode_path(session, i);
 
       /* split command from arguments */
       args = buffer = session->cmd_buffer;
