@@ -1221,11 +1221,32 @@ ftp_session_read_command(ftp_session_t *session,
       /* execute the command */
       if(command == NULL)
       {
-        /* remove CRLF from buffer, if exists */
-        char *crlf_loc = strstr(buffer, "\r\n");
-        if (crlf_loc)
-          *crlf_loc = '\0';
-        ftp_send_response(session, 502, "Invalid command \"%s\"\r\n", buffer);
+        /* send header */
+        ftp_send_response(session, 502, "Invalid command \"");
+
+        /* send command */
+        len = strlen(buffer);
+        buffer = encode_path(buffer, &len, false);
+        if(buffer != NULL)
+          ftp_send_response_buffer(session, buffer, len);
+        else
+          ftp_send_response_buffer(session, key.name, strlen(key.name));
+        free(buffer);
+
+        /* send args (if any) */
+        if(*args != 0)
+        {
+          len = strlen(args);
+          buffer = encode_path(args, &len, false);
+          if(buffer != NULL)
+            ftp_send_response_buffer(session, buffer, len);
+          else
+            ftp_send_response_buffer(session, args, strlen(args));
+          free(buffer);
+        }
+
+        /* send footer */
+        ftp_send_response_buffer(session, "\"\r\n", 3);
       }
       else if(session->state != COMMAND_STATE)
       {
