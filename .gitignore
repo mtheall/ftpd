@@ -1,6 +1,7 @@
 build/
 build.linux/
-ftbrony
+output/
+ftpd
 *.3dsx
 *.smdh
 *.elf

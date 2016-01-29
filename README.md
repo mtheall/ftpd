@@ -64,3 +64,10 @@ Planned Commands
 ----------------
 
 - STOU
+
+Credits
+-------
+
+- Original code by [smealum](https://github.com/smealum/ftpony), heavy modified by [mtheall](https://github.com/mtheall/ftpd).
+- Buildtools by [Steveice10](https://github.com/Steveice10/buildtools).
+- Folder icon made by [Sergio Calcara](https://thenounproject.com/term/folder/1249/), modified by [m45t3r](https://github.com/m45t3r).
