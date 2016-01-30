@@ -8,7 +8,6 @@ Features
 - Appears to work well with a variety of clients.
 - Also compiles for Linux.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
-- Cutting-edge graphics.
 
 Build and install
 ------------------
@@ -16,9 +15,11 @@ Build and install
 You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
 Clone this repository and cd in the resulting directory.
 
-    make
+    $ git submodule update --init
+    $ make
 
-Copy the `ftpd.3dsx` file to your SD card and launch it.
+The result binaries (`ftpd.elf`, `ftpd.3dsx/ftpd.smdh`, `ftpd.3ds` and `ftpd.cia`) can be found in `output` folder, including a ready to distribute `ftpd.zip` file.
+Copy them to your SD card and launch it.
 
 Supported Commands
 ------------------
@@ -68,6 +69,6 @@ Planned Commands
 Credits
 -------
 
-- Original code by [smealum](https://github.com/smealum/ftpony), heavy modified by [mtheall](https://github.com/mtheall/ftpd).
+- Code by [mtheall](https://github.com/mtheall/ftpd).
 - Buildtools by [Steveice10](https://github.com/Steveice10/buildtools).
-- Folder icon made by [Sergio Calcara](https://thenounproject.com/term/folder/1249/), modified by [m45t3r](https://github.com/m45t3r).
+- Folder icon (used in `banner.png`) made by [Sergio Calcara](https://thenounproject.com/term/folder/1249/), modified by [m45t3r](https://github.com/m45t3r).
