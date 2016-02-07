@@ -1,7 +1,7 @@
 BasicInfo:
   Title                   : "ftpd"
   ProductCode             : "ftpd"
-  Logo                    : Nintendo # Nintendo / Licensed / Distributed / iQue / iQueForSystem
+  Logo                    : Homebrew # Nintendo / Licensed / Distributed / iQue / iQueForSystem
 
 RomFs:
   $(APP_ROMFS)
