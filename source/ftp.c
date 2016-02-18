@@ -1897,7 +1897,7 @@ list_transfer(ftp_session_t *session)
         /* copy to the session buffer to send */
         session->buffersize =
             sprintf(session->buffer,
-                    "%crwxrwxrwx 1 3DS 3DS %llu ",
+                    "%crwxrwxrwx 1 3DS 3DS %lld ",
                     S_ISREG(st.st_mode)  ? '-' :
                     S_ISDIR(st.st_mode)  ? 'd' :
                     S_ISLNK(st.st_mode)  ? 'l' :
@@ -1905,7 +1905,7 @@ list_transfer(ftp_session_t *session)
                     S_ISBLK(st.st_mode)  ? 'b' :
                     S_ISFIFO(st.st_mode) ? 'p' :
                     S_ISSOCK(st.st_mode) ? 's' : '?',
-                    (unsigned long long)st.st_size);
+                    (signed long long)st.st_size);
 
         t_mtime = mtime;
         tm = gmtime(&t_mtime);
@@ -2275,8 +2275,8 @@ ftp_xfer_dir(ftp_session_t   *session,
           /* copy to the session buffer to send */
           session->buffersize =
             sprintf(session->buffer,
-                    "-rwxrwxrwx 1 3DS 3DS %llu Jan 1 1970 ",
-                    (unsigned long long)st.st_size);
+                    "-rwxrwxrwx 1 3DS 3DS %lld Jan 1 1970 ",
+                    (signed long long)st.st_size);
           if(session->buffersize + len + 2 > sizeof(session->buffer))
           {
             /* buffer will overflow */
