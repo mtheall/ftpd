@@ -17,6 +17,7 @@ include $(DEVKITARM)/3ds_rules
 # INCLUDES is a list of directories containing header files
 #
 # NO_SMDH: if set to anything, no SMDH file is generated.
+# ROMFS is the directory which contains the RomFS, relative to the Makefile (Optional)
 # APP_TITLE is the name of the app stored in the SMDH file (Optional)
 # APP_DESCRIPTION is the description of the app stored in the SMDH file (Optional)
 # APP_AUTHOR is the author of the app stored in the SMDH file (Optional)
@@ -31,6 +32,7 @@ BUILD    := build
 SOURCES  := source
 DATA     := data
 INCLUDES := include
+ROMFS    :=
 
 APP_TITLE       := Super ftpd II Turbo
 APP_DESCRIPTION := v$(VERSION)
@@ -40,9 +42,10 @@ ICON            := ftpd.png
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard
+ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
 CFLAGS   := -g -Wall -O3 -mword-relocations \
+            -fomit-frame-pointer -ffunction-sections \
             $(ARCH) \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\""
 
@@ -131,7 +134,7 @@ all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds
 
 #---------------------------------------------------------------------------------
 clean:
