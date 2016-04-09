@@ -1860,21 +1860,48 @@ list_transfer(ftp_session_t *session)
     {
 #ifdef _3DS
       /* the sdmc directory entry already has the type and size, so no need to do a slow stat */
-      sdmc_dir_t *dir = (sdmc_dir_t*)session->dp->dirData->dirStruct;
+      u32 magic = *(u32*)session->dp->dirData->dirStruct;
 
-      if(dir->entry_data.attributes & FS_ATTRIBUTE_DIRECTORY)
-        st.st_mode = S_IFDIR;
-      else
-        st.st_mode = S_IFREG;
-
-      st.st_size = dir->entry_data.fileSize;
-
-      if((rc = build_path(session, session->lwd, dent->d_name)) != 0)
-        console_print(RED "build_path: %d %s\n" RESET, errno, strerror(errno));
-      else if((rc = sdmc_getmtime(session->buffer, &mtime)) != 0)
+      if(magic == SDMC_DIRITER_MAGIC)
       {
-        console_print(RED "sdmc_getmtime '%s': 0x%x\n" RESET, session->buffer, rc);
-        mtime = 0;
+        sdmc_dir_t        *dir   = (sdmc_dir_t*)session->dp->dirData->dirStruct;
+        FS_DirectoryEntry *entry = &dir->entry_data[dir->index];
+
+        if(entry->attributes & FS_ATTRIBUTE_DIRECTORY)
+          st.st_mode = S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH;
+        else
+          st.st_mode = S_IFREG | S_IRUSR | S_IRGRP | S_IROTH;
+
+        if(!(entry->attributes & FS_ATTRIBUTE_READ_ONLY))
+          st.st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+
+        st.st_size = entry->fileSize;
+
+        if((rc = build_path(session, session->lwd, dent->d_name)) != 0)
+          console_print(RED "build_path: %d %s\n" RESET, errno, strerror(errno));
+        else if((rc = sdmc_getmtime(session->buffer, &mtime)) != 0)
+        {
+          console_print(RED "sdmc_getmtime '%s': 0x%x\n" RESET, session->buffer, rc);
+          mtime = 0;
+        }
+      }
+      else
+      {
+        /* lstat the entry */
+        if((rc = build_path(session, session->lwd, dent->d_name)) != 0)
+          console_print(RED "build_path: %d %s\n" RESET, errno, strerror(errno));
+        else if((rc = lstat(session->buffer, &st)) != 0)
+          console_print(RED "stat '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
+
+        if(rc != 0)
+        {
+          /* an error occurred */
+          ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
+          ftp_send_response(session, 550, "unavailable\r\n");
+          return LOOP_EXIT;
+        }
+
+        mtime = st.st_mtime;
       }
 #else
       /* lstat the entry */
@@ -1901,7 +1928,7 @@ list_transfer(ftp_session_t *session)
         /* copy to the session buffer to send */
         session->buffersize =
             sprintf(session->buffer,
-                    "%crwxrwxrwx 1 3DS 3DS %lld ",
+                    "%c%c%c%c%c%c%c%c%c%c 1 3DS 3DS %lld ",
                     S_ISREG(st.st_mode)  ? '-' :
                     S_ISDIR(st.st_mode)  ? 'd' :
                     S_ISLNK(st.st_mode)  ? 'l' :
@@ -1909,6 +1936,15 @@ list_transfer(ftp_session_t *session)
                     S_ISBLK(st.st_mode)  ? 'b' :
                     S_ISFIFO(st.st_mode) ? 'p' :
                     S_ISSOCK(st.st_mode) ? 's' : '?',
+                    st.st_mode & S_IRUSR ? 'r' : '-',
+                    st.st_mode & S_IWUSR ? 'w' : '-',
+                    st.st_mode & S_IXUSR ? 'x' : '-',
+                    st.st_mode & S_IRGRP ? 'r' : '-',
+                    st.st_mode & S_IWGRP ? 'w' : '-',
+                    st.st_mode & S_IXGRP ? 'x' : '-',
+                    st.st_mode & S_IROTH ? 'r' : '-',
+                    st.st_mode & S_IWOTH ? 'w' : '-',
+                    st.st_mode & S_IXOTH ? 'x' : '-',
                     (signed long long)st.st_size);
 
         t_mtime = mtime;
