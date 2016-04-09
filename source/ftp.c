@@ -1567,6 +1567,7 @@ ftp_init(void)
 #ifdef _3DS
 soc_fail:
   free(SOCU_buffer);
+  SOCU_buffer = NULL;
 
 memalign_fail:
 #ifdef ENABLE_LOGGING
@@ -1577,7 +1578,6 @@ ftruncate_fail:
 log_fail:
 #endif
   return -1;
-
 #endif
 }
 
@@ -1601,10 +1601,14 @@ ftp_exit(void)
   /* deinitialize SOC service */
   console_render();
   console_print(CYAN "Waiting for socExit()...\n" RESET);
-  ret = socExit();
-  if(ret != 0)
-    console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
-  free(SOCU_buffer);
+
+  if(SOCU_buffer != NULL)
+  {
+    ret = socExit();
+    if(ret != 0)
+      console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
+    free(SOCU_buffer);
+  }
 
 #ifdef ENABLE_LOGGING
   /* close log file */
