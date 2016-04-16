@@ -1,6 +1,5 @@
 build/
 build.linux/
-buildtools/
 output/
 ftpd
 *.3dsx
