@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256"
+   height="128"
+   viewBox="0 0 256 128"
+   id="svg4142"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="banner.svg"
+   inkscape:export-filename="/home/m45t3r/Source/ftpd/meta/banner.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90">
+  <defs
+     id="defs4144" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="3.234375"
+     inkscape:cx="127.5189"
+     inkscape:cy="61.061865"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     units="px"
+     inkscape:window-width="1366"
+     inkscape:window-height="713"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata4147">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Camada 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-924.36212)">
+    <path
+       inkscape:connector-curvature="0"
+       d="m 215.8731,949.42296 -104.6292,0 -18.6257,-17.75461 -0.038,0.0156 c -1.2939,-1.08635 -3.0932,-1.76532 -5.0882,-1.76532 l 0,0 -47.3689,0 c -3.933,0 -7.1231,2.62066 -7.1231,5.85317 l 0,105.1806 0,0 c 0,3.2325 3.1901,5.8532 7.1231,5.8532 l 32.0625,0 32.0644,0 111.6231,0 c 3.9349,0 7.125,-2.6207 7.1269,-5.8532 l 0,0 0,-85.6716 c 0,-3.23251 -3.192,-5.85161 -7.1269,-5.85161 z"
+       id="path4"
+       style="stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none;stroke:#00ff00;stroke-opacity:1" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="78.595703"
+       y="1009.3621"
+       id="text4705"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4707"
+         x="78.595703"
+         y="1009.3621"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Roboto;-inkscape-font-specification:Roboto;fill:#00ff00;fill-opacity:1">FTPD</tspan></text>
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4709"
+       style="fill:black;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;fill-opacity:1;font-family:sans-serif;font-style:normal;font-weight:normal;font-size:40px;line-height:125%;letter-spacing:0px;word-spacing:0px"><flowRegion
+         id="flowRegion4711"><rect
+           id="rect4713"
+           width="153.04347"
+           height="276.71497"
+           x="70.801933"
+           y="-246.41547" /></flowRegion><flowPara
+         id="flowPara4715" /></flowRoot>  </g>
+</svg>
