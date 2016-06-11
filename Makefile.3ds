@@ -38,7 +38,7 @@ APP_TITLE       := Super ftpd II Turbo
 APP_DESCRIPTION := v$(VERSION)
 APP_AUTHOR      := mtheall
 
-ICON		:=	meta/icon.png
+APP_ICON	:=	meta/icon.png
 BNR_IMAGE	:=  meta/banner.png
 BNR_AUDIO	:=	meta/audio.wav
 RSF_FILE	:=	meta/ftpd-cia.rsf
@@ -110,7 +110,7 @@ export INCLUDE  := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS :=  $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-ifeq ($(strip $(ICON)),)
+ifeq ($(strip $(APP_ICON)),)
 	icons := $(wildcard *.png)
 	ifneq (,$(findstring $(TARGET).png,$(icons)))
 		export APP_ICON := $(TOPDIR)/$(TARGET).png
@@ -120,7 +120,7 @@ ifeq ($(strip $(ICON)),)
 		endif
 	endif
 else
-	export APP_ICON := $(TOPDIR)/$(ICON)
+	export APP_ICON := $(TOPDIR)/$(APP_ICON)
 endif
 
 ifeq ($(strip $(NO_SMDH)),)
@@ -176,9 +176,13 @@ endif
 $(OUTPUT).3dsx: $(OUTPUT).elf
 $(OUTPUT).elf:  $(OFILES)
 
-#$(OUTPUT).smdh	:	$(APP_ICON)
-#	@bannertool makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)"  -p "$(APP_AUTHOR)" -i $(APP_ICON) -o $@
-#	@echo "built ... $(notdir $@)"
+$(OUTPUT).smdh	:	$(APP_ICON)
+	@bannertool makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)"  -p "$(APP_AUTHOR)" -i $(APP_ICON) -o $@
+	@echo "built ... $(notdir $@)"
+
+$(TARGET).bnr	:	$(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
+	@bannertool	makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
+	@echo "built ... $@"
 
 $(OUTPUT).cia	:	$(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
 	@makerom	-f cia -target t -exefslogo -o $@ \
@@ -187,9 +191,7 @@ $(OUTPUT).cia	:	$(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
 				-icon $(OUTPUT).smdh
 	@echo "built ... $(notdir $@)"
 
-$(TARGET).bnr	:	$(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
-	@bannertool	makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
-	@echo "built ... $@"
+
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
