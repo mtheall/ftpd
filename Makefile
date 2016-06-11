@@ -2,12 +2,10 @@
 
 export VERSION := 2.2
 
-all: 3dsx
+all: 3ds
 
-3dsx:
+3ds:
 	@$(MAKE) -f Makefile.3ds 3dsx
-
-cia:
 	@$(MAKE) -f Makefile.3ds cia
 	
 linux:
