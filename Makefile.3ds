@@ -38,10 +38,10 @@ APP_TITLE       := Super ftpd II Turbo
 APP_DESCRIPTION := v$(VERSION)
 APP_AUTHOR      := mtheall
 
-ICON		:=	meta/icon.png
-BNR_IMAGE	:=  meta/banner.png
-BNR_AUDIO	:=	meta/audio.wav
-RSF_FILE	:=	meta/ftpd-cia.rsf
+ICON            := meta/icon.png
+BNR_IMAGE       := meta/banner.png
+BNR_AUDIO       := meta/audio.wav
+RSF_FILE        := meta/ftpd-cia.rsf
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -111,37 +111,37 @@ export INCLUDE  := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 export LIBPATHS :=  $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 ifeq ($(strip $(ICON)),)
-	icons := $(wildcard *.png)
-	ifneq (,$(findstring $(TARGET).png,$(icons)))
-		export APP_ICON := $(TOPDIR)/$(TARGET).png
-	else
-		ifneq (,$(findstring icon.png,$(icons)))
-			export APP_ICON := $(TOPDIR)/icon.png
-		endif
-	endif
+  icons := $(wildcard *.png)
+  ifneq (,$(findstring $(TARGET).png,$(icons)))
+    export APP_ICON := $(TOPDIR)/$(TARGET).png
+  else
+    ifneq (,$(findstring icon.png,$(icons)))
+      export APP_ICON := $(TOPDIR)/icon.png
+    endif
+  endif
 else
-	export APP_ICON := $(TOPDIR)/$(ICON)
+  export APP_ICON := $(TOPDIR)/$(ICON)
 endif
 
 ifeq ($(strip $(NO_SMDH)),)
-	export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
+  export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
 endif
 
 ifneq ($(ROMFS),)
-	export _3DSXFLAGS += --romfs=$(CURDIR)/$(ROMFS)
+  export _3DSXFLAGS += --romfs=$(CURDIR)/$(ROMFS)
 endif
 
 .PHONY: $(BUILD) clean all
 
 #---------------------------------------------------------------------------------
 all: $(BUILD)
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds
 
 3dsx: $(BUILD)
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds 3dsx
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds 3dsx
 
 cia: $(BUILD)
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds cia
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds cia
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -149,7 +149,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia output/
+	@$(RM) -r $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia output/
 
 
 #---------------------------------------------------------------------------------
@@ -168,27 +168,23 @@ cia: $(OUTPUT).cia
 
 ifeq ($(strip $(NO_SMDH)),)
 .PHONY: all
-all	:	$(OUTPUT).3dsx $(OUTPUT).smdh
-$(OUTPUT).smdh : $(TOPDIR)/Makefile.3ds
+all:            $(OUTPUT).3dsx $(OUTPUT).smdh
+$(OUTPUT).smdh: $(TOPDIR)/Makefile.3ds
 $(OUTPUT).3dsx: $(OUTPUT).smdh
 endif
 
 $(OUTPUT).3dsx: $(OUTPUT).elf
 $(OUTPUT).elf:  $(OFILES)
 
-#$(OUTPUT).smdh	:	$(APP_ICON)
-#	@bannertool makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)"  -p "$(APP_AUTHOR)" -i $(APP_ICON) -o $@
-#	@echo "built ... $(notdir $@)"
-
-$(OUTPUT).cia	:	$(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
-	@makerom	-f cia -target t -exefslogo -o $@ \
-				-elf $(OUTPUT).elf -rsf $(TOPDIR)/$(RSF_FILE) \
-				-banner $(TARGET).bnr \
-				-icon $(OUTPUT).smdh
+$(OUTPUT).cia:  $(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
+	@makerom -f cia -target t -exefslogo -o $@ \
+	  -elf $(OUTPUT).elf -rsf $(TOPDIR)/$(RSF_FILE) \
+	  -banner $(TARGET).bnr \
+	  -icon $(OUTPUT).smdh
 	@echo "built ... $(notdir $@)"
 
-$(TARGET).bnr	:	$(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
-	@bannertool	makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
+$(TARGET).bnr:  $(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
+	@bannertool makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
 	@echo "built ... $@"
 
 #---------------------------------------------------------------------------------
