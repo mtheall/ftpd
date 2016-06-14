@@ -19,6 +19,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <time.h>
 #include <unistd.h>
 #ifdef _3DS
@@ -1398,6 +1399,85 @@ ftp_session_poll(ftp_session_t *session)
   return ftp_session_destroy(session);
 }
 
+static int
+update_status(void)
+{
+#ifdef _3DS
+#define KiB (1024.0)
+#define MiB (1024.0*KiB)
+#define GiB (1024.0*MiB)
+  char           buffer[16];
+  struct statvfs st;
+  double         bytes_free;
+  int            rc;
+
+  rc = statvfs("sdmc:/", &st);
+  if(rc != 0)
+  {
+    console_print(RED "statvfs: %d %s\n" RESET, errno, strerror(errno));
+    return -1;
+  }
+
+  bytes_free = (double)st.f_bsize * st.f_bfree;
+
+  if     (bytes_free < 1000.0f)
+    snprintf(buffer, sizeof(buffer), "%.0lf bytes", bytes_free);
+  else if(bytes_free < 10000.0f)
+    snprintf(buffer, sizeof(buffer), "%.2lfKiB", bytes_free/KiB);
+  else if(bytes_free < 100000.0f)
+    snprintf(buffer, sizeof(buffer), "%.1lfKiB", bytes_free/KiB);
+  else if(bytes_free < 1000000.0f)
+    snprintf(buffer, sizeof(buffer), "%.0lfKiB", bytes_free/KiB);
+  else if(bytes_free < 10000000.0f)
+    snprintf(buffer, sizeof(buffer), "%.2lfMiB", bytes_free/MiB);
+  else if(bytes_free < 100000000.0f)
+    snprintf(buffer, sizeof(buffer), "%.1lfMiB", bytes_free/MiB);
+  else if(bytes_free < 1000000000.0f)
+    snprintf(buffer, sizeof(buffer), "%.0lfMiB", bytes_free/MiB);
+  else if(bytes_free < 10000000000.0f)
+    snprintf(buffer, sizeof(buffer), "%.2lfGiB", bytes_free/GiB);
+  else if(bytes_free < 100000000000.0f)
+    snprintf(buffer, sizeof(buffer), "%.1lfGiB", bytes_free/GiB);
+  else
+    snprintf(buffer, sizeof(buffer), "%.0lfGiB", bytes_free/GiB);
+
+  console_set_status("\n" GREEN STATUS_STRING " "
+                     CYAN "%s:%u "
+                     YELLOW "SD: " CYAN "%s"
+                     RESET,
+                     inet_ntoa(serv_addr.sin_addr),
+                     ntohs(serv_addr.sin_port),
+                     buffer);
+#else
+  char      hostname[128];
+  socklen_t addrlen = sizeof(serv_addr);
+  int       rc;
+
+  rc = getsockname(listenfd, (struct sockaddr*)&serv_addr, &addrlen);
+  if(rc != 0)
+  {
+    console_print(RED "getsockname: %d %s\n" RESET, errno, strerror(errno));
+    return -1;
+  }
+
+  rc = gethostname(hostname, sizeof(hostname));
+  if(rc != 0)
+  {
+    console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
+    return -1;
+  }
+
+  console_set_status(GREEN STATUS_STRING " "
+                     YELLOW "IP:"   CYAN "%s "
+                     YELLOW "Port:" CYAN "%u"
+                     RESET,
+                     hostname,
+                     ntohs(serv_addr.sin_port));
+#endif
+
+  return 0;
+}
+
 /*! initialize ftp subsystem */
 int
 ftp_init(void)
@@ -1526,41 +1606,12 @@ ftp_init(void)
   }
 
   /* print server address */
-#ifdef _3DS
-  console_set_status("\n" GREEN STATUS_STRING " "
-                     YELLOW "IP:"   CYAN "%s "
-                     YELLOW "Port:" CYAN "%u"
-                     RESET,
-                     inet_ntoa(serv_addr.sin_addr),
-                     ntohs(serv_addr.sin_port));
-#else
+  rc = update_status();
+  if(rc != 0)
   {
-    char      hostname[128];
-    socklen_t addrlen = sizeof(serv_addr);
-    rc = getsockname(listenfd, (struct sockaddr*)&serv_addr, &addrlen);
-    if(rc != 0)
-    {
-      console_print(RED "getsockname: %d %s\n" RESET, errno, strerror(errno));
-      ftp_exit();
-      return -1;
-    }
-
-    rc = gethostname(hostname, sizeof(hostname));
-    if(rc != 0)
-    {
-      console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
-      ftp_exit();
-      return -1;
-    }
-
-    console_set_status(GREEN STATUS_STRING " "
-                       YELLOW "IP:"   CYAN "%s "
-                       YELLOW "Port:" CYAN "%u"
-                       RESET,
-                       hostname,
-                       ntohs(serv_addr.sin_port));
+    ftp_exit();
+    return -1;
   }
-#endif
 
   return 0;
 
