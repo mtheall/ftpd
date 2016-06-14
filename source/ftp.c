@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <malloc.h>
+#include <math.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -1419,27 +1420,26 @@ update_status(void)
   }
 
   bytes_free = (double)st.f_bsize * st.f_bfree;
-
-  if     (bytes_free < 1000.0f)
+  if     (bytes_free < 1000.0)
     snprintf(buffer, sizeof(buffer), "%.0lf bytes", bytes_free);
-  else if(bytes_free < 10000.0f)
-    snprintf(buffer, sizeof(buffer), "%.2lfKiB", bytes_free/KiB);
-  else if(bytes_free < 100000.0f)
-    snprintf(buffer, sizeof(buffer), "%.1lfKiB", bytes_free/KiB);
-  else if(bytes_free < 1000000.0f)
-    snprintf(buffer, sizeof(buffer), "%.0lfKiB", bytes_free/KiB);
-  else if(bytes_free < 10000000.0f)
-    snprintf(buffer, sizeof(buffer), "%.2lfMiB", bytes_free/MiB);
-  else if(bytes_free < 100000000.0f)
-    snprintf(buffer, sizeof(buffer), "%.1lfMiB", bytes_free/MiB);
-  else if(bytes_free < 1000000000.0f)
-    snprintf(buffer, sizeof(buffer), "%.0lfMiB", bytes_free/MiB);
-  else if(bytes_free < 10000000000.0f)
-    snprintf(buffer, sizeof(buffer), "%.2lfGiB", bytes_free/GiB);
-  else if(bytes_free < 100000000000.0f)
-    snprintf(buffer, sizeof(buffer), "%.1lfGiB", bytes_free/GiB);
+  else if(bytes_free < 10.0*KiB)
+    snprintf(buffer, sizeof(buffer), "%.2lfKiB", floor((bytes_free*100.0)/KiB)/100.0);
+  else if(bytes_free < 100.0*KiB)
+    snprintf(buffer, sizeof(buffer), "%.1lfKiB", floor((bytes_free*10.0)/KiB)/10.0);
+  else if(bytes_free < 1000.0*KiB)
+    snprintf(buffer, sizeof(buffer), "%.0lfKiB", floor(bytes_free/KiB));
+  else if(bytes_free < 10.0*MiB)
+    snprintf(buffer, sizeof(buffer), "%.2lfMiB", floor((bytes_free*100.0)/MiB)/100.0);
+  else if(bytes_free < 100.0*MiB)
+    snprintf(buffer, sizeof(buffer), "%.1lfMiB", floor((bytes_free*10.0)/MiB)/10.0);
+  else if(bytes_free < 1000.0*MiB)
+    snprintf(buffer, sizeof(buffer), "%.0lfMiB", floor(bytes_free/MiB));
+  else if(bytes_free < 10.0*GiB)
+    snprintf(buffer, sizeof(buffer), "%.2lfGiB", floor((bytes_free*100.0)/GiB)/100.0);
+  else if(bytes_free < 100.0*GiB)
+    snprintf(buffer, sizeof(buffer), "%.1lfGiB", floor((bytes_free*10.0)/GiB)/10.0);
   else
-    snprintf(buffer, sizeof(buffer), "%.0lfGiB", bytes_free/GiB);
+    snprintf(buffer, sizeof(buffer), "%.0lfGiB", floor(bytes_free/GiB));
 
   console_set_status("\n" GREEN STATUS_STRING " "
                      CYAN "%s:%u "
