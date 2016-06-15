@@ -196,6 +196,10 @@ static ftp_command_t ftp_commands[] =
 /*! number of ftp commands */
 static const size_t num_ftp_commands = sizeof(ftp_commands)/sizeof(ftp_commands[0]);
 
+#ifdef _3DS
+static void update_free_space(void);
+#endif
+
 /*! compare ftp command descriptors
  *
  *  @param[in] p1 left side of comparison (ftp_command_t*)
@@ -583,6 +587,7 @@ ftp_session_write_file(ftp_session_t *session)
   /* adjust file position */
   session->filepos += rc;
 
+  update_free_space();
   return rc;
 }
 
@@ -1400,54 +1405,62 @@ ftp_session_poll(ftp_session_t *session)
   return ftp_session_destroy(session);
 }
 
-static int
-update_status(void)
-{
 #ifdef _3DS
+/* Update free space in status bar */
+static void
+update_free_space(void)
+{
 #define KiB (1024.0)
 #define MiB (1024.0*KiB)
 #define GiB (1024.0*MiB)
   char           buffer[16];
   struct statvfs st;
   double         bytes_free;
-  int            rc;
+  int            rc, len;
 
   rc = statvfs("sdmc:/", &st);
   if(rc != 0)
-  {
     console_print(RED "statvfs: %d %s\n" RESET, errno, strerror(errno));
-    return -1;
-  }
-
-  bytes_free = (double)st.f_bsize * st.f_bfree;
-  if     (bytes_free < 1000.0)
-    snprintf(buffer, sizeof(buffer), "%.0lf bytes", bytes_free);
-  else if(bytes_free < 10.0*KiB)
-    snprintf(buffer, sizeof(buffer), "%.2lfKiB", floor((bytes_free*100.0)/KiB)/100.0);
-  else if(bytes_free < 100.0*KiB)
-    snprintf(buffer, sizeof(buffer), "%.1lfKiB", floor((bytes_free*10.0)/KiB)/10.0);
-  else if(bytes_free < 1000.0*KiB)
-    snprintf(buffer, sizeof(buffer), "%.0lfKiB", floor(bytes_free/KiB));
-  else if(bytes_free < 10.0*MiB)
-    snprintf(buffer, sizeof(buffer), "%.2lfMiB", floor((bytes_free*100.0)/MiB)/100.0);
-  else if(bytes_free < 100.0*MiB)
-    snprintf(buffer, sizeof(buffer), "%.1lfMiB", floor((bytes_free*10.0)/MiB)/10.0);
-  else if(bytes_free < 1000.0*MiB)
-    snprintf(buffer, sizeof(buffer), "%.0lfMiB", floor(bytes_free/MiB));
-  else if(bytes_free < 10.0*GiB)
-    snprintf(buffer, sizeof(buffer), "%.2lfGiB", floor((bytes_free*100.0)/GiB)/100.0);
-  else if(bytes_free < 100.0*GiB)
-    snprintf(buffer, sizeof(buffer), "%.1lfGiB", floor((bytes_free*10.0)/GiB)/10.0);
   else
-    snprintf(buffer, sizeof(buffer), "%.0lfGiB", floor(bytes_free/GiB));
+  {
+    bytes_free = (double)st.f_bsize * st.f_bfree;
 
+    if     (bytes_free < 1000.0)
+      len = snprintf(buffer, sizeof(buffer), "%.0lfB", bytes_free);
+    else if(bytes_free < 10.0*KiB)
+      len = snprintf(buffer, sizeof(buffer), "%.2lfKiB", floor((bytes_free*100.0)/KiB)/100.0);
+    else if(bytes_free < 100.0*KiB)
+      len = snprintf(buffer, sizeof(buffer), "%.1lfKiB", floor((bytes_free*10.0)/KiB)/10.0);
+    else if(bytes_free < 1000.0*KiB)
+      len = snprintf(buffer, sizeof(buffer), "%.0lfKiB", floor(bytes_free/KiB));
+    else if(bytes_free < 10.0*MiB)
+      len = snprintf(buffer, sizeof(buffer), "%.2lfMiB", floor((bytes_free*100.0)/MiB)/100.0);
+    else if(bytes_free < 100.0*MiB)
+      len = snprintf(buffer, sizeof(buffer), "%.1lfMiB", floor((bytes_free*10.0)/MiB)/10.0);
+    else if(bytes_free < 1000.0*MiB)
+      len = snprintf(buffer, sizeof(buffer), "%.0lfMiB", floor(bytes_free/MiB));
+    else if(bytes_free < 10.0*GiB)
+      len = snprintf(buffer, sizeof(buffer), "%.2lfGiB", floor((bytes_free*100.0)/GiB)/100.0);
+    else if(bytes_free < 100.0*GiB)
+      len = snprintf(buffer, sizeof(buffer), "%.1lfGiB", floor((bytes_free*10.0)/GiB)/10.0);
+    else
+      len = snprintf(buffer, sizeof(buffer), "%.0lfGiB", floor(bytes_free/GiB));
+
+    console_set_status("\x1b[0;%dH" GREEN "%s", 50-len, buffer);
+  }
+}
+#endif
+
+/*! Update status bar */
+static int
+update_status(void)
+{
+#ifdef _3DS
   console_set_status("\n" GREEN STATUS_STRING " "
-                     CYAN "%s:%u "
-                     YELLOW "SD: " CYAN "%s"
-                     RESET,
+                     CYAN "%s:%u" RESET,
                      inet_ntoa(serv_addr.sin_addr),
-                     ntohs(serv_addr.sin_port),
-                     buffer);
+                     ntohs(serv_addr.sin_port));
+  update_free_space();
 #else
   char      hostname[128];
   socklen_t addrlen = sizeof(serv_addr);
@@ -2622,6 +2635,7 @@ FTP_DECLARE(DELE)
     return ftp_send_response(session, 550, "failed to delete file\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
@@ -2772,6 +2786,7 @@ FTP_DECLARE(MKD)
     return ftp_send_response(session, 550, "failed to create directory\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
@@ -3247,6 +3262,7 @@ FTP_DECLARE(RMD)
     return ftp_send_response(session, 550, "failed to delete directory\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
@@ -3329,6 +3345,7 @@ FTP_DECLARE(RNTO)
     return ftp_send_response(session, 550, "failed to rename file/directory\r\n");
   }
 
+  update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
 }
 
