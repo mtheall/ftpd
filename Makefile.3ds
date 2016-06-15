@@ -169,7 +169,7 @@ cia: $(OUTPUT).cia
 ifeq ($(strip $(NO_SMDH)),)
 .PHONY: all
 all:            $(OUTPUT).3dsx $(OUTPUT).smdh
-$(OUTPUT).smdh: $(TOPDIR)/Makefile.3ds
+$(OUTPUT).smdh: $(TOPDIR)/Makefile $(TOPDIR)/Makefile.3ds
 $(OUTPUT).3dsx: $(OUTPUT).smdh
 endif
 
