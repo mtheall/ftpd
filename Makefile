@@ -1,6 +1,11 @@
 .PHONY: all 3dsx cia clean linux
 
+export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)
 export VERSION := 2.2
+
+ifneq ($(strip $(GITREV)),)
+export VERSION := $(VERSION)-$(GITREV)
+endif
 
 all: 3dsx
 
