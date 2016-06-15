@@ -5,6 +5,7 @@ FTP Server for 3DS.
 
 Features
 --------
+
 - Appears to work well with a variety of clients.
 - Also compiles for Linux.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
@@ -12,7 +13,9 @@ Features
 
 Latest Builds
 -------------
+
 CIA: https://mtheall.com/~mtheall/ftpd.cia
+
 3DSX: https://mtheall.com/~mtheall/ftpd.3dsx
 
 CIA QR Code
