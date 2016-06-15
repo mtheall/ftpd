@@ -10,9 +10,12 @@ Features
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
 - Cutting-edge graphics.
 
-Latest CIA Build
-----------------
-https://mtheall.com/~mtheall/ftpd.cia
+Latest Builds
+-------------
+CIA: https://mtheall.com/~mtheall/ftpd.cia
+3DSX: https://mtheall.com/~mtheall/ftpd.3dsx
+
+CIA QR Code
 
 ![ftpd.cia](https://github.com/mtheall/ftpd/raw/master/ftpd_qr.png)
 
