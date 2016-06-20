@@ -196,9 +196,7 @@ static ftp_command_t ftp_commands[] =
 /*! number of ftp commands */
 static const size_t num_ftp_commands = sizeof(ftp_commands)/sizeof(ftp_commands[0]);
 
-#ifdef _3DS
 static void update_free_space(void);
-#endif
 
 /*! compare ftp command descriptors
  *
@@ -537,6 +535,8 @@ ftp_session_open_file_write(ftp_session_t *session,
     console_print(RED "fopen '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
   }
+
+  update_free_space();
 
   /* it's okay if this fails */
   errno = 0;
@@ -1405,11 +1405,11 @@ ftp_session_poll(ftp_session_t *session)
   return ftp_session_destroy(session);
 }
 
-#ifdef _3DS
 /* Update free space in status bar */
 static void
 update_free_space(void)
 {
+#ifdef _3DS
 #define KiB (1024.0)
 #define MiB (1024.0*KiB)
 #define GiB (1024.0*MiB)
@@ -1448,8 +1448,8 @@ update_free_space(void)
 
     console_set_status("\x1b[0;%dH" GREEN "%s", 50-len, buffer);
   }
-}
 #endif
+}
 
 /*! Update status bar */
 static int
