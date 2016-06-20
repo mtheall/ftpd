@@ -1251,6 +1251,8 @@ ftp_session_read_command(ftp_session_t *session,
         /* send args (if any) */
         if(*args != 0)
         {
+          ftp_send_response_buffer(session, " ", 1);
+
           len = strlen(args);
           buffer = encode_path(args, &len, false);
           if(buffer != NULL)
