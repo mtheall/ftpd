@@ -60,6 +60,7 @@ Supported Commands
 - RMD
 - RNFR
 - RNTO
+- SIZE
 - STAT
 - STOR
 - STRU (no-op)
