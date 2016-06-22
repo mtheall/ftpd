@@ -75,6 +75,7 @@ FTP_DECLARE(RETR);
 FTP_DECLARE(RMD);
 FTP_DECLARE(RNFR);
 FTP_DECLARE(RNTO);
+FTP_DECLARE(SIZE);
 FTP_DECLARE(STAT);
 FTP_DECLARE(STOR);
 FTP_DECLARE(STOU);
@@ -180,6 +181,7 @@ static ftp_command_t ftp_commands[] =
   FTP_COMMAND(RMD),
   FTP_COMMAND(RNFR),
   FTP_COMMAND(RNTO),
+  FTP_COMMAND(SIZE),
   FTP_COMMAND(STAT),
   FTP_COMMAND(STOR),
   FTP_COMMAND(STOU),
@@ -2651,6 +2653,8 @@ FTP_DECLARE(FEAT)
   /* list our features */
   return ftp_send_response(session, -211, "\r\n"
                                           " MDTM\r\n"
+                                          " PASV\r\n"
+                                          " SIZE\r\n"
                                           " UTF8\r\n"
                                           "\r\n"
                                           "211 End\r\n");
@@ -3341,6 +3345,36 @@ FTP_DECLARE(RNTO)
 
   update_free_space();
   return ftp_send_response(session, 250, "OK\r\n");
+}
+
+/*! @fn static int SIZE(ftp_session_t *session, const char *args)
+ *
+ *  @brief get file size
+ *
+ *  @param[in] session ftp session
+ *  @param[in] args    arguments
+ *
+ *  @returns error
+ */
+FTP_DECLARE(SIZE)
+{
+  int         rc;
+  struct stat st;
+
+  console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
+
+  ftp_session_set_state(session, COMMAND_STATE, 0);
+
+  /* build the path to stat */
+  if(build_path(session, session->cwd, args) != 0)
+    return ftp_send_response(session, 553, "%s\r\n", strerror(errno));
+
+  rc = stat(session->buffer, &st);
+  if(rc != 0 || !S_ISREG(st.st_mode))
+    return ftp_send_response(session, 550, "Could not get file size.\r\n");
+
+  return ftp_send_response(session, 213, "%" PRIu64 "\r\n",
+                           (uint64_t)st.st_size);
 }
 
 /*! @fn static int STAT(ftp_session_t *session, const char *args)
