@@ -223,6 +223,12 @@ ftp_command_cmp(const void *p1,
 #ifdef _3DS
 /*! SOC service buffer */
 static u32 *SOCU_buffer = NULL;
+
+/*! Whether LCD is powered */
+static bool lcd_power = true;
+
+/*! aptHook cookie */
+static aptHookCookie cookie;
 #endif
 
 /*! server listen address */
@@ -1522,6 +1528,44 @@ update_status(void)
   return 0;
 }
 
+#ifdef _3DS
+/*! Handle apt events
+ *
+ *  @param[in] type    Event type
+ *  @param[in] closure Callback closure
+ */
+static void
+apt_hook(APT_HookType type,
+         void         *closure)
+{
+  switch(type)
+  {
+    case APTHOOK_ONSUSPEND:
+    case APTHOOK_ONSLEEP:
+      /* turn on backlight, or you can't see the home menu! */
+      if(R_SUCCEEDED(gspLcdInit()))
+      {
+        GSPLCD_PowerOnBacklight(GSPLCD_SCREEN_BOTH);
+        gspLcdExit();
+      }
+      break;
+
+    case APTHOOK_ONRESTORE:
+    case APTHOOK_ONWAKEUP:
+      /* restore backlight power state */
+      if(R_SUCCEEDED(gspLcdInit()))
+      {
+        (lcd_power ? GSPLCD_PowerOnBacklight : GSPLCD_PowerOffBacklight)(GSPLCD_SCREEN_BOTH);
+        gspLcdExit();
+      }
+      break;
+
+    default:
+      break;
+  }
+}
+#endif
+
 /*! initialize ftp subsystem */
 int
 ftp_init(void)
@@ -1534,6 +1578,9 @@ ftp_init(void)
   Result ret  = 0;
   u32    wifi = 0;
   bool   loop;
+
+  /* register apt hook */
+  aptHook(&cookie, apt_hook, NULL);
 
   console_print(GREEN "Waiting for wifi...\n" RESET);
 
@@ -1763,8 +1810,17 @@ ftp_loop(void)
 #ifdef _3DS
   /* check if the user wants to exit */
   hidScanInput();
-  if(hidKeysDown() & KEY_B)
+  u32 down = hidKeysDown();
+
+  if(down & KEY_B)
     return LOOP_EXIT;
+
+  /* check if the user wants to toggle the LCD power */
+  if(down & KEY_START)
+  {
+    lcd_power = !lcd_power;
+    apt_hook(APTHOOK_ONRESTORE, NULL);
+  }
 #endif
 
   return LOOP_CONTINUE;
