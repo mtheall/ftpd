@@ -43,6 +43,8 @@ BNR_IMAGE       := meta/banner.png
 BNR_AUDIO       := meta/audio.wav
 RSF_FILE        := meta/ftpd-cia.rsf
 
+BANNERTOOL	:= $(TOPDIR)/bannertool.exe
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
@@ -184,7 +186,7 @@ $(OUTPUT).cia:  $(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
 	@echo "built ... $(notdir $@)"
 
 $(TARGET).bnr:  $(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
-	@bannertool makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
+	$(BANNERTOOL) makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
 	@echo "built ... $@"
 
 #---------------------------------------------------------------------------------
