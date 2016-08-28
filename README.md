@@ -25,12 +25,14 @@ CIA QR Code
 Build and install
 ------------------
 
-You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
+You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment). You also need bannertool.exe in the root if you want to compile de cia version.
 Clone this repository and cd in the resulting directory.
 
     make
 
 Copy the `ftpd.3dsx` file to your SD card and launch it.
+
+Run make cia if you want a cia compiled version.
 
 Supported Commands
 ------------------
