@@ -2415,8 +2415,7 @@ ftp_xfer_dir(ftp_session_t   *session,
         /* work around broken clients that think LIST -a is a thing */
         if(workaround && mode == XFER_DIR_LIST)
         {
-          if(args[0] == '-' && args[1] == 'a')
-          {
+          if(args[0] == '-' && (args[1] == 'a' || args[1] == 'l'))          {
             if(args[2] == 0)
               buffer = strdup(args+2);
             else
