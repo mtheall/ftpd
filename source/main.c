@@ -96,20 +96,8 @@ main(int  argc,
   }
 
 #ifdef _3DS
-  u64 id;
-  APT_GetProgramID(&id);
-
-  if(id != 0x000400000BEEF500)
-  {
-    console_print("Press B to exit\n");
-    loop(wait_for_b);
-  }
-  else
-  {
-    console_print("Press the Home Button to exit\n");
-    while(aptMainLoop())
-      console_render();
-  }
+  console_print("Press B to exit\n");
+  loop(wait_for_b);
 
   /* deinitialize 3DS services */
   gfxExit();
