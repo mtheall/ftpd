@@ -365,6 +365,16 @@ ftp_closesocket(int  fd,
       console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
   }
 
+  /* set linger to 0 */
+  struct linger linger;
+  linger.l_onoff  = 1;
+  linger.l_linger = 0;
+  rc = setsockopt(fd, SOL_SOCKET, SO_LINGER,
+                  &linger, sizeof(linger));
+  if(rc != 0)
+    console_print(RED "setsockopt: SO_LINGER %d %s\n" RESET,
+                  errno, strerror(errno));
+
   /* close socket */
   rc = close(fd);
   if(rc != 0)
