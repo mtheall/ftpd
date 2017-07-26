@@ -12,6 +12,9 @@
 static PrintConsole status_console;
 static PrintConsole main_console;
 static PrintConsole tcp_console;
+#if ENABLE_LOGGING
+static bool disable_logging = false;
+#endif
 
 /*! initialize console subsystem */
 void
@@ -61,9 +64,27 @@ console_print(const char *fmt, ...)
   va_start(ap, fmt);
   vprintf(fmt, ap);
 #ifdef ENABLE_LOGGING
-  vfprintf(stderr, fmt, ap);
+  if(!disable_logging)
+    vfprintf(stderr, fmt, ap);
 #endif
   va_end(ap);
+}
+
+/*! print debug message
+ *
+ *  @param[in] fmt format string
+ *  @param[in] ... format arguments
+ */
+void
+debug_print(const char *fmt, ...)
+{
+#ifdef ENABLE_LOGGING
+  va_list ap;
+
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+#endif
 }
 
 /*! print tcp tables */
@@ -74,6 +95,10 @@ print_tcp_table(void)
   socklen_t                 optlen;
   size_t                    i;
   int                       rc, lines = 0;
+
+#ifdef ENABLE_LOGGING
+  disable_logging = true;
+#endif
 
   consoleSelect(&tcp_console);
   console_print("\x1b[0;0H\x1b[K");
@@ -148,6 +173,10 @@ print_tcp_table(void)
     console_print("\x1b[2J");
 
   consoleSelect(&main_console);
+
+#ifdef ENABLE_LOGGING
+  disable_logging = false;
+#endif
 }
 
 /*! draw console to screen */
@@ -188,6 +217,17 @@ console_print(const char *fmt, ...)
   va_start(ap, fmt);
   vprintf(fmt, ap);
   va_end(ap);
+}
+
+void
+debug_print(const char *fmt, ...)
+{
+#ifdef ENABLE_LOGGING
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+#endif
 }
 
 void console_render(void)

@@ -968,7 +968,10 @@ ftp_session_new(int listen_fd)
   /* send initiator response */
   rc = ftp_send_response(session, 220, "Hello!\r\n");
   if(rc <= 0)
+  {
+    debug_print("failed to send initiator response\n");
     ftp_session_destroy(session);
+  }
 }
 
 /*! accept PASV connection for ftp session
@@ -1175,6 +1178,7 @@ ftp_session_read_command(ftp_session_t *session,
   if(rc == 0)
   {
     /* peer closed connection */
+    debug_print("peer closed connection\n");
     ftp_session_close_cmd(session);
     return;
   }
@@ -1386,7 +1390,10 @@ ftp_session_poll(ftp_session_t *session)
 
       /* we need to read a new command */
       if(pollinfo[0].revents & (POLLERR|POLLHUP))
+      {
+        debug_print("cmd revents=0x%x\n", pollinfo[0].revents);
         ftp_session_close_cmd(session);
+      }
       else if(pollinfo[0].revents & (POLLIN | POLLPRI))
         ftp_session_read_command(session, pollinfo[0].revents);
     }
@@ -1449,6 +1456,7 @@ ftp_session_poll(ftp_session_t *session)
     return session->next;
 
   /* disconnected from peer; destroy it and return next session */
+  debug_print("disconnected from peer\n");
   return ftp_session_destroy(session);
 }
 
@@ -1504,6 +1512,9 @@ update_status(void)
 {
 #ifdef _3DS
   console_set_status("\n" GREEN STATUS_STRING " "
+#ifdef ENABLE_LOGGING
+                     "DEBUG "
+#endif
                      CYAN "%s:%u" RESET,
                      inet_ntoa(serv_addr.sin_addr),
                      ntohs(serv_addr.sin_port));
@@ -1528,6 +1539,9 @@ update_status(void)
   }
 
   console_set_status(GREEN STATUS_STRING " "
+#ifdef ENABLE_LOGGING
+                     "DEBUG "
+#endif
                      YELLOW "IP:"   CYAN "%s "
                      YELLOW "Port:" CYAN "%u"
                      RESET,
@@ -1623,23 +1637,6 @@ ftp_init(void)
 
   console_print(GREEN "Ready!\n" RESET);
 
-#ifdef ENABLE_LOGGING
-  /* open log file */
-  FILE *fp = freopen("/ftpd.log", "wb", stderr);
-  if(fp == NULL)
-  {
-    console_print(RED "freopen: 0x%08X\n" RESET, errno);
-    goto log_fail;
-  }
-
-  /* truncate log file */
-  if(ftruncate(fileno(fp), 0) != 0)
-  {
-    console_print(RED "ftruncate: 0x%08X\n" RESET, errno);
-    goto ftruncate_fail;
-  }
-#endif
-
   /* allocate buffer for SOC service */
   SOCU_buffer = (u32*)memalign(SOCU_ALIGN, SOCU_BUFFERSIZE);
   if(SOCU_buffer == NULL)
@@ -1722,13 +1719,6 @@ soc_fail:
   SOCU_buffer = NULL;
 
 memalign_fail:
-#ifdef ENABLE_LOGGING
-ftruncate_fail:
-  if(fclose(stderr) != 0)
-    console_print(RED "fclose: 0x%08X\n" RESET, errno);
-
-log_fail:
-#endif
   return -1;
 #endif
 }
@@ -1740,6 +1730,8 @@ ftp_exit(void)
 #ifdef _3DS
   Result ret;
 #endif
+
+  debug_print("exiting ftp server\n");
 
   /* clean up all sessions */
   while(sessions != NULL)
@@ -1761,14 +1753,6 @@ ftp_exit(void)
       console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
     free(SOCU_buffer);
   }
-
-#ifdef ENABLE_LOGGING
-  /* close log file */
-  if(fclose(stderr) != 0)
-    console_print(RED "fclose: 0x%08X\n" RESET, errno);
-
-#endif
-
 #endif
 }
 

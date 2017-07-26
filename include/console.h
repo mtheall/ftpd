@@ -33,4 +33,7 @@ void console_set_status(const char *fmt, ...);
 __attribute__((format(printf,1,2)))
 void console_print(const char *fmt, ...);
 
+__attribute__((format(printf,1,2)))
+void debug_print(const char *fmt, ...);
+
 void console_render(void);
