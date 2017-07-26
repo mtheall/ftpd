@@ -129,7 +129,6 @@ struct ftp_session_t
 
   loop_status_t (*transfer)(ftp_session_t*);  /*! data transfer callback */
   char     buffer[XFER_BUFFERSIZE];      /*! persistent data between callbacks */
-  char     tmp_buffer[XFER_BUFFERSIZE];  /*! persistent data between callbacks */
   char     file_buffer[FILE_BUFFERSIZE]; /*! stdio file buffer */
   char     cmd_buffer[CMD_BUFFERSIZE];   /*! command buffer */
   size_t   bufferpos;                    /*! persistent buffer position between callbacks */
@@ -3350,7 +3349,8 @@ FTP_DECLARE(RNFR)
  */
 FTP_DECLARE(RNTO)
 {
-  int rc;
+  static char rnfr[XFER_BUFFERSIZE]; // rename-from buffer
+  int  rc;
 
   console_print(CYAN "%s %s\n" RESET, __func__, args ? args : "");
 
@@ -3364,14 +3364,14 @@ FTP_DECLARE(RNTO)
   session->flags &= ~SESSION_RENAME;
 
   /* copy the RNFR path */
-  memcpy(session->tmp_buffer, session->buffer, XFER_BUFFERSIZE);
+  memcpy(rnfr, session->buffer, XFER_BUFFERSIZE);
 
   /* build the path to rename to */
   if(build_path(session, session->cwd, args) != 0)
     return ftp_send_response(session, 554, "%s\r\n", strerror(errno));
 
   /* rename the file */
-  rc = rename(session->tmp_buffer, session->buffer);
+  rc = rename(rnfr, session->buffer);
   if(rc != 0)
   {
     /* rename failure */
