@@ -11,7 +11,6 @@
 #include <inttypes.h>
 #include <malloc.h>
 #include <math.h>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -898,8 +897,6 @@ ftp_session_new(int listen_fd)
   ftp_session_t      *session;
   struct sockaddr_in addr;
   socklen_t          addrlen = sizeof(addr);
-  char               host[NI_MAXHOST+1];
-  char               serv[NI_MAXSERV+1];
 
   /* accept connection */
   new_fd = accept(listen_fd, (struct sockaddr*)&addr, &addrlen);
@@ -909,18 +906,8 @@ ftp_session_new(int listen_fd)
     return;
   }
 
-  memset(host, 0, sizeof(host));
-  memset(serv, 0, sizeof(serv));
-
-  /* reverse dns lookup */
-  rc = getnameinfo((struct sockaddr*)&addr, addrlen,
-                   host, sizeof(host), serv, sizeof(serv), 0);
-  if(rc != 0)
-    console_print(CYAN "accepted connection from %s:%u\n" RESET,
-                  inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-  else
-    console_print(CYAN "accepted connection from %s:%s\n" RESET,
-                  host, serv);
+  console_print(CYAN "accepted connection from %s:%u\n" RESET,
+                inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
   /* allocate a new session */
   session = (ftp_session_t*)calloc(1, sizeof(ftp_session_t));
