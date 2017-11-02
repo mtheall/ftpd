@@ -46,6 +46,8 @@ Supported Commands
 - LIST
 - MDTM
 - MKD
+- MLSD
+- MLST
 - MODE (no-op)
 - NLST
 - NOOP
