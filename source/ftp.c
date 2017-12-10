@@ -759,8 +759,16 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
     if(session->mlst_flags & SESSION_MLST_MODIFY)
     {
       /* mtime fact */
+      struct tm *tm = gmtime(&st->st_mtime);
+      if(tm == NULL)
+        return errno;
+
       session->buffersize +=
-        sprintf(session->buffer + session->buffersize, "Modify=%ld;", st->st_mtime);
+        strftime(session->buffer + session->buffersize,
+                 sizeof(session->buffer) - session->buffersize,
+                 "Modify=%Y%m%d%H%M%S;", tm);
+      if(session->buffersize == 0)
+        return EOVERFLOW;
     }
 
     if(session->mlst_flags & SESSION_MLST_PERM)
@@ -814,8 +822,8 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
     {
       /* unix mode fact */
       mode_t mask = S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX | S_ISGID | S_ISUID;
-      session->buffersize =
-        sprintf(session->buffer, "UNIX.mode=0%lo;",
+      session->buffersize +=
+        sprintf(session->buffer + session->buffersize, "UNIX.mode=0%lo;",
                 (unsigned long)(st->st_mode & mask));
     }
 
@@ -3189,7 +3197,7 @@ FTP_DECLARE(MLST)
     return;
   }
 
-  path = malloc(session->buffersize);
+  path = malloc(session->buffersize + 1);
   if(!path)
   {
     ftp_send_response(session, 550, "%s\r\n", strerror(ENOMEM));
@@ -3197,6 +3205,7 @@ FTP_DECLARE(MLST)
   }
 
   memcpy(path, session->buffer, session->buffersize);
+  path[session->buffersize] = 0;
   ftp_send_response(session, -250, "Status\r\n%s250 End\r\n", path);
   free(path);
 }
