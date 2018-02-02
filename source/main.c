@@ -6,7 +6,7 @@
 #include <unistd.h>
 #ifdef _3DS
 #include <3ds.h>
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
 #include <switch.h>
 #endif
 #include "console.h"
@@ -32,7 +32,7 @@ loop(loop_status_t (*callback)(void))
       return status;
   }
   return LOOP_EXIT;
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
   while(appletMainLoop())
   {
     status = callback();
@@ -66,7 +66,7 @@ wait_for_b(void)
   /* B was not pressed */
   return LOOP_CONTINUE;
 }
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
 /*! wait until the B button is pressed
  *
  *  @returns loop status
@@ -105,8 +105,8 @@ main(int  argc,
   gfxInitDefault();
   gfxSet3D(false);
   sdmcWriteSafe(false);
-#elif defined(_SWITCH)
-  gfxInitResolution(644, 480);
+#elif defined(SWITCH)
+  //gfxInitResolution(644, 480);
   gfxInitDefault();
 #endif
 
@@ -155,7 +155,7 @@ main(int  argc,
       status = LOOP_EXIT;
   }
 
-#if defined(_3DS) || defined(_SWITCH)
+#if defined(_3DS) || defined(SWITCH)
   console_print("Press B to exit\n");
 #endif
 
@@ -171,7 +171,7 @@ log_fail:
   /* deinitialize 3DS services */
   gfxExit();
   acExit();
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
   loop(wait_for_b);
 
   /* deinitialize Switch services */

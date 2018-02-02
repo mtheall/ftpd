@@ -26,7 +26,7 @@
 #ifdef _3DS
 #include <3ds.h>
 #define lstat stat
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
 #include <switch.h>
 #define lstat stat
 #else
@@ -255,7 +255,7 @@ static bool lcd_power = true;
 
 /*! aptHook cookie */
 static aptHookCookie cookie;
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
 
 /*! appletHook cookie */
 static AppletHookCookie cookie;
@@ -737,7 +737,7 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
           type = "file";
         else if(S_ISDIR(st->st_mode))
           type = "dir";
-#if !defined(_3DS) && !defined(_SWITCH)
+#if !defined(_3DS) && !defined(SWITCH)
         else if(S_ISLNK(st->st_mode))
           type = "os.unix=symlink";
         else if(S_ISCHR(st->st_mode))
@@ -849,7 +849,7 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
               "%c%c%c%c%c%c%c%c%c%c %lu 3DS 3DS %lld ",
               S_ISREG(st->st_mode)  ? '-' :
               S_ISDIR(st->st_mode)  ? 'd' :
-#if !defined(_3DS) && !defined(_SWITCH)
+#if !defined(_3DS) && !defined(SWITCH)
               S_ISLNK(st->st_mode)  ? 'l' :
               S_ISCHR(st->st_mode)  ? 'c' :
               S_ISBLK(st->st_mode)  ? 'b' :
@@ -1745,7 +1745,7 @@ ftp_session_poll(ftp_session_t *session)
 static void
 update_free_space(void)
 {
-#if defined(_3DS) || defined(_SWITCH)
+#if defined(_3DS) || defined(SWITCH)
 #define KiB (1024.0)
 #define MiB (1024.0*KiB)
 #define GiB (1024.0*MiB)
@@ -1791,7 +1791,7 @@ update_free_space(void)
 static int
 update_status(void)
 {
-#if defined(_3DS) || defined(_SWITCH)
+#if defined(_3DS) || defined(SWITCH)
   console_set_status("\n" GREEN STATUS_STRING " "
 #ifdef ENABLE_LOGGING
                      "DEBUG "
@@ -1870,7 +1870,7 @@ apt_hook(APT_HookType type,
       break;
   }
 }
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
 /*! Handle applet events
  *
  *  @param[in] type    Event type
@@ -1951,7 +1951,7 @@ ftp_init(void)
     console_print(RED "socInit: %08X\n" RESET, (unsigned int)ret);
     goto soc_fail;
   }
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
   /* we have a lot of memory available so let's use c.a. 360MB */
   static const SocketInitConfig socketInitConfig = {
     .bsdsockets_version = 1,
@@ -2077,7 +2077,7 @@ ftp_exit(void)
       console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
     free(SOCU_buffer);
   }
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
   /* deinitialize socket driver */
   console_render();
   console_print(CYAN "Waiting for socketExit()...\n" RESET);
@@ -2146,7 +2146,7 @@ ftp_loop(void)
     lcd_power = !lcd_power;
     apt_hook(APTHOOK_ONRESTORE, NULL);
   }
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
   /* check if the user wants to exit */
   hidScanInput();
   u32 down = hidKeysDown(CONTROLLER_P1_AUTO);
@@ -3465,7 +3465,7 @@ FTP_DECLARE(PASV)
   /* grab a new port */
   session->pasv_addr.sin_port = htons(next_data_port());
 
-#if defined(_3DS) || defined(_SWITCH)
+#if defined(_3DS) || defined(SWITCH)
   console_print(YELLOW "binding to %s:%u\n" RESET,
                 inet_ntoa(session->pasv_addr.sin_addr),
                 ntohs(session->pasv_addr.sin_port));
