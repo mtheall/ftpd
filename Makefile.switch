@@ -45,7 +45,7 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffast-math \
 			$(ARCH) $(DEFINES)
 
-CFLAGS	+=	$(INCLUDE) -DSWITCH -D_SWITCH -DSTATUS_STRING="\"ftpd v$(VERSION)\""
+CFLAGS	+=	$(INCLUDE) -DSWITCH  -DSTATUS_STRING="\"ftpd v$(VERSION)\""
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 

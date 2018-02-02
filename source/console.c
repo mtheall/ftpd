@@ -192,7 +192,7 @@ console_render(void)
   gfxSwapBuffers();
 }
 
-#elif defined(_SWITCH)
+#elif defined(SWITCH)
 #include <switch.h>
 
 static PrintConsole status_console;
