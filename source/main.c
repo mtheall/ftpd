@@ -1,3 +1,4 @@
+
 #include <errno.h>
 #include <malloc.h>
 #include <stdarg.h>
@@ -5,6 +6,8 @@
 #include <unistd.h>
 #ifdef _3DS
 #include <3ds.h>
+#elif defined(_SWITCH)
+#include <switch.h>
 #endif
 #include "console.h"
 #include "ftp.h"
@@ -28,7 +31,15 @@ loop(loop_status_t (*callback)(void))
     if(status != LOOP_CONTINUE)
       return status;
   }
-
+  return LOOP_EXIT;
+#elif defined(_SWITCH)
+  while(appletMainLoop())
+  {
+    status = callback();
+    console_render();
+    if(status != LOOP_CONTINUE)
+      return status;
+  }
   return LOOP_EXIT;
 #else
   while(status == LOOP_CONTINUE)
@@ -55,6 +66,24 @@ wait_for_b(void)
   /* B was not pressed */
   return LOOP_CONTINUE;
 }
+#elif defined(_SWITCH)
+/*! wait until the B button is pressed
+ *
+ *  @returns loop status
+ */
+static loop_status_t
+wait_for_b(void)
+{
+  /* update button state */
+  hidScanInput();
+
+  /* check if B was pressed */
+  if(hidKeysDown(CONTROLLER_P1_AUTO) & KEY_B)
+    return LOOP_EXIT;
+
+  /* B was not pressed */
+  return LOOP_CONTINUE;
+}
 #endif
 
 /*! entry point
@@ -76,6 +105,9 @@ main(int  argc,
   gfxInitDefault();
   gfxSet3D(false);
   sdmcWriteSafe(false);
+#elif defined(_SWITCH)
+  gfxInitResolution(644, 480);
+  gfxInitDefault();
 #endif
 
   /* initialize console subsystem */
@@ -123,7 +155,7 @@ main(int  argc,
       status = LOOP_EXIT;
   }
 
-#ifdef _3DS
+#if defined(_3DS) || defined(_SWITCH)
   console_print("Press B to exit\n");
 #endif
 
@@ -139,7 +171,11 @@ log_fail:
   /* deinitialize 3DS services */
   gfxExit();
   acExit();
-#endif
+#elif defined(_SWITCH)
+  loop(wait_for_b);
 
+  /* deinitialize Switch services */
+  gfxExit();
+#endif
   return 0;
 }

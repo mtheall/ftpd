@@ -6,3 +6,7 @@ ftpd
 *.cia
 *.smdh
 *.elf
+*.nso
+*.pfs0
+*.nacp
+*.nro

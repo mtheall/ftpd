@@ -26,6 +26,9 @@
 #ifdef _3DS
 #include <3ds.h>
 #define lstat stat
+#elif defined(_SWITCH)
+#include <switch.h>
+#define lstat stat
 #else
 #include <stdbool.h>
 #define BIT(x) (1<<(x))
@@ -252,6 +255,10 @@ static bool lcd_power = true;
 
 /*! aptHook cookie */
 static aptHookCookie cookie;
+#elif defined(_SWITCH)
+
+/*! appletHook cookie */
+static AppletHookCookie cookie;
 #endif
 
 /*! server listen address */
@@ -730,7 +737,7 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
           type = "file";
         else if(S_ISDIR(st->st_mode))
           type = "dir";
-#ifndef _3DS
+#if !defined(_3DS) && !defined(_SWITCH)
         else if(S_ISLNK(st->st_mode))
           type = "os.unix=symlink";
         else if(S_ISCHR(st->st_mode))
@@ -842,7 +849,7 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
               "%c%c%c%c%c%c%c%c%c%c %lu 3DS 3DS %lld ",
               S_ISREG(st->st_mode)  ? '-' :
               S_ISDIR(st->st_mode)  ? 'd' :
-#ifndef _3DS
+#if !defined(_3DS) && !defined(_SWITCH)
               S_ISLNK(st->st_mode)  ? 'l' :
               S_ISCHR(st->st_mode)  ? 'c' :
               S_ISBLK(st->st_mode)  ? 'b' :
@@ -1738,7 +1745,7 @@ ftp_session_poll(ftp_session_t *session)
 static void
 update_free_space(void)
 {
-#ifdef _3DS
+#if defined(_3DS) || defined(_SWITCH)
 #define KiB (1024.0)
 #define MiB (1024.0*KiB)
 #define GiB (1024.0*MiB)
@@ -1784,7 +1791,7 @@ update_free_space(void)
 static int
 update_status(void)
 {
-#ifdef _3DS
+#if defined(_3DS) || defined(_SWITCH)
   console_set_status("\n" GREEN STATUS_STRING " "
 #ifdef ENABLE_LOGGING
                      "DEBUG "
@@ -1805,12 +1812,13 @@ update_status(void)
     return -1;
   }
 
-  rc = gethostname(hostname, sizeof(hostname));
+  strcpy(hostname, "banana");
+  /*rc = gethostname(hostname, sizeof(hostname));
   if(rc != 0)
   {
     console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
     return -1;
-  }
+  }*/
 
   console_set_status(GREEN STATUS_STRING " "
 #ifdef ENABLE_LOGGING
@@ -1858,6 +1866,23 @@ apt_hook(APT_HookType type,
       }
       break;
 
+    default:
+      break;
+  }
+}
+#elif defined(_SWITCH)
+/*! Handle applet events
+ *
+ *  @param[in] type    Event type
+ *  @param[in] closure Callback closure
+ */
+static void
+applet_hook(AppletHookType type,
+         void         *closure)
+{
+  /* stubbed for now */
+  switch(type)
+  {
     default:
       break;
   }
@@ -1923,9 +1948,34 @@ ftp_init(void)
   ret = socInit(SOCU_buffer, SOCU_BUFFERSIZE);
   if(ret != 0)
   {
-    console_print(RED "socInit: 0x%08X\n" RESET, (unsigned int)ret);
+    console_print(RED "socInit: %08X\n" RESET, (unsigned int)ret);
     goto soc_fail;
   }
+#elif defined(_SWITCH)
+  /* we have a lot of memory available so let's use c.a. 360MB */
+  static const SocketInitConfig socketInitConfig = {
+    .bsdsockets_version = 1,
+
+    .tcp_tx_buf_size        = 20 << 20,
+    .tcp_rx_buf_size        = 20 << 20,
+    .tcp_tx_buf_max_size    = 20 << 20,
+    .tcp_rx_buf_max_size    = 20 << 20,
+
+    /* we aren't using UDP at all, let's just use the default sizes */
+    .udp_tx_buf_size = 0x2400,
+    .udp_rx_buf_size = 0xA500,
+
+    .sb_efficiency = 8,
+  };
+  Result ret = socketInitialize(&socketInitConfig);
+  if(ret != 0)
+  {
+    console_print(RED "socketInitialize: %X\n" RESET, (unsigned int)ret);
+    return -1;
+  }
+
+  /* register applet hook */
+  appletHook(&cookie, applet_hook, NULL);
 #endif
 
   /* allocate socket to listen for clients */
@@ -2001,7 +2051,7 @@ memalign_fail:
 void
 ftp_exit(void)
 {
-#ifdef _3DS
+#if defined(_3DS)
   Result ret;
 #endif
 
@@ -2027,6 +2077,13 @@ ftp_exit(void)
       console_print(RED "socExit: 0x%08X\n" RESET, (unsigned int)ret);
     free(SOCU_buffer);
   }
+#elif defined(_SWITCH)
+  /* deinitialize socket driver */
+  console_render();
+  console_print(CYAN "Waiting for socketExit()...\n" RESET);
+
+  socketExit();
+
 #endif
 }
 
@@ -2089,6 +2146,13 @@ ftp_loop(void)
     lcd_power = !lcd_power;
     apt_hook(APTHOOK_ONRESTORE, NULL);
   }
+#elif defined(_SWITCH)
+  /* check if the user wants to exit */
+  hidScanInput();
+  u32 down = hidKeysDown(CONTROLLER_P1_AUTO);
+
+  if(down & KEY_B)
+    return LOOP_EXIT;
 #endif
 
   return LOOP_CONTINUE;
@@ -3401,7 +3465,7 @@ FTP_DECLARE(PASV)
   /* grab a new port */
   session->pasv_addr.sin_port = htons(next_data_port());
 
-#ifdef _3DS
+#if defined(_3DS) || defined(_SWITCH)
   console_print(YELLOW "binding to %s:%u\n" RESET,
                 inet_ntoa(session->pasv_addr.sin_addr),
                 ntohs(session->pasv_addr.sin_port));
