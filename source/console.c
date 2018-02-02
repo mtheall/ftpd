@@ -191,6 +191,97 @@ console_render(void)
   gspWaitForVBlank();
   gfxSwapBuffers();
 }
+
+#elif defined(_SWITCH)
+#include <switch.h>
+
+static PrintConsole status_console;
+static PrintConsole main_console;
+#if ENABLE_LOGGING
+static bool disable_logging = false;
+#endif
+
+/*! initialize console subsystem */
+void
+console_init(void)
+{
+  consoleInit(&status_console);
+  consoleSetWindow(&status_console, 0, 0, 50, 1);
+
+  consoleInit( &main_console);
+  consoleSetWindow(&main_console, 0, 1, 50, 29);
+
+  consoleSelect(&main_console);
+}
+
+/*! set status bar contents
+ *
+ *  @param[in] fmt format string
+ *  @param[in] ... format arguments
+ */
+void
+console_set_status(const char *fmt, ...)
+{
+  va_list ap;
+
+  consoleSelect(&status_console);
+  va_start(ap, fmt);
+  vprintf(fmt, ap);
+#ifdef ENABLE_LOGGING
+  vfprintf(stderr, fmt, ap);
+#endif
+  va_end(ap);
+  consoleSelect(&main_console);
+}
+
+/*! add text to the console
+ *
+ *  @param[in] fmt format string
+ *  @param[in] ... format arguments
+ */
+void
+console_print(const char *fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vprintf(fmt, ap);
+#ifdef ENABLE_LOGGING
+  if(!disable_logging)
+    vfprintf(stderr, fmt, ap);
+#endif
+  va_end(ap);
+}
+
+/*! print debug message
+ *
+ *  @param[in] fmt format string
+ *  @param[in] ... format arguments
+ */
+void
+debug_print(const char *fmt, ...)
+{
+#ifdef ENABLE_LOGGING
+  va_list ap;
+
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+#endif
+}
+
+
+/*! draw console to screen */
+void
+console_render(void)
+{
+  /* flush framebuffer */
+  gfxFlushBuffers();
+  gfxSwapBuffers();
+  gfxWaitForVsync();
+
+}
+
 #else
 
 /* this is a lot easier when you have a real console */
