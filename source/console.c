@@ -206,10 +206,10 @@ void
 console_init(void)
 {
   consoleInit(&status_console);
-  consoleSetWindow(&status_console, 0, 0, 50, 1);
+  consoleSetWindow(&status_console, 0, 0, 160+10, 1);
 
   consoleInit( &main_console);
-  consoleSetWindow(&main_console, 0, 1, 50, 29);
+  consoleSetWindow(&main_console, 0, 1, 160+10, 90-1);
 
   consoleSelect(&main_console);
 }
