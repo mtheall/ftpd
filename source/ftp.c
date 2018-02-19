@@ -37,12 +37,23 @@
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLPRI|POLLOUT))
 
+#ifndef SWITCH
 #define XFER_BUFFERSIZE 32768
 #define SOCK_BUFFERSIZE 32768
 #define FILE_BUFFERSIZE 65536
 #define CMD_BUFFERSIZE  4096
+#else
+/* we have a lot of memory to waste on the Switch */
+#define XFER_BUFFERSIZE 65536
+#define SOCK_BUFFERSIZE 65536
+#define FILE_BUFFERSIZE 1048576
+#define CMD_BUFFERSIZE  4096
+#endif
+
+#ifdef _3DS
 #define SOCU_ALIGN      0x1000
 #define SOCU_BUFFERSIZE 0x100000
+#endif
 #define LISTEN_PORT     5000
 #ifdef _3DS
 #define DATA_PORT       (LISTEN_PORT+1)
@@ -367,6 +378,8 @@ ftp_closesocket(int  fd,
   struct sockaddr_in addr;
   socklen_t          addrlen = sizeof(addr);
   struct pollfd      pollinfo;
+
+//  console_print("0x%X\n", socketGetLastBsdResult());
 
   if(connected)
   {
@@ -1800,6 +1813,24 @@ update_status(void)
                      inet_ntoa(serv_addr.sin_addr),
                      ntohs(serv_addr.sin_port));
   update_free_space();
+#elif 0//defined(SWITCH)
+  char      hostname[128];
+  socklen_t addrlen = sizeof(serv_addr);
+  int       rc;
+  rc = gethostname(hostname, sizeof(hostname));
+  if(rc != 0)
+  {
+    console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
+    return -1;
+  }
+  console_set_status("\n" GREEN STATUS_STRING " test "
+#ifdef ENABLE_LOGGING
+                     "DEBUG "
+#endif
+                     CYAN "%s:%u" RESET,
+                     hostname,
+                     ntohs(serv_addr.sin_port));
+  update_free_space();
 #else
   char      hostname[128];
   socklen_t addrlen = sizeof(serv_addr);
@@ -1812,13 +1843,12 @@ update_status(void)
     return -1;
   }
 
-  strcpy(hostname, "banana");
-  /*rc = gethostname(hostname, sizeof(hostname));
+  rc = gethostname(hostname, sizeof(hostname));
   if(rc != 0)
   {
     console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
     return -1;
-  }*/
+  }
 
   console_set_status(GREEN STATUS_STRING " "
 #ifdef ENABLE_LOGGING
@@ -1880,6 +1910,8 @@ static void
 applet_hook(AppletHookType type,
          void         *closure)
 {
+  (void)closure;
+  (void)type;
   /* stubbed for now */
   switch(type)
   {
@@ -1952,21 +1984,20 @@ ftp_init(void)
     goto soc_fail;
   }
 #elif defined(SWITCH)
-  /* we have a lot of memory available so let's use c.a. 360MB */
   static const SocketInitConfig socketInitConfig = {
     .bsdsockets_version = 1,
 
-    .tcp_tx_buf_size        = 20 << 20,
-    .tcp_rx_buf_size        = 20 << 20,
-    .tcp_tx_buf_max_size    = 20 << 20,
-    .tcp_rx_buf_max_size    = 20 << 20,
+    .tcp_tx_buf_size        = 8 * SOCK_BUFFERSIZE,
+    .tcp_rx_buf_size        = 8 * SOCK_BUFFERSIZE,
+    .tcp_tx_buf_max_size    = 16 * SOCK_BUFFERSIZE,
+    .tcp_rx_buf_max_size    = 16 * SOCK_BUFFERSIZE,
 
-    /* we aren't using UDP at all, let's just use the default sizes */
     .udp_tx_buf_size = 0x2400,
     .udp_rx_buf_size = 0xA500,
 
     .sb_efficiency = 8,
   };
+
   Result ret = socketInitialize(&socketInitConfig);
   if(ret != 0)
   {
