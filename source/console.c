@@ -279,7 +279,6 @@ console_render(void)
   gfxFlushBuffers();
   gfxSwapBuffers();
   gfxWaitForVsync();
-
 }
 
 #else
