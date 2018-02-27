@@ -8,13 +8,23 @@
 
 #ifdef _3DS
 #include <3ds.h>
+#define CONSOLE_WIDTH 50
+#define CONSOLE_HEIGHT 30
+#elif defined(SWITCH)
+#include <switch.h>
+#define CONSOLE_WIDTH 80
+#define CONSOLE_HEIGHT 45
+#endif
 
 static PrintConsole status_console;
 static PrintConsole main_console;
-static PrintConsole tcp_console;
 #if ENABLE_LOGGING
 static bool disable_logging = false;
 #endif
+
+
+#if defined(_3DS)
+static PrintConsole tcp_console;
 
 /*! initialize console subsystem */
 void
@@ -31,61 +41,6 @@ console_init(void)
   consoleSelect(&main_console);
 }
 
-/*! set status bar contents
- *
- *  @param[in] fmt format string
- *  @param[in] ... format arguments
- */
-void
-console_set_status(const char *fmt, ...)
-{
-  va_list ap;
-
-  consoleSelect(&status_console);
-  va_start(ap, fmt);
-  vprintf(fmt, ap);
-#ifdef ENABLE_LOGGING
-  vfprintf(stderr, fmt, ap);
-#endif
-  va_end(ap);
-  consoleSelect(&main_console);
-}
-
-/*! add text to the console
- *
- *  @param[in] fmt format string
- *  @param[in] ... format arguments
- */
-void
-console_print(const char *fmt, ...)
-{
-  va_list ap;
-
-  va_start(ap, fmt);
-  vprintf(fmt, ap);
-#ifdef ENABLE_LOGGING
-  if(!disable_logging)
-    vfprintf(stderr, fmt, ap);
-#endif
-  va_end(ap);
-}
-
-/*! print debug message
- *
- *  @param[in] fmt format string
- *  @param[in] ... format arguments
- */
-void
-debug_print(const char *fmt, ...)
-{
-#ifdef ENABLE_LOGGING
-  va_list ap;
-
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-#endif
-}
 
 /*! print tcp tables */
 static void
@@ -179,40 +134,23 @@ print_tcp_table(void)
 #endif
 }
 
-/*! draw console to screen */
-void
-console_render(void)
-{
-  /* print tcp table */
-  print_tcp_table();
-
-  /* flush framebuffer */
-  gfxFlushBuffers();
-  gspWaitForVBlank();
-  gfxSwapBuffers();
-}
-
 #elif defined(SWITCH)
-#include <switch.h>
-
-static PrintConsole status_console;
-static PrintConsole main_console;
-#if ENABLE_LOGGING
-static bool disable_logging = false;
-#endif
-
 /*! initialize console subsystem */
 void
 console_init(void)
 {
   consoleInit(&status_console);
-  consoleSetWindow(&status_console, 0, 0, 160+10, 1);
+  consoleSetWindow(&status_console, 0, 0, CONSOLE_WIDTH, 1);
 
   consoleInit( &main_console);
-  consoleSetWindow(&main_console, 0, 1, 160+10, 90-1);
+  consoleSetWindow(&main_console, 0, 1, CONSOLE_WIDTH, CONSOLE_HEIGHT-1);
 
   consoleSelect(&main_console);
 }
+#endif
+
+#if defined(_3DS) || defined(SWITCH)
+
 
 /*! set status bar contents
  *
@@ -270,16 +208,22 @@ debug_print(const char *fmt, ...)
 #endif
 }
 
-
 /*! draw console to screen */
 void
 console_render(void)
 {
+  /* print tcp table */
+#ifdef _3DS
+  print_tcp_table();
+#endif
   /* flush framebuffer */
   gfxFlushBuffers();
+#ifdef _3DS
+  gspWaitForVBlank();
+#endif
   gfxSwapBuffers();
-  gfxWaitForVsync();
 }
+
 
 #else
 
@@ -324,3 +268,4 @@ void console_render(void)
 {
 }
 #endif
+
