@@ -28,7 +28,7 @@ include $(DEVKITARM)/3ds_rules
 #     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
 TARGET   := ftpd
-BUILD    := build
+BUILD    := build.3ds
 SOURCES  := source
 DATA     := data
 INCLUDES := include
