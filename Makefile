@@ -10,9 +10,10 @@ ifneq ($(strip $(GITREV)),)
 export VERSION := $(VERSION)-$(GITREV)
 endif
 
-all: 3dsx
+all:
+	@echo please choose 3dsx, cia, linux, or nro
 
-switch:
+nro:
 	@$(MAKE) -f Makefile.switch all
 
 3dsx:
