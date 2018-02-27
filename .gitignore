@@ -1,5 +1,4 @@
-build/
-build.linux/
+build.*
 output/
 ftpd
 *.3dsx

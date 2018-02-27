@@ -29,8 +29,13 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
-TARGET		:=	$(notdir $(CURDIR))
-BUILD		:=	build
+APP_TITLE	:=	Ftpd $(VERSION)
+APP_AUTHOR	:=	Mtheall, Tuxsh, WinterMute
+ICON 	:= meta/ftpd.jpg
+APP_VERSION	:=	$(VERSION)
+#---------------------------------------------------------------------------------
+TARGET		:=	ftpd
+BUILD		:=	build.switch
 SOURCES		:=	source
 DATA		:=	data
 INCLUDES	:=	include
