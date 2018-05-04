@@ -10,7 +10,7 @@
 #include <3ds.h>
 #define CONSOLE_WIDTH 50
 #define CONSOLE_HEIGHT 30
-#elif defined(SWITCH)
+#elif defined(__SWITCH__)
 #include <switch.h>
 #define CONSOLE_WIDTH 80
 #define CONSOLE_HEIGHT 45
@@ -134,7 +134,7 @@ print_tcp_table(void)
 #endif
 }
 
-#elif defined(SWITCH)
+#elif defined(__SWITCH__)
 /*! initialize console subsystem */
 void
 console_init(void)
@@ -149,7 +149,7 @@ console_init(void)
 }
 #endif
 
-#if defined(_3DS) || defined(SWITCH)
+#if defined(_3DS) || defined(__SWITCH__)
 
 
 /*! set status bar contents
