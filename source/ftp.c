@@ -2020,7 +2020,7 @@ ftp_init(void)
 
   /* get address to listen on */
   serv_addr.sin_family      = AF_INET;
-#if defined(_3DS) || defined(SWITCH)
+#if defined(_3DS) || defined(__SWITCH__)
   serv_addr.sin_addr.s_addr = gethostid();
   serv_addr.sin_port        = htons(LISTEN_PORT);
 #else
