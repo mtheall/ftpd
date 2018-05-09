@@ -3016,7 +3016,7 @@ FTP_DECLARE(CWD)
 
   /* copy the path into the cwd */
   strncpy(session->cwd, session->buffer, sizeof(session->cwd));
-
+  session->cwd[sizeof(session->cwd)-1] = '\0';
   ftp_send_response(session, 200, "OK\r\n");
 }
 
