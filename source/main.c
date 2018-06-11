@@ -105,8 +105,10 @@ main(int  argc,
   gfxInitDefault();
   gfxSet3D(false);
   sdmcWriteSafe(false);
-#elif defined(__SWITCH__)
+#elif defined(SWITCH)
+  /* initialize needed Switch services */
   //gfxInitResolution(644, 480);
+  nifmInitialize();
   gfxInitDefault();
 #endif
 
@@ -176,6 +178,7 @@ log_fail:
 
   /* deinitialize Switch services */
   gfxExit();
+  nifmExit();
 #endif
   return 0;
 }
