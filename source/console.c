@@ -220,6 +220,8 @@ console_render(void)
   gfxFlushBuffers();
 #ifdef _3DS
   gspWaitForVBlank();
+#else
+  gfxWaitForVsync();
 #endif
   gfxSwapBuffers();
 }
