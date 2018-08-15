@@ -1813,24 +1813,6 @@ update_status(void)
                      inet_ntoa(serv_addr.sin_addr),
                      ntohs(serv_addr.sin_port));
   update_free_space();
-#elif 0//defined(__SWITCH__)
-  char      hostname[128];
-  socklen_t addrlen = sizeof(serv_addr);
-  int       rc;
-  rc = gethostname(hostname, sizeof(hostname));
-  if(rc != 0)
-  {
-    console_print(RED "gethostname: %d %s\n" RESET, errno, strerror(errno));
-    return -1;
-  }
-  console_set_status("\n" GREEN STATUS_STRING " test "
-#ifdef ENABLE_LOGGING
-                     "DEBUG "
-#endif
-                     CYAN "%s:%u" RESET,
-                     hostname,
-                     ntohs(serv_addr.sin_port));
-  update_free_space();
 #else
   char      hostname[128];
   socklen_t addrlen = sizeof(serv_addr);
