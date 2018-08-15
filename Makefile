@@ -1,4 +1,4 @@
-.PHONY: all switch 3dsx cia clean linux
+.PHONY: all nro 3dsx cia clean linux
 
 export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)
 export VERSION_MAJOR := 2
