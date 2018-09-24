@@ -34,7 +34,7 @@ DATA     := data
 INCLUDES := include
 ROMFS    :=
 
-APP_TITLE       := Super ftpd II Turbo
+APP_TITLE       := ftpd snap!
 APP_DESCRIPTION := v$(VERSION)
 APP_AUTHOR      := mtheall
 

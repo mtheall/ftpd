@@ -1,39 +1,58 @@
-ftpd
-====
+# ftpd
 
-FTP Server for 3DS.
+FTP Server for 3DS/Switch/Linux.
 
-Features
---------
+## Features
 
 - Appears to work well with a variety of clients.
-- Also compiles for Linux.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
 - Cutting-edge graphics.
 
-Latest Builds
--------------
+## Latest Builds
 
 CIA: https://mtheall.com/~mtheall/ftpd.cia
 
 3DSX: https://mtheall.com/~mtheall/ftpd.3dsx
 
+NRO: https://mtheall.com/~mtheall/ftpd.nro
+
 CIA QR Code
 
 ![ftpd.cia](https://github.com/mtheall/ftpd/raw/master/ftpd_qr.png)
 
-Build and install
-------------------
+## Build and install
 
-You must first install and set up [devkitARM and libctru](http://3dbrew.org/wiki/Setting_up_Development_Environment).
-Clone this repository and cd in the resulting directory.
+You must set up the [development environment](https://devkitpro.org/wiki/Getting_Started).
 
-    make
+### 3DSX
 
-Copy the `ftpd.3dsx` file to your SD card and launch it.
+The following pacman packages are required to build `ftpd.3dsx`:
 
-Supported Commands
-------------------
+    3dstools
+    devkitARM
+    libctru
+
+They are available as part of the `3ds-dev` meta-package.
+
+Build `ftpd.3dsx`:
+
+    make 3dsx
+
+### NRO
+
+The following pacman packages are required to build `ftpd.nro`:
+
+    devkitA64
+    libnx
+    switch-tools
+
+They are available as part of the `switch-dev` meta-package.
+
+Build `ftpd.nro`:
+
+    make nro
+
+## Supported Commands
 
 - ABOR
 - ALLO (no-op)
@@ -75,7 +94,6 @@ Supported Commands
 - XPWD
 - XRMD
 
-Planned Commands
-----------------
+## Planned Commands
 
 - STOU

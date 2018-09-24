@@ -29,8 +29,8 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
-APP_TITLE	:=	Ftpd $(VERSION)
-APP_AUTHOR	:=	Mtheall, Tuxsh, WinterMute
+APP_TITLE	:=	ftpd snap! $(VERSION)
+APP_AUTHOR	:=	mtheall, TuxSH, WinterMute
 ICON 	:= meta/ftpd.jpg
 APP_VERSION	:=	$(VERSION)
 #---------------------------------------------------------------------------------
