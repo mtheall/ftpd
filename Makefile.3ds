@@ -16,20 +16,7 @@ include $(DEVKITARM)/3ds_rules
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
 #
-# NO_SMDH: if set to anything, no SMDH file is generated.
-# ROMFS is the directory which contains the RomFS, relative to the Makefile (Optional)
-# APP_TITLE is the name of the app stored in the SMDH file (Optional)
-# APP_DESCRIPTION is the description of the app stored in the SMDH file (Optional)
-# APP_AUTHOR is the author of the app stored in the SMDH file (Optional)
-# ICON is the filename of the icon (.png), relative to the project folder.
-#   If not set, it attempts to use one of the following (in this order):
-#     - <Project name>.png
-#     - icon.png
-#     - <libctru folder>/default_icon.png
-#---------------------------------------------------------------------------------
-TARGET   := ftpd
-BUILD    := build.3ds
-SOURCES  := source
+# 
 DATA     := data
 INCLUDES := include
 ROMFS    :=
