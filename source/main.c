@@ -35,8 +35,8 @@ loop(loop_status_t (*callback)(void))
 #elif defined(__SWITCH__)
   while(appletMainLoop())
   {
-    status = callback();
     console_render();
+    status = callback();
     if(status != LOOP_CONTINUE)
       return status;
   }
@@ -107,9 +107,7 @@ main(int  argc,
   sdmcWriteSafe(false);
   /* initialize needed Switch services */
 #elif defined(__SWITCH__)
-  //gfxInitResolution(644, 480);
   nifmInitialize();
-  gfxInitDefault();
 #endif
 
   /* initialize console subsystem */
@@ -177,7 +175,7 @@ log_fail:
   loop(wait_for_b);
 
   /* deinitialize Switch services */
-  gfxExit();
+  consoleExit(NULL);
   nifmExit();
 #endif
   return 0;
