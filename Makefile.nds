@@ -35,7 +35,7 @@ ARCH := -marm -mthumb-interwork -march=armv5te -mtune=arm946e-s
 
 CFLAGS   := -g -Wall -O3 \
             $(ARCH) $(INCLUDE) -D_NDS -DARM9 \
-            -DSTATUS_STRING="\"ftpd v$(VERSION)\"" -DENABLE_LOGGING
+            -DSTATUS_STRING="\"ftpd v$(VERSION)\""
 
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS  := -g $(ARCH)
