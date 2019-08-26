@@ -6,8 +6,7 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-# These set the information text in the nds file
-#GAME_TITLE     := My Wonderful Homebrew
+GAME_TITLE := ftpd v$(VERSION)
 #GAME_SUBTITLE1 := built with devkitARM
 #GAME_SUBTITLE2 := http://devitpro.org
 
@@ -26,7 +25,7 @@ BUILD    := build.nds
 SOURCES  := source
 DATA     := data
 INCLUDES := include
-ICON     :=
+GAME_ICON := ../meta/icon32.bmp
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -35,7 +34,7 @@ ARCH := -marm -mthumb-interwork -march=armv5te -mtune=arm946e-s
 
 CFLAGS   := -g -Wall -O3 \
             $(ARCH) $(INCLUDE) -D_NDS -DARM9 \
-            -DSTATUS_STRING="\"ftpd v$(VERSION)\""
+            -DSTATUS_STRING="\"$(GAME_TITLE)\""
 
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS  := -g $(ARCH)
@@ -99,24 +98,6 @@ export INCLUDE  := $(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir))\
                    -I$(CURDIR)/$(BUILD)
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-ifeq ($(strip $(ICON)),)
-  icons := $(wildcard *.bmp)
-
-  ifneq (,$(findstring $(TARGET).bmp,$(icons)))
-    export GAME_ICON := $(CURDIR)/$(TARGET).bmp
-  else
-    ifneq (,$(findstring icon.bmp,$(icons)))
-      export GAME_ICON := $(CURDIR)/icon.bmp
-    endif
-  endif
-else
-  ifeq ($(suffix $(ICON)), .grf)
-    export GAME_ICON := $(CURDIR)/$(ICON)
-  else
-    export GAME_ICON := $(CURDIR)/$(BUILD)/$(notdir $(basename $(ICON))).grf
-  endif
-endif
-
 .PHONY: $(BUILD) clean
 
 #---------------------------------------------------------------------------------
@@ -156,14 +137,6 @@ $(SOUNDBANK) : $(MODFILES)
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
-
-#---------------------------------------------------------------------------------
-# Convert non-GRF game icon to GRF if needed
-#---------------------------------------------------------------------------------
-$(GAME_ICON): $(notdir $(ICON))
-#---------------------------------------------------------------------------------
-	@echo convert $(notdir $<)
-	@grit $< -g -gt -gB4 -gT FF00FF -m! -p -pe 16 -fh! -ftr
 
 -include $(DEPSDIR)/*.d
 
