@@ -10,22 +10,26 @@
 #include <3ds.h>
 #define CONSOLE_WIDTH 50
 #define CONSOLE_HEIGHT 30
+#elif defined(_NDS)
+#include <nds.h>
+#define CONSOLE_WIDTH 32
+#define CONSOLE_HEIGHT 24
 #elif defined(__SWITCH__)
 #include <switch.h>
 #define CONSOLE_WIDTH 80
 #define CONSOLE_HEIGHT 45
 #endif
 
+#if defined(_3DS) || defined(_NDS) || defined(__SWITCH__)
 static PrintConsole status_console;
 static PrintConsole main_console;
+#endif
 #if ENABLE_LOGGING
 static bool disable_logging = false;
 #endif
 
 
 #if defined(_3DS)
-static PrintConsole tcp_console;
-
 /*! initialize console subsystem */
 void
 console_init(void)
@@ -36,12 +40,30 @@ console_init(void)
   consoleInit(GFX_TOP, &main_console);
   consoleSetWindow(&main_console, 0, 1, 50, 29);
 
-  consoleInit(GFX_BOTTOM, &tcp_console);
+  consoleSelect(&main_console);
+}
+#elif defined(_NDS)
+/*! initialize console subsystem */
+void
+console_init(void)
+{
+  powerOff(PM_BACKLIGHT_BOTTOM);
+  powerOff(PM_ARM9_DIRECT | POWER_2D_B);
+
+  videoSetMode(MODE_0_2D);
+  vramSetBankA(VRAM_A_MAIN_BG_0x06000000);
+
+  consoleInit(&main_console, 0, BgType_Text4bpp, BgSize_T_256x256, 22, 3, true, true);
+  status_console = main_console;
+
+  consoleSetWindow(&status_console, 0, 0, 32, 2);
+  consoleSetWindow(&main_console, 0, 2, 32, 22);
 
   consoleSelect(&main_console);
 }
+#endif
 
-
+#if defined(_3DS)
 /*! print tcp tables */
 static void
 print_tcp_table(void)
@@ -63,7 +85,7 @@ print_tcp_table(void)
     console_print(RED "tcp table: %d %s\n\x1b[J\n" RESET, errno, strerror(errno));
   else if(rc == 0)
   {
-    for(i = 0; lines < 30 && i < optlen / sizeof(SOCU_TCPTableEntry); ++i)
+    for(i = 0; lines < CONSOLE_HEIGHT && i < optlen / sizeof(SOCU_TCPTableEntry); ++i)
     {
       SOCU_TCPTableEntry *entry  = &tcp_entries[i];
       struct sockaddr_in *local  = (struct sockaddr_in*)&entry->local;
@@ -113,11 +135,11 @@ print_tcp_table(void)
 
       ++lines;
 
-      if(local && (lines++ < 30))
+      if(local && (lines++ < CONSOLE_HEIGHT))
         console_print("\n Local %s:%u\x1b[K", inet_ntoa(local->sin_addr),
                                  ntohs(local->sin_port));
 
-      if(remote && (lines++ < 30))
+      if(remote && (lines++ < CONSOLE_HEIGHT))
         console_print("\n Peer  %s:%u\x1b[K", inet_ntoa(remote->sin_addr),
                                   ntohs(remote->sin_port));
     }
@@ -133,8 +155,9 @@ print_tcp_table(void)
   disable_logging = false;
 #endif
 }
+#endif
 
-#elif defined(__SWITCH__)
+#if defined(__SWITCH__)
 /*! initialize console subsystem */
 void
 console_init(void)
@@ -149,7 +172,7 @@ console_init(void)
 }
 #endif
 
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS) || defined(__SWITCH__) || defined(_NDS)
 
 
 /*! set status bar contents

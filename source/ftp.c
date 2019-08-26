@@ -13,7 +13,6 @@
 #include <malloc.h>
 #include <math.h>
 #include <netinet/in.h>
-#include <poll.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +25,17 @@
 #ifdef _3DS
 #include <3ds.h>
 #define lstat stat
+#elif defined(_NDS)
+#include <nds.h>
+#include <dswifi9.h>
+#define LACKS_POLL
+#define INET_ADDRSTRLEN 16
+#define socklen_t int
+#define gethostid() Wifi_GetIP()
+#define lstat stat
+/* ftpd requires a blocking close() operation with this few sockets */
+/* fortunately, there is one in dswifi - just not directly exposed */
+extern int forceclosesocket(int socket);
 #elif defined(__SWITCH__)
 #include <switch.h>
 #define lstat stat
@@ -34,6 +44,101 @@
 #define BIT(x) (1<<(x))
 #endif
 #include "console.h"
+
+#ifndef LACKS_POLL
+#include <poll.h>
+#else
+#include <sys/select.h>
+#define POLLIN 1
+#define POLLOUT 2
+#define POLLPRI 4
+#define POLLERR 8
+#define POLLHUP 16
+
+typedef int nfds_t;
+
+struct pollfd {
+  int fd;
+  int events;
+  int revents;
+};
+
+#define poll(a,b,c) fakepoll(a,b,c)
+int fakepoll(struct pollfd *fds, int nfds, int timeout) {
+  static fd_set readfds, writefds;
+#ifndef _NDS
+  static fd_set exceptfds;
+#endif
+  struct timeval timeout_val;
+  int i, ret, monitored = 0, ret_nfds = 0;
+  int max_fd = 0;
+
+  timeout_val.tv_sec = timeout / 1000;
+  timeout_val.tv_usec = (timeout % 1000) * 1000;
+
+  for (i = 0; i < nfds; i++)
+  {
+    monitored |= fds[i].events;
+    if (fds[i].events & POLLIN) FD_SET(fds[i].fd, &readfds);
+    if (fds[i].events & POLLOUT) FD_SET(fds[i].fd, &writefds);
+#ifndef _NDS
+    if (fds[i].events & POLLPRI) FD_SET(fds[i].fd, &exceptfds);
+#endif
+    if (fds[i].fd > max_fd) max_fd = fds[i].fd;
+  }
+
+  ret = select(max_fd + 1,
+    (monitored & POLLIN ) ? &readfds : NULL,
+    (monitored & POLLOUT) ? &writefds : NULL,
+#ifndef _NDS
+    (monitored & POLLPRI) ? &exceptfds : NULL,
+#else
+    NULL,
+#endif
+    &timeout_val);
+
+  if (ret < 0)
+  {
+    for (i = 0; i < nfds; i++)
+      fds[i].revents = POLLERR;
+    memset(&readfds, 0, sizeof(fd_set));
+    memset(&writefds, 0, sizeof(fd_set));
+#ifndef _NDS
+    memset(&exceptfds, 0, sizeof(fd_set));
+#endif
+    return ret;
+  }
+
+  for (i = 0; i < nfds; i++)
+  {
+    fds[i].revents = 0;
+
+    if (FD_ISSET(fds[i].fd, &readfds))
+    {
+      fds[i].revents |= POLLIN;
+      FD_CLR(fds[i].fd, &readfds);
+    }
+
+    if (FD_ISSET(fds[i].fd, &writefds))
+    {
+      fds[i].revents |= POLLOUT;
+      FD_CLR(fds[i].fd, &writefds);
+    }
+
+#ifndef _NDS
+    if (FD_ISSET(fds[i].fd, &exceptfds))
+    {
+      fds[i].revents |= POLLPRI;
+      FD_CLR(fds[i].fd, &exceptfds);
+    }
+#endif
+
+    if (fds[i].revents != 0) ret_nfds++;
+  }
+
+  return ret_nfds;
+};
+#endif
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLPRI|POLLOUT))
 
@@ -55,8 +160,9 @@
 #define SOCU_BUFFERSIZE 0x100000
 #endif
 #define LISTEN_PORT     5000
-#ifdef _3DS
+#if defined(_3DS) || defined(_NDS)
 #define DATA_PORT       (LISTEN_PORT+1)
+#define DATA_PORT_MAX   10000
 #else
 #define DATA_PORT       0 /* ephemeral port */
 #endif
@@ -276,14 +382,16 @@ static AppletHookCookie cookie;
 static struct sockaddr_in serv_addr;
 /*! listen file descriptor */
 static int                listenfd = -1;
-#ifdef _3DS
+#if defined(_3DS) || defined(_NDS)
 /*! current data port */
 static in_port_t          data_port = DATA_PORT;
 #endif
 /*! list of ftp sessions */
 static ftp_session_t      *sessions = NULL;
+#ifndef _NDS
 /*! socket buffersize */
 static int                sock_buffersize = SOCK_BUFFERSIZE;
+#endif
 /*! server start time */
 static time_t             start_time = 0;
 
@@ -294,14 +402,18 @@ static time_t             start_time = 0;
 static in_port_t
 next_data_port(void)
 {
-#ifdef _3DS
-  if(++data_port >= 10000)
+#if defined(_3DS) || defined(_NDS)
+  if(++data_port >= DATA_PORT_MAX)
     data_port = DATA_PORT;
   return data_port;
 #else
   return 0; /* ephemeral port */
 #endif
 }
+
+#ifdef _NDS
+static int ioctl_nbio_arg = 1;
+#endif
 
 /*! set a socket to non-blocking
  *
@@ -312,6 +424,16 @@ next_data_port(void)
 static int
 ftp_set_socket_nonblocking(int fd)
 {
+#ifdef _NDS
+  int rc;
+
+  rc = ioctl(fd, FIONBIO, &ioctl_nbio_arg);
+  if (rc < 0)
+  {
+    console_print(RED "ioctl: %d\n" RESET, rc);
+    return -1;
+  }
+#else
   int rc, flags;
 
   /* get the socket flags */
@@ -329,6 +451,7 @@ ftp_set_socket_nonblocking(int fd)
     console_print(RED "fcntl: %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
+#endif
 
   return 0;
 }
@@ -342,6 +465,7 @@ ftp_set_socket_nonblocking(int fd)
 static int
 ftp_set_socket_options(int fd)
 {
+#ifndef _NDS
   int rc;
 
   /* increase receive buffer size */
@@ -361,6 +485,7 @@ ftp_set_socket_options(int fd)
     console_print(RED "setsockopt: SO_SNDBUF %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
+#endif
 
   return 0;
 }
@@ -375,14 +500,17 @@ ftp_closesocket(int  fd,
                 bool connected)
 {
   int                rc;
+#ifndef _NDS
   struct sockaddr_in addr;
   socklen_t          addrlen = sizeof(addr);
+#endif
   struct pollfd      pollinfo;
 
 //  console_print("0x%X\n", socketGetLastBsdResult());
 
   if(connected)
   {
+#ifndef _NDS /* nds will fail getpeername if not connected */
     /* get peer address and print */
     rc = getpeername(fd, (struct sockaddr*)&addr, &addrlen);
     if(rc != 0)
@@ -393,6 +521,9 @@ ftp_closesocket(int  fd,
     else
       console_print(YELLOW "closing connection to %s:%u\n" RESET,
                     inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+#else
+    console_print(YELLOW "closing connection to fd=%d\n" RESET, fd);
+#endif
 
     /* shutdown connection */
     rc = shutdown(fd, SHUT_WR);
@@ -408,6 +539,8 @@ ftp_closesocket(int  fd,
       console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
   }
 
+// TODO NDS verify
+#ifndef _NDS
   /* set linger to 0 */
   struct linger linger;
   linger.l_onoff  = 1;
@@ -417,11 +550,18 @@ ftp_closesocket(int  fd,
   if(rc != 0)
     console_print(RED "setsockopt: SO_LINGER %d %s\n" RESET,
                   errno, strerror(errno));
+#endif
 
   /* close socket */
+#ifdef _NDS
+  rc = forceclosesocket(fd);
+  if(rc != 0)
+    console_print(RED "forceclosesocket: %d %s\n" RESET, errno, strerror(errno));
+#else
   rc = close(fd);
   if(rc != 0)
     console_print(RED "close: %d %s\n" RESET, errno, strerror(errno));
+#endif
 }
 
 /*! close command socket on ftp session
@@ -750,7 +890,7 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
           type = "file";
         else if(S_ISDIR(st->st_mode))
           type = "dir";
-#if !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(_3DS) && !defined(__SWITCH__) && !defined(_NDS)
         else if(S_ISLNK(st->st_mode))
           type = "os.unix=symlink";
         else if(S_ISCHR(st->st_mode))
@@ -862,7 +1002,7 @@ ftp_session_fill_dirent_type(ftp_session_t *session, const struct stat *st,
               "%c%c%c%c%c%c%c%c%c%c %lu 3DS 3DS %lld ",
               S_ISREG(st->st_mode)  ? '-' :
               S_ISDIR(st->st_mode)  ? 'd' :
-#if !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(_3DS) && !defined(__SWITCH__) && !defined(_NDS)
               S_ISLNK(st->st_mode)  ? 'l' :
               S_ISCHR(st->st_mode)  ? 'c' :
               S_ISBLK(st->st_mode)  ? 'b' :
@@ -1399,7 +1539,9 @@ ftp_session_read_command(ftp_session_t *session,
 {
   char          *buffer, *args, *next = NULL;
   size_t        i, len;
+#ifndef _NDS
   int           atmark;
+#endif
   ssize_t       rc;
   ftp_command_t key, *command;
 
@@ -1408,6 +1550,7 @@ ftp_session_read_command(ftp_session_t *session,
   {
     session->flags |= SESSION_URGENT;
 
+#ifndef _NDS
     /* check if we are at the urgent marker */
     atmark = sockatmark(session->cmd_fd);
     if(atmark < 0)
@@ -1429,6 +1572,7 @@ ftp_session_read_command(ftp_session_t *session,
 
       return;
     }
+#endif
 
     /* retrieve the urgent data */
     rc = recv(session->cmd_fd, session->cmd_buffer, sizeof(session->cmd_buffer), MSG_OOB);
@@ -1804,7 +1948,7 @@ update_free_space(void)
 static int
 update_status(void)
 {
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS) || defined(__SWITCH__) || defined(_NDS)
   console_set_status("\n" GREEN STATUS_STRING " "
 #ifdef ENABLE_LOGGING
                      "DEBUG "
@@ -1965,6 +2109,17 @@ ftp_init(void)
     console_print(RED "socInit: %08X\n" RESET, (unsigned int)ret);
     goto soc_fail;
   }
+#elif defined(_NDS)
+  console_print(GREEN "Waiting for wifi...\n" RESET);
+
+  int ret = Wifi_InitDefault(WFC_CONNECT);
+  if(!ret)
+  {
+    console_print(RED "Wifi_InitDefault: error\n" RESET);
+    return -1;
+  }
+
+  console_print(GREEN "Ready!\n" RESET);
 #elif defined(__SWITCH__)
   static const SocketInitConfig socketInitConfig = {
     .bsdsockets_version = 1,
@@ -2002,7 +2157,7 @@ ftp_init(void)
 
   /* get address to listen on */
   serv_addr.sin_family      = AF_INET;
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS) || defined(__SWITCH__) || defined(_NDS)
   serv_addr.sin_addr.s_addr = gethostid();
   serv_addr.sin_port        = htons(LISTEN_PORT);
 #else
@@ -2108,8 +2263,8 @@ loop_status_t
 ftp_loop(void)
 {
   int           rc;
-  struct pollfd pollinfo;
   ftp_session_t *session;
+  struct pollfd pollinfo;
 
   /* we will poll for new client connections */
   pollinfo.fd      = listenfd;
@@ -2159,6 +2314,14 @@ ftp_loop(void)
     lcd_power = !lcd_power;
     apt_hook(APTHOOK_ONRESTORE, NULL);
   }
+#elif defined(_NDS)
+// TODO NDS lcd_power
+  /* check if the user wants to exit */
+  scanKeys();
+  u32 down = keysDown();
+
+  if(down & KEY_B)
+    return LOOP_EXIT;
 #elif defined(__SWITCH__)
   /* check if the user wants to exit */
   hidScanInput();
@@ -2555,8 +2718,8 @@ store_transfer(ftp_session_t *session)
       {
         if(errno == EWOULDBLOCK)
           return LOOP_EXIT;
-        console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
       }
+      console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
 
       ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
 
@@ -3478,7 +3641,7 @@ FTP_DECLARE(PASV)
   /* grab a new port */
   session->pasv_addr.sin_port = htons(next_data_port());
 
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS) || defined(__SWITCH__) || defined(_NDS)
   console_print(YELLOW "binding to %s:%u\n" RESET,
                 inet_ntoa(session->pasv_addr.sin_addr),
                 ntohs(session->pasv_addr.sin_port));
@@ -3507,7 +3670,7 @@ FTP_DECLARE(PASV)
     return;
   }
 
-#ifndef _3DS
+#if !defined(_3DS) && !defined(_NDS)
   {
     /* get the socket address since we requested an ephemeral port */
     socklen_t addrlen = sizeof(session->pasv_addr);

@@ -1,4 +1,4 @@
-.PHONY: all nro 3dsx cia clean linux
+.PHONY: all nro 3dsx cia clean linux nds
 
 export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)
 export VERSION_MAJOR := 2
@@ -11,13 +11,16 @@ export VERSION := $(VERSION)-$(GITREV)
 endif
 
 all:
-	@echo please choose 3dsx, cia, linux, or nro
+	@echo please choose 3dsx, cia, linux, nds, or nro
 
 nro:
 	@$(MAKE) -f Makefile.switch all
 
 3dsx:
 	@$(MAKE) -f Makefile.3ds 3dsx
+
+nds:
+	@$(MAKE) -f Makefile.nds
 
 cia:
 	@$(MAKE) -f Makefile.3ds cia

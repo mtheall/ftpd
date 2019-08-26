@@ -2,11 +2,13 @@
 
 #ifdef _3DS
 #include <3ds.h>
+#elif defined(_NDS)
+#include <nds.h>
 #elif defined(__SWITCH__)
 #include <switch.h>
 #endif
 
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS) || defined(__SWITCH__) || defined(_NDS)
 #define ESC(x) "\x1b[" #x
 #define RESET   ESC(0m)
 #define BLACK   ESC(30m)

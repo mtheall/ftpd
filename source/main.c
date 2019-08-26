@@ -6,6 +6,9 @@
 #include <unistd.h>
 #ifdef _3DS
 #include <3ds.h>
+#elif defined(_NDS)
+#include <nds.h>
+#include <fat.h>
 #elif defined(__SWITCH__)
 #include <switch.h>
 #endif
@@ -26,6 +29,16 @@ loop(loop_status_t (*callback)(void))
 #ifdef _3DS
   while(aptMainLoop())
   {
+    status = callback();
+    console_render();
+    if(status != LOOP_CONTINUE)
+      return status;
+  }
+  return LOOP_EXIT;
+#elif defined(_NDS)
+  while(1)
+  {
+    swiWaitForVBlank();
     status = callback();
     console_render();
     if(status != LOOP_CONTINUE)
@@ -61,6 +74,24 @@ wait_for_b(void)
 
   /* check if B was pressed */
   if(hidKeysDown() & KEY_B)
+    return LOOP_EXIT;
+
+  /* B was not pressed */
+  return LOOP_CONTINUE;
+}
+#elif defined(_NDS)
+/*! wait until the B button is pressed
+ *
+ *  @returns loop status
+ */
+static loop_status_t
+wait_for_b(void)
+{
+  /* update button state */
+  scanKeys();
+
+  /* check if B was pressed */
+  if(keysDown() & KEY_B)
     return LOOP_EXIT;
 
   /* B was not pressed */
@@ -105,17 +136,31 @@ main(int  argc,
   gfxInitDefault();
   gfxSet3D(false);
   sdmcWriteSafe(false);
-  /* initialize needed Switch services */
+#elif defined(_NDS)
+  /* do some power savings - the subscreen is disabled in console.c for now */
+  powerOff(PM_SOUND_AMP | PM_SOUND_MUTE);
+  powerOff(PM_ARM9_DIRECT | POWER_3D_CORE | POWER_MATRIX);
+  /* initialize needed NDS hardware */
 #elif defined(__SWITCH__)
+  /* initialize needed Switch services */
   nifmInitialize();
 #endif
 
   /* initialize console subsystem */
   console_init();
 
+#ifdef _NDS
+  if (!fatInitDefault())
+  {
+    console_print(RED "fatInitDefault: error\n" RESET);
+    loop(wait_for_b);
+    return 0;
+  }
+#endif
+
 #ifdef ENABLE_LOGGING
   /* open log file */
-#ifdef _3DS
+#if defined(_3DS) || defined(_NDS)
   FILE *fp = freopen("/ftpd.log", "wb", stderr);
 #else
   FILE *fp = freopen("ftpd.log", "wb", stderr);
@@ -155,7 +200,7 @@ main(int  argc,
       status = LOOP_EXIT;
   }
 
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS) || defined(_NDS) || defined(__SWITCH__)
   console_print("Press B to exit\n");
 #endif
 
@@ -171,6 +216,8 @@ log_fail:
   /* deinitialize 3DS services */
   gfxExit();
   acExit();
+#elif defined(_NDS)
+  loop(wait_for_b);
 #elif defined(__SWITCH__)
   loop(wait_for_b);
 
