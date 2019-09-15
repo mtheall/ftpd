@@ -16,12 +16,14 @@
 #define CONSOLE_HEIGHT 45
 #endif
 
+#if defined(_3DS) || defined (__SWITCH__)
 static PrintConsole status_console;
 static PrintConsole main_console;
+#endif
+
 #if ENABLE_LOGGING
 static bool disable_logging = false;
 #endif
-
 
 #if defined(_3DS)
 static PrintConsole tcp_console;
