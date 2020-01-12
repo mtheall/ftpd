@@ -105,9 +105,9 @@ main(int  argc,
   gfxInitDefault();
   gfxSet3D(false);
   sdmcWriteSafe(false);
-  /* initialize needed Switch services */
 #elif defined(__SWITCH__)
-  nifmInitialize();
+  /* initialize needed Switch services */
+  nifmInitialize(NifmServiceType_User);
 #endif
 
   /* initialize console subsystem */
