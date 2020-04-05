@@ -9,5 +9,9 @@
 *.nso
 *.pfs0
 *.smdh
+.gdb_history
 build.*/
 ftpd
+romfs.3ds/*.t3x
+romfs.switch/*.zst
+romfs.switch/shaders/*.dksh

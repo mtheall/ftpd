@@ -1,23 +1,36 @@
 TARGET  := ftpd
+BUILD   := build.linux
 
-CFILES  := $(wildcard source/*.c)
-OFILES  := $(patsubst source/%,build.linux/%,$(CFILES:.c=.o))
+CFILES    := $(wildcard source/pc/*.c)
+OFILES    := $(patsubst source/%,$(BUILD)/%,$(CFILES:.c=.c.o))
+CXXFILES  := $(wildcard source/*.cpp source/imgui/*.cpp source/pc/*.cpp)
+OXXFILES  := $(patsubst source/%,$(BUILD)/%,$(CXXFILES:.cpp=.cpp.o))
 
-CFLAGS  := -g -Wall -Iinclude -DSTATUS_STRING="\"ftpd v$(VERSION)\""
-LDFLAGS :=
+CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/pc \
+             `pkg-config --cflags gl glfw3` \
+             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
+             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+             -DIMGUI_IMPL_OPENGL_LOADER_GLAD=1
+CFLAGS    := $(CPPFLAGS)
+CXXFLAGS  := $(CPPFLAGS) -std=gnu++17
+LDFLAGS   := -pthread `pkg-config --libs gl glfw3` -ldl
 
 .PHONY: all clean
 
-all: build.linux $(TARGET)
+all: $(TARGET)
 
-build.linux:
-	@mkdir build.linux/
+$(TARGET): $(OFILES) $(OXXFILES)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
-$(TARGET): $(OFILES)
-	@$(CC) -o $@ $^ $(LDFLAGS)
+$(OFILES): $(BUILD)/%.c.o : source/%.c
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	$(CC) -MMD -MP -MF $(BUILD)/$*.c.d $(CFLAGS) -c $< -o $@
 
-$(OFILES): build.linux/%.o : source/%.c
-	@$(CC) -o $@ -c $< $(CFLAGS)
+$(OXXFILES): $(BUILD)/%.cpp.o : source/%.cpp
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	$(CXX) -MMD -MP -MF $(BUILD)/$*.c.d $(CXXFLAGS) -c $< -o $@
 
 clean:
-	@$(RM) -r build.linux/ $(TARGET)
+	@$(RM) -r $(BUILD) $(TARGET)
+
+-include $(shell find $(BUILD) -name \*.d 2>/dev/null)
