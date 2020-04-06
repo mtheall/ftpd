@@ -18,26 +18,28 @@
 ; You should have received a copy of the GNU General Public License
 ; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-; Example PICA200 vertex shader
+; ImGui PICA200 vertex shader
 
-; Uniforms
+; uniforms
+; Projection matrix
 .fvec proj[4]
 
-; Constants
+; constants
+; [1.0, 0.0, 1.0/255.0, 0.0]
 .constf constants(1.0, 0.0, 0.00392156862745, 0.0)
 
-; Outputs
+; outputs
 .out outPos   position
 .out outUv    texcoord0
 .out outColor color
 
-; Inputs (defined as aliases for convenience)
+; inputs (defined as aliases for convenience)
 .alias inPos   v0
 .alias inUv    v1
 .alias inColor v2
 
 .proc main
-	; Force inPos.z = 0.0, inPos.w = 1.0
+	; force inPos.z = 0.0, inPos.w = 1.0
 	mov r0.xy, inPos.xy
 	mov r0.zw, constants.yx
 
@@ -56,6 +58,6 @@
 	; outColor = inColor
 	mov outColor, r1
 
-	; We're finished
+	; we're finished
 	end
 .end

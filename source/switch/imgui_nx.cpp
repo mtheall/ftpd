@@ -23,6 +23,7 @@
 #include "imgui.h"
 
 #include "fs.h"
+#include "platform.h"
 
 #include <switch.h>
 
@@ -35,23 +36,32 @@ using namespace std::chrono_literals;
 
 namespace
 {
+/// \brief Font atlas cache file
 constexpr auto FONT_ATLAS_BIN = "ftpd-font.bin";
 
-bool s_mouseJustPressed[IM_ARRAYSIZE (ImGuiIO::MouseDown)];
+/// \brief Last mouse update timestamp
+std::chrono::steady_clock::time_point s_lastMouseUpdate;
 
-std::chrono::high_resolution_clock::time_point s_lastMouseUpdate;
-
+/// \brief Whether application is focused
 bool s_focused = true;
-float s_width  = 1280.0f;
+
+/// \brief Framebuffer width
+float s_width = 1280.0f;
+/// \brief Framebuffer height
 float s_height = 720.0f;
 
+/// \brief Whether to show mouse
 float s_showMouse = false;
+/// \brief Mouse position
 ImVec2 s_mousePos = ImVec2 (0.0f, 0.0f);
 
+/// \brief Clipboard
 std::string s_clipboard;
 
+/// \brief Applet hook cookie
 AppletHookCookie s_appletHookCookie;
 
+/// \brief System font glyph ranges
 ImWchar const nxFontRanges[] = {
     // clang-format off
 	0x0020, 0x007e, 0x00a0, 0x017f, 0x0192, 0x0192, 0x01c0, 0x01c0,
@@ -1189,12 +1199,16 @@ ImWchar const nxFontRanges[] = {
     // clang-format on
 };
 
+/// \brief Handle applet hook
+/// \param hook_ Callback reason
+/// \param param_ User param
 void handleAppletHook (AppletHookType const hook_, void *const param_)
 {
 	(void)param_;
 	switch (hook_)
 	{
 	case AppletHookType_OnFocusState:
+		// grab focus state
 		s_focused = (appletGetFocusState () == AppletFocusState_Focused);
 		break;
 
@@ -1203,15 +1217,18 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 		{
 		default:
 		case AppletOperationMode_Handheld:
+			// use handheld mode resolution (720p)
 			s_width  = 1280.0f;
 			s_height = 720.0f;
 			break;
 
 		case AppletOperationMode_Docked:
+			// use docked mode resolution (1080p)
 #if 0
 			s_width  = 1920.0f;
 			s_height = 1080.0f;
 #else
+			/// \todo check if we'd rather use framebuffer scale
 			s_width  = 1280.0f;
 			s_height = 720.0f;
 #endif
@@ -1224,30 +1241,43 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 	}
 }
 
+/// \brief Get clipboard text callback
+/// \param userData_ User data
 char const *getClipboardText (void *const userData_)
 {
 	(void)userData_;
 	return s_clipboard.c_str ();
 }
 
+/// \brief Set clipboard text callback
+/// \param userData_ User data
+/// \param text_ Clipboard text
 void setClipboardText (void *const userData_, char const *const text_)
 {
 	(void)userData_;
 	s_clipboard = text_;
 }
 
+/// \brief Move mouse cursor
+/// \param io_ ImGui IO
+/// \param pos_ New mouse position
+/// \param force_ Whether to ignore prior mouse position
 void moveMouse (ImGuiIO &io_, ImVec2 const &pos_, bool const force_ = false)
 {
-	auto const now = std::chrono::high_resolution_clock::now ();
+	// get update timestamp
+	auto const now = std::chrono::steady_clock::now ();
 
+	// check if the mouse position has been updated
 	if (!force_ && pos_.x == s_mousePos.x && pos_.y == s_mousePos.y)
 	{
+		// stop displaying mouse cursor after inactivity timeout
 		if (now - s_lastMouseUpdate > 1s)
 			s_showMouse = false;
 
 		return;
 	}
 
+	// update mouse position
 	s_showMouse       = true;
 	s_lastMouseUpdate = now;
 	s_mousePos        = pos_;
@@ -1255,27 +1285,27 @@ void moveMouse (ImGuiIO &io_, ImVec2 const &pos_, bool const force_ = false)
 	io_.MousePos = s_mousePos;
 }
 
+/// \brief Update mouse buttons
+/// \param io_ ImGui IO
 void updateMouseButtons (ImGuiIO &io_)
 {
+	// read mouse buttons
 	auto const buttons = hidMouseButtonsHeld ();
 
 	for (std::size_t i = 0; i < IM_ARRAYSIZE (io_.MouseDown); ++i)
 	{
-		// If a mouse press event came, always pass it as "mouse held this frame", so we don't miss
-		// click-release events that are shorter than 1 frame.
-		io_.MouseDown[i]      = s_mouseJustPressed[i] || (buttons & BIT (i));
-		s_mouseJustPressed[i] = false;
+		io_.MouseDown[i] = buttons & BIT (i);
 
+		// force mouse cursor to show on click
 		if (io_.MouseDown[i])
 			moveMouse (io_, s_mousePos, true);
 	}
 }
 
+/// \brief Update mouse position
+/// \param io_ ImGui IO
 void updateMousePos (ImGuiIO &io_)
 {
-	if (!s_focused)
-		return;
-
 	MousePosition pos;
 	hidMouseRead (&pos);
 
@@ -1286,25 +1316,30 @@ void updateMousePos (ImGuiIO &io_)
 	    io_, ImVec2 (s_mousePos.x + 2.0f * pos.velocityX, s_mousePos.y + 2.0f * pos.velocityY));
 }
 
+/// \brief Update touch position
+/// \param io_ ImGui IO
 void updateTouch (ImGuiIO &io_)
 {
-	if (!s_focused)
-		return;
-
+	// read touch positions
 	auto const touchCount = hidTouchCount ();
 	if (touchCount < 1)
 		return;
 
+	// use first touch position
 	touchPosition pos;
 	hidTouchRead (&pos, 0);
 
+	// set mouse position to touch point; force hide mouse cursor
 	moveMouse (io_, ImVec2 (pos.px, pos.py));
 	io_.MouseDown[0] = true;
 	s_showMouse      = false;
 }
 
+/// \brief Update gamepad inputs
+/// \param io_ ImGui IO
 void updateGamepads (ImGuiIO &io_)
 {
+	// clear navigation inputs
 	std::memset (io_.NavInputs, 0, sizeof (io_.NavInputs));
 
 	auto const buttonMapping = {
@@ -1322,6 +1357,7 @@ void updateGamepads (ImGuiIO &io_)
 	    std::make_pair (KEY_DLEFT, ImGuiNavInput_DpadLeft),
 	};
 
+	// read buttons from primary controller
 	auto const keys = hidKeysHeld (CONTROLLER_P1_AUTO);
 	for (auto const &[in, out] : buttonMapping)
 	{
@@ -1329,7 +1365,7 @@ void updateGamepads (ImGuiIO &io_)
 			io_.NavInputs[out] = 1.0f;
 	}
 
-	// Use ZR/ZL as Mouse0/Mouse1, respectively
+	// use ZR/ZL as left-click/right-click, respectively
 	if (keys & KEY_ZR)
 	{
 		io_.MouseDown[0] = true;
@@ -1341,6 +1377,7 @@ void updateGamepads (ImGuiIO &io_)
 		moveMouse (io_, s_mousePos, true);
 	}
 
+	// update joystick
 	JoystickPosition js;
 	auto const analogMapping = {
 	    std::make_tuple (std::ref (js.dx), ImGuiNavInput_LStickLeft, -0.3f, -0.9f),
@@ -1349,15 +1386,15 @@ void updateGamepads (ImGuiIO &io_)
 	    std::make_tuple (std::ref (js.dy), ImGuiNavInput_LStickDown, -0.3f, -0.9f),
 	};
 
+	// read left joystick from primary controller
 	hidJoystickRead (&js, CONTROLLER_P1_AUTO, JOYSTICK_LEFT);
 	for (auto const &[in, out, min, max] : analogMapping)
 	{
 		auto const value   = in / static_cast<float> (JOYSTICK_MAX);
-		auto const v       = std::min (1.0f, (value - min) / (max - min));
-		io_.NavInputs[out] = std::max (io_.NavInputs[out], v);
+		io_.NavInputs[out] = std::clamp ((value - min) / (max - min), 0.0f, 1.0f);
 	}
 
-	// Use right stick as mouse
+	// use right stick as mouse
 	auto scale = 5.0f;
 	if (keys & KEY_L)
 		scale = 1.0f;
@@ -1365,37 +1402,41 @@ void updateGamepads (ImGuiIO &io_)
 		scale = 20.0f;
 	hidJoystickRead (&js, CONTROLLER_P1_AUTO, JOYSTICK_RIGHT);
 
+	// move mouse
 	moveMouse (io_,
 	    ImVec2 (s_mousePos.x + js.dx / static_cast<float> (JOYSTICK_MAX) * scale,
 	        s_mousePos.y - js.dy / static_cast<float> (JOYSTICK_MAX) * scale));
 }
 
+/// \brief Update keyboard inputs
+/// \param io_ ImGui IO
 void updateKeyboard (ImGuiIO &io_)
 {
 	io_.KeyCtrl =
 	    hidKeyboardModifierHeld (static_cast<HidKeyboardModifier> (KBD_MOD_LCTRL | KBD_MOD_RCTRL));
+
 	io_.KeyShift = hidKeyboardModifierHeld (
 	    static_cast<HidKeyboardModifier> (KBD_MOD_LSHIFT | KBD_MOD_RSHIFT));
+
 	io_.KeyAlt =
 	    hidKeyboardModifierHeld (static_cast<HidKeyboardModifier> (KBD_MOD_LALT | KBD_MOD_RALT));
+
 	io_.KeySuper =
 	    hidKeyboardModifierHeld (static_cast<HidKeyboardModifier> (KBD_MOD_LMETA | KBD_MOD_RMETA));
 
 	for (int i = 0; i < 256; ++i)
 		io_.KeysDown[i] = hidKeyboardHeld (static_cast<HidKeyboardScancode> (i));
-
-	if (!io_.WantTextInput)
-		return;
-
-	// io_.AddInputCharacter (c);
 }
 
+/// \brief Load font atlas cache from disk
 bool loadFontAtlas ()
 {
+	// open font atlas
 	fs::File fp;
 	if (!fp.open (FONT_ATLAS_BIN))
 		return false;
 
+	// initialize font atlas
 	auto const atlas = ImGui::GetIO ().Fonts;
 	atlas->Clear ();
 	atlas->TexWidth        = fp.read<std::uint16_t> ();
@@ -1405,9 +1446,11 @@ bool loadFontAtlas ()
 	atlas->TexPixelsAlpha8 =
 	    reinterpret_cast<unsigned char *> (IM_ALLOC (atlas->TexWidth * atlas->TexHeight));
 
+	// read pixel data
 	if (!fp.readAll (atlas->TexPixelsAlpha8, atlas->TexWidth * atlas->TexHeight))
 		return false;
 
+	// initialize font config
 	ImFontConfig config;
 	config.FontData             = nullptr;
 	config.FontDataSize         = 0;
@@ -1428,23 +1471,28 @@ bool loadFontAtlas ()
 	config.EllipsisChar         = 0x2026;
 	std::memset (config.Name, 0, sizeof (config.Name));
 
+	// create font
 	auto const font = IM_NEW (ImFont);
 	config.DstFont  = font;
 
+	// add config and font to atlas
 	atlas->ConfigData.push_back (config);
 	atlas->Fonts.push_back (font);
 	atlas->CustomRectIds[0] = atlas->AddCustomRectRegular (0x80000000, 108 * 2 + 1, 27);
 	atlas->CustomRects[0].X = 0;
 	atlas->CustomRects[0].Y = 0;
 
+	// read some font metrics
 	font->FallbackAdvanceX = fp.read<float> ();
 	font->FontSize         = fp.read<float> ();
 
+	// decode glyph metadata
 	auto const glyphCount = fp.read<std::uint16_t> ();
 	for (unsigned i = 0; i < glyphCount; ++i)
 	{
 		ImFontGlyph glyph;
 
+		// read glyph metadata
 		glyph.Codepoint = fp.read<ImWchar> ();
 		glyph.AdvanceX  = fp.read<float> ();
 		glyph.X0        = fp.read<float> ();
@@ -1456,17 +1504,21 @@ bool loadFontAtlas ()
 		glyph.U1        = fp.read<float> ();
 		glyph.V1        = fp.read<float> ();
 
+		// add glyph to font
 		font->Glyphs.push_back (glyph);
 		font->MetricsTotalSurface +=
 		    static_cast<int> ((glyph.U1 - glyph.U0) * atlas->TexWidth + 1.99f) *
 		    static_cast<int> ((glyph.V1 - glyph.V0) * atlas->TexHeight + 1.99f);
 	}
 
+	// build font lookup table
 	font->BuildLookupTable ();
 
+	// read display offsets
 	font->DisplayOffset.x = fp.read<float> ();
 	font->DisplayOffset.y = fp.read<float> ();
 
+	// finalize font atlas
 	font->ContainerAtlas  = atlas;
 	font->ConfigData      = &atlas->ConfigData[0];
 	font->ConfigDataCount = 1;
@@ -1479,6 +1531,7 @@ bool loadFontAtlas ()
 	return true;
 }
 
+/// \brief Store font atlas cache to disk
 bool saveFontAtlas ()
 {
 	auto const atlas = ImGui::GetIO ().Fonts;
@@ -1488,24 +1541,30 @@ bool saveFontAtlas ()
 	int height;
 	atlas->GetTexDataAsAlpha8 (&pixels, &width, &height);
 
+	// create font atlas cache
 	fs::File fp;
 	if (!fp.open (FONT_ATLAS_BIN, "wb"))
 		return false;
 
+	// save atlas dimensions
 	fp.write<std::uint16_t> (width);
 	fp.write<std::uint16_t> (height);
 
+	// write pixel data
 	if (!fp.writeAll (pixels, width * height))
 		return false;
 
 	auto const font = atlas->ConfigData[0].DstFont;
 
+	// write some font metrics
 	fp.write (font->FallbackAdvanceX);
 	fp.write (font->FontSize);
 
+	// encode glyph metadata
 	fp.write<std::uint16_t> (font->Glyphs.size ());
 	for (auto const &glyph : font->Glyphs)
 	{
+		// write glyph metadata
 		fp.write (glyph.Codepoint);
 		fp.write (glyph.AdvanceX);
 		fp.write (glyph.X0);
@@ -1518,6 +1577,7 @@ bool saveFontAtlas ()
 		fp.write (glyph.V1);
 	}
 
+	// write remaining font metrics
 	fp.write (font->DisplayOffset.x);
 	fp.write (font->DisplayOffset.y);
 	fp.write (font->Ascent);
@@ -1529,44 +1589,71 @@ bool saveFontAtlas ()
 
 bool imgui::nx::init ()
 {
-	u64 languageCode;
-	auto rc = setInitialize ();
-	if (R_FAILED (rc))
-		return false;
+	ImGuiIO &io = ImGui::GetIO ();
 
-	rc = setGetSystemLanguage (&languageCode);
-	if (R_FAILED (rc))
+	if (!loadFontAtlas ())
 	{
+		// get system language
+		u64 languageCode;
+		auto rc = setInitialize ();
+		if (R_FAILED (rc))
+			return false;
+
+		rc = setGetSystemLanguage (&languageCode);
+		if (R_FAILED (rc))
+		{
+			setExit ();
+			return false;
+		}
 		setExit ();
-		return false;
+
+		// get fonts for system language
+		std::vector<PlFontData> fonts (PlSharedFontType_Total);
+		s32 numFonts = 0;
+		rc           = plGetSharedFont (languageCode, fonts.data (), fonts.size (), &numFonts);
+		if (R_FAILED (rc))
+			return false;
+		fonts.resize (numFonts);
+
+		// add fonts
+		ImFontConfig config;
+		config.MergeMode            = false;
+		config.FontDataOwnedByAtlas = false;
+		for (auto const &font : fonts)
+		{
+			io.Fonts->AddFontFromMemoryTTF (font.address, font.size, 14.0f, &config, nxFontRanges);
+			config.MergeMode = true;
+		}
+
+		// build font atlas
+		io.Fonts->Flags |= ImFontAtlasFlags_NoPowerOfTwoHeight;
+		io.Fonts->Build ();
+
+		// save font atlas
+		saveFontAtlas ();
 	}
-	setExit ();
+	else
+		std::printf ("Loaded font atlas from disk\n");
 
-	std::vector<PlFontData> fonts (PlSharedFontType_Total);
-	s32 numFonts = 0;
-	rc           = plGetSharedFont (languageCode, fonts.data (), fonts.size (), &numFonts);
-	if (R_FAILED (rc))
-		return false;
-	fonts.resize (numFonts);
-
+	// initialize applet hooks
 	appletSetFocusHandlingMode (AppletFocusHandlingMode_NoSuspend);
 	appletHook (&s_appletHookCookie, handleAppletHook, nullptr);
 	handleAppletHook (AppletHookType_OnFocusState, nullptr);
 	handleAppletHook (AppletHookType_OnOperationMode, nullptr);
 
-	ImGuiIO &io = ImGui::GetIO ();
-
+	// disable imgui.ini file
 	io.IniFilename = nullptr;
 
+	// setup config flags
 	io.ConfigFlags |= ImGuiConfigFlags_IsTouchScreen;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+	// setup platform backend
 	io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+	io.BackendPlatformName = "Switch";
 
-	io.BackendPlatformName = "switch";
-
-	// Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
+	// keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
 	io.KeyMap[ImGuiKey_Tab]         = KBD_TAB;
 	io.KeyMap[ImGuiKey_LeftArrow]   = KBD_LEFT;
 	io.KeyMap[ImGuiKey_RightArrow]  = KBD_RIGHT;
@@ -1590,30 +1677,13 @@ bool imgui::nx::init ()
 	io.KeyMap[ImGuiKey_Y]           = KBD_Y;
 	io.KeyMap[ImGuiKey_Z]           = KBD_Z;
 
+	// initially disable mouse cursor
 	io.MouseDrawCursor = false;
 
+	// clipboard callbacks
 	io.SetClipboardTextFn = setClipboardText;
 	io.GetClipboardTextFn = getClipboardText;
 	io.ClipboardUserData  = nullptr;
-
-	if (!loadFontAtlas ())
-	{
-		ImFontConfig config;
-		config.MergeMode            = false;
-		config.FontDataOwnedByAtlas = false;
-
-		for (auto const &font : fonts)
-		{
-			io.Fonts->AddFontFromMemoryTTF (font.address, font.size, 14.0f, &config, nxFontRanges);
-			config.MergeMode = true;
-		}
-		io.Fonts->Flags |= ImFontAtlasFlags_NoPowerOfTwoHeight;
-		io.Fonts->Build ();
-
-		saveFontAtlas ();
-	}
-	else
-		std::printf ("Loaded font atlas from disk\n");
 
 	return true;
 }
@@ -1621,35 +1691,44 @@ bool imgui::nx::init ()
 void imgui::nx::newFrame ()
 {
 	ImGuiIO &io = ImGui::GetIO ();
+
+	// check that font was built
 	IM_ASSERT (io.Fonts->IsBuilt () &&
 	           "Font atlas not built! It is generally built by the renderer back-end. Missing call "
 	           "to renderer _NewFrame() function?");
 
+	// setup display metrics
 	io.DisplaySize             = ImVec2 (s_width, s_height);
 	io.DisplayFramebufferScale = ImVec2 (1.0f, 1.0f);
 
-	// Setup time step
-	static auto const start = std::chrono::high_resolution_clock::now ();
+	// time step
+	static auto const start = platform::steady_clock::now ();
 	static auto prev        = start;
-	auto const now          = std::chrono::high_resolution_clock::now ();
+	auto const now          = platform::steady_clock::now ();
 
 	io.DeltaTime = std::chrono::duration<float> (now - prev).count ();
 	prev         = now;
 
-	updateMouseButtons (io);
-	updateMousePos (io);
-	updateTouch (io);
-	updateGamepads (io);
-	updateKeyboard (io);
+	if (s_focused)
+	{
+		// update inputs
+		updateMouseButtons (io);
+		updateMousePos (io);
+		updateTouch (io);
+		updateGamepads (io);
+		updateKeyboard (io);
+	}
 
+	// whether to draw mouse cursor
 	io.MouseDrawCursor = s_showMouse;
 
-	// Clamp mouse to screen
+	// clamp mouse to screen
 	s_mousePos.x = std::clamp (s_mousePos.x, 0.0f, s_width);
 	s_mousePos.y = std::clamp (s_mousePos.y, 0.0f, s_height);
 }
 
 void imgui::nx::exit ()
 {
+	// deinitialize applet hooks
 	appletUnhook (&s_appletHookCookie);
 }

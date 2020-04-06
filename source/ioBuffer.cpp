@@ -29,6 +29,7 @@ IOBuffer::~IOBuffer () = default;
 IOBuffer::IOBuffer (std::size_t const size_)
     : m_buffer (std::make_unique<char[]> (size_)), m_size (size_)
 {
+	assert (size_ > 0);
 }
 
 char *IOBuffer::freeArea () const

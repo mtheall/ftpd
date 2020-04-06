@@ -38,8 +38,10 @@ Socket::~Socket ()
 {
 	if (m_listening)
 		Log::info ("Stop listening on [%s]:%u\n", m_sockName.name (), m_sockName.port ());
+
 	if (m_connected)
 		Log::info ("Closing connection to [%s]:%u\n", m_peerName.name (), m_peerName.port ());
+
 	if (::close (m_fd) != 0)
 		Log::error ("close: %s\n", std::strerror (errno));
 }
@@ -66,7 +68,7 @@ UniqueSocket Socket::accept ()
 	if (fd < 0)
 	{
 		Log::error ("accept: %s\n", std::strerror (errno));
-		return {nullptr, {}};
+		return nullptr;
 	}
 
 	Log::info ("Accepted connection from [%s]:%u\n", addr.name (), addr.port ());
@@ -112,6 +114,7 @@ bool Socket::bind (SockAddr const &addr_)
 
 	if (addr_.port () == 0)
 	{
+		// get socket name due to request for ephemeral port
 		socklen_t addrLen = sizeof (struct sockaddr_storage);
 		if (::getsockname (m_fd, m_sockName, &addrLen) != 0)
 			Log::error ("getsockname: %s\n", std::strerror (errno));
@@ -200,7 +203,7 @@ bool Socket::setNonBlocking (bool const nonBlocking_)
 
 	if (::fcntl (m_fd, F_SETFL, flags) != 0)
 	{
-		Log::error ("fcntl(F_SETFL): %s\n", std::strerror (errno));
+		Log::error ("fcntl(F_SETFL, %d): %s\n", flags, std::strerror (errno));
 		return false;
 	}
 
@@ -212,7 +215,8 @@ bool Socket::setReuseAddress (bool const reuse_)
 	int reuse = reuse_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof (reuse)) != 0)
 	{
-		Log::error ("setsockopt(SO_REUSEADDR, %u): %s\n", reuse_, std::strerror (errno));
+		Log::error (
+		    "setsockopt(SO_REUSEADDR, %s): %s\n", reuse_ ? "yes" : "no", std::strerror (errno));
 		return false;
 	}
 

@@ -17,19 +17,19 @@ all: 3dsx nro linux
 nxlink:
 	@$(MAKE) -f Makefile.switch nxlink
 
-3dslink: 3dsx
-	@/opt/devkitpro/tools/bin/3dslink $(TARGET)-3ds.3dsx
+3dslink:
+	@$(MAKE) -f Makefile.3ds 3dslink
 
 format:
 	@clang-format -style=file -i $(filter-out \
 		include/imgui.h \
-		source/pc/imgui_impl_glfw.cpp \
-		source/pc/imgui_impl_glfw.h \
-		source/pc/imgui_impl_opengl3.cpp \
-		source/pc/imgui_impl_opengl3.h \
-		source/pc/KHR/khrplatform.h \
-		source/pc/glad.c \
-		source/pc/glad/glad.h \
+		source/linux/imgui_impl_glfw.cpp \
+		source/linux/imgui_impl_glfw.h \
+		source/linux/imgui_impl_opengl3.cpp \
+		source/linux/imgui_impl_opengl3.h \
+		source/linux/KHR/khrplatform.h \
+		source/linux/glad.c \
+		source/linux/glad/glad.h \
 		source/imgui/imgui.cpp \
 		source/imgui/imgui_demo.cpp \
 		source/imgui/imgui_draw.cpp \
@@ -41,9 +41,9 @@ format:
 		$(shell find source include -type f -name \*.c -o -name \*.cpp -o -name \*.h))
 
 release: release-3ds release-nro
-	@xz -c <$(TARGET)-3ds.3dsx >ftpd.3dsx.xz
-	@echo xz -c <$(TARGET)-3ds.cia >ftpd.cia.xz
-	@echo xz -c <$(TARGET)-nx.nro >ftpd.nro.xz
+	@xz -c <3ds/$(TARGET).3dsx >ftpd.3dsx.xz
+	@xz -c <3ds/$(TARGET).cia >ftpd.cia.xz
+	@xz -c <switch/$(TARGET).nro >ftpd.nro.xz
 
 nro:
 	@$(MAKE) -f Makefile.switch all
@@ -64,7 +64,7 @@ release-cia: release-3dsx
 	@$(MAKE) DEFINES=-NDEBUG -f Makefile.3ds cia
 
 release-3ds:
-	# can't let these three run in parallel with each other due to using same
+	# can't let these run in parallel with each other due to using same
 	# .elf file name
 	@$(MAKE) DEFINES=-DNDEBUG -f Makefile.3ds 3dsx
 	@$(MAKE) DEFINES=-DNDEBUG -f Makefile.3ds cia

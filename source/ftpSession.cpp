@@ -55,8 +55,13 @@ using namespace std::chrono_literals;
 
 namespace
 {
+/// \brief Parse command
+/// \param buffer_ Buffer to parse
+/// \param size_ Size of buffer
+/// \returns {delimiterPos, nextPos}
 std::pair<char *, char *> parseCommand (char *const buffer_, std::size_t const size_)
 {
+	// look for \r\n or \n delimiter
 	auto const end = &buffer_[size_];
 	for (auto p = buffer_; p < end; ++p)
 	{
@@ -70,6 +75,9 @@ std::pair<char *, char *> parseCommand (char *const buffer_, std::size_t const s
 	return {nullptr, nullptr};
 }
 
+/// \brief Decode path
+/// \param buffer_ Buffer to decode
+/// \param size_ Size of buffer
 void decodePath (char *const buffer_, std::size_t const size_)
 {
 	auto const end = &buffer_[size_];
@@ -81,6 +89,9 @@ void decodePath (char *const buffer_, std::size_t const size_)
 	}
 }
 
+/// \brief Encode path
+/// \param buffer_ Buffer to encode
+/// \param quotes_ Whether to encode quotes
 std::string encodePath (std::string_view const buffer_, bool const quotes_ = false)
 {
 	// check if the buffer has \n
@@ -104,13 +115,16 @@ std::string encodePath (std::string_view const buffer_, bool const quotes_ = fal
 		} while (p);
 	}
 
+	// if nothing needs escaping, return it as-is
 	if (!lf && !numQuotes)
 		return std::string (buffer_);
 
+	// reserve output buffer
 	std::string path (buffer_.size () + numQuotes, '\0');
 	auto in  = buffer_.data ();
 	auto out = path.data ();
 
+	// encode into the output buffer
 	while (in < end)
 	{
 		if (*in == '\n')
@@ -132,6 +146,8 @@ std::string encodePath (std::string_view const buffer_, bool const quotes_ = fal
 	return path;
 }
 
+/// \brief Get parent directory name of a path
+/// \param path_ Path to get parent of
 std::string dirName (std::string_view const path_)
 {
 	// remove last path component
@@ -142,6 +158,8 @@ std::string dirName (std::string_view const path_)
 	return dir;
 }
 
+/// \brief Resolve path
+/// \param path_ Path to resolve
 std::string resolvePath (std::string_view const path_)
 {
 	assert (!path_.empty ());
@@ -209,6 +227,9 @@ std::string resolvePath (std::string_view const path_)
 	return outPath;
 }
 
+/// \brief Build path from a parent and child
+/// \param cwd_ Parent directory
+/// \param args_ Child component
 std::string buildPath (std::string_view const cwd_, std::string_view const args_)
 {
 	// absolute path
@@ -222,6 +243,9 @@ std::string buildPath (std::string_view const cwd_, std::string_view const args_
 	return std::string (cwd_) + '/' + std::string (args_);
 }
 
+/// \brief Build resolved path from a parent and child
+/// \param cwd_ Parent directory
+/// \param args_ Child component
 std::string buildResolvedPath (std::string_view const cwd_, std::string_view const args_)
 {
 	return resolvePath (buildPath (cwd_, args_));

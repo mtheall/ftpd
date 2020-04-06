@@ -27,12 +27,17 @@
 namespace
 {
 #ifdef _3DS
+/// \brief Maximum number of log messages to keep
 constexpr auto MAX_LOGS = 250;
 #else
+/// \brief Maximum number of log messages to keep
 constexpr auto MAX_LOGS = 10000;
 #endif
+
+/// \brief Bound log
 thread_local WeakLog s_log;
 
+/// \brief Message prefix
 static char const *const s_prefix[] = {
     [Log::DEBUG]    = "[DEBUG]",
     [Log::INFO]     = "[INFO]",
@@ -59,19 +64,11 @@ void Log::draw ()
 	}
 
 	static ImVec4 const s_colors[] = {
-	    [Log::DEBUG]    = ImVec4 (1.0f, 1.0f, 0.4f, 1.0f),
-	    [Log::INFO]     = ImVec4 (1.0f, 1.0f, 1.0f, 1.0f),
-	    [Log::ERROR]    = ImVec4 (1.0f, 0.4f, 0.4f, 1.0f),
-	    [Log::COMMAND]  = ImVec4 (0.4f, 1.0f, 0.4f, 1.0f),
-	    [Log::RESPONSE] = ImVec4 (0.4f, 1.0f, 1.0f, 1.0f),
-	};
-
-	static char const *const s_prefix[] = {
-	    [Log::DEBUG]    = "[DEBUG]",
-	    [Log::INFO]     = "[INFO]",
-	    [Log::ERROR]    = "[ERROR]",
-	    [Log::COMMAND]  = "[COMMAND]",
-	    [Log::RESPONSE] = "[RESPONSE]",
+	    [Log::DEBUG]    = ImVec4 (1.0f, 1.0f, 0.4f, 1.0f), // yellow
+	    [Log::INFO]     = ImVec4 (1.0f, 1.0f, 1.0f, 1.0f), // white
+	    [Log::ERROR]    = ImVec4 (1.0f, 0.4f, 0.4f, 1.0f), // red
+	    [Log::COMMAND]  = ImVec4 (0.4f, 1.0f, 0.4f, 1.0f), // green
+	    [Log::RESPONSE] = ImVec4 (0.4f, 1.0f, 1.0f, 1.0f), // cyan
 	};
 
 	for (auto const &message : m_messages)
@@ -83,7 +80,7 @@ void Log::draw ()
 		ImGui::PopStyleColor ();
 	}
 
-	// auto scroll if scroll bar is at end
+	// auto-scroll if scroll bar is at end
 	if (ImGui::GetScrollY () >= ImGui::GetScrollMaxY ())
 		ImGui::SetScrollHereY (1.0f);
 }
@@ -183,6 +180,7 @@ void Log::log (Level const level_, std::string_view const message_)
 	auto msg = std::string (message_);
 	for (auto &c : msg)
 	{
+		// replace nul-characters with ? to avoid truncation
 		if (c == '\0')
 			c = '?';
 	}

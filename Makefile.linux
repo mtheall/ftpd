@@ -1,12 +1,12 @@
-TARGET  := ftpd
-BUILD   := build.linux
+TARGET  := linux/ftpd
+BUILD   := linux/build
 
-CFILES    := $(wildcard source/pc/*.c)
+CFILES    := $(wildcard source/linux/*.c)
 OFILES    := $(patsubst source/%,$(BUILD)/%,$(CFILES:.c=.c.o))
-CXXFILES  := $(wildcard source/*.cpp source/imgui/*.cpp source/pc/*.cpp)
+CXXFILES  := $(wildcard source/*.cpp source/imgui/*.cpp source/linux/*.cpp)
 OXXFILES  := $(patsubst source/%,$(BUILD)/%,$(CXXFILES:.cpp=.cpp.o))
 
-CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/pc \
+CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/linux \
              `pkg-config --cflags gl glfw3` \
              -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
              -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \

@@ -2,76 +2,40 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
-//
+// 
 // Copyright (C) 2020 Michael Theall
-//
+// 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-//
+// 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
+// 
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include <switch.h>
+#version 460
 
-#include <unistd.h>
+layout (location = 0) in vec2 vtxUv;
+layout (location = 1) in vec4 vtxColor;
 
-#ifndef NDEBUG
-static int s_fd = -1;
-#endif
+layout (binding = 0) uniform sampler2D tex;
 
-static SocketInitConfig const s_socketInitConfig = {
-    .bsdsockets_version = 1,
+layout (std140, binding = 0) uniform FragUBO {
+	uint font;
+} ubo;
 
-    .tcp_tx_buf_size     = 1 * 1024 * 1024,
-    .tcp_rx_buf_size     = 1 * 1024 * 1024,
-    .tcp_tx_buf_max_size = 4 * 1024 * 1024,
-    .tcp_rx_buf_max_size = 4 * 1024 * 1024,
+layout (location = 0) out vec4 outColor;
 
-    .udp_tx_buf_size = 0x2400,
-    .udp_rx_buf_size = 0xA500,
-
-    .sb_efficiency = 8,
-
-    .num_bsd_sessions = 3,
-    .bsd_service_type = BsdServiceType_User,
-};
-
-u32 __nx_fs_num_sessions = 3;
-
-void userAppInit ()
+void main()
 {
-	appletLockExit ();
-
-	romfsInit ();
-	plInitialize ();
-
-	if (R_FAILED (socketInitialize (&s_socketInitConfig)))
-		return;
-
-#ifndef NDEBUG
-	s_fd = nxlinkStdio ();
-#endif
-}
-
-void userAppExit ()
-{
-#ifndef NDEBUG
-	if (s_fd >= 0)
-	{
-		close (s_fd);
-		socketExit ();
-		s_fd = -1;
-	}
-#endif
-
-	plExit ();
-	romfsExit ();
-	appletUnlockExit ();
+	// font texture is single-channel (alpha)
+	if (ubo.font != 0)
+	    outColor = vtxColor * vec4 (vec3 (1.0), texture (tex, vtxUv).r);
+	else
+		outColor = vtxColor * texture (tex, vtxUv);
 }

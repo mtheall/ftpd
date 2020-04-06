@@ -32,14 +32,8 @@
 
 bool platform::init ()
 {
-	IMGUI_CHECKVERSION ();
-	ImGui::CreateContext ();
-
 	if (!imgui::nx::init ())
-	{
-		ImGui::DestroyContext ();
 		return false;
-	}
 
 	imgui::deko3d::init ();
 
@@ -77,20 +71,22 @@ void platform::exit ()
 {
 	imgui::nx::exit ();
 	imgui::deko3d::exit ();
-
-	ImGui::DestroyContext ();
 }
 
 ///////////////////////////////////////////////////////////////////////////
+/// \brief Platform thread pimpl
 class platform::Thread::privateData_t
 {
 public:
 	privateData_t () = default;
 
+	/// \brief Parameterized constructor
+	/// \param func_ Thread entry point
 	privateData_t (std::function<void ()> func_) : thread (func_)
 	{
 	}
 
+	/// \brief Underlying thread
 	std::thread thread;
 };
 
@@ -128,12 +124,16 @@ void platform::Thread::sleep (std::chrono::milliseconds const timeout_)
 
 ///////////////////////////////////////////////////////////////////////////
 #define USE_STD_MUTEX 1
+
+/// \brief Platform mutex pimpl
 class platform::Mutex::privateData_t
 {
 public:
 #if USE_STD_MUTEX
+	/// \brief Underlying mutex
 	std::mutex mutex;
 #else
+	/// \brief Underlying mutex
 	::Mutex mutex;
 #endif
 };

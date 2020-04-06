@@ -31,13 +31,13 @@ include $(DEVKITARM)/3ds_rules
 #     - icon.png
 #     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
-TARGET   := $(notdir $(CURDIR))-3ds
-BUILD    := build.3ds
+TARGET   := 3ds/$(notdir $(CURDIR))
+BUILD    := 3ds/build
 SOURCES  := source source/3ds source/imgui
 DATA     := data
 INCLUDES := include
-GRAPHICS := gfx.3ds
-ROMFS    := romfs.3ds
+GRAPHICS := 3ds/gfx
+ROMFS    := 3ds/romfs
 GFXBUILD := $(ROMFS)
 
 APP_TITLE       := ftpd
@@ -66,7 +66,7 @@ CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS \
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 
 ASFLAGS  := -g $(ARCH)
-LDFLAGS   = -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(TARGET).map $(OPTIMIZE)
+LDFLAGS   = -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) $(OPTIMIZE)
 
 LIBS     := -lcitro3d -lctru -lm
 
@@ -81,7 +81,7 @@ LIBDIRS  := $(CTRULIB)
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+ifneq ($(TOPDIR)/$(BUILD),$(CURDIR))
 #---------------------------------------------------------------------------------
 
 export OUTPUT  :=  $(CURDIR)/$(TARGET)
@@ -165,7 +165,7 @@ ifneq ($(ROMFS),)
   export _3DSXFLAGS += --romfs=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: $(BUILD) clean all 3dsx cia
+.PHONY: $(BUILD) clean all 3dsx cia 3dslink
 
 #---------------------------------------------------------------------------------
 all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
@@ -195,6 +195,9 @@ $(GFXBUILD)/%.t3x $(BUILD)/%.h: %.t3s
 
 cia: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.3ds cia
+
+3dslink: 3dsx
+	@3dslink $(OUTPUT).3dsx
 
 #---------------------------------------------------------------------------------
 clean:

@@ -10,8 +10,10 @@
 *.pfs0
 *.smdh
 .gdb_history
-build.*/
-ftpd
-romfs.3ds/*.t3x
-romfs.switch/*.zst
-romfs.switch/shaders/*.dksh
+3ds/build
+3ds/romfs/*.t3x
+linux/build
+linux/ftpd
+switch/build
+switch/romfs/*.zst
+switch/romfs/shaders/*.dksh

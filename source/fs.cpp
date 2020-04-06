@@ -45,28 +45,34 @@ std::string fs::printSize (std::uint64_t const size_)
 	         // clang-format on
 	     })
 	{
+		// get the integral portion of the number
 		auto const whole = size_ / bin;
 		if (size_ >= 100 * bin)
 		{
+			// >= 100, print xxxXiB
 			std::sprintf (buffer, "%" PRIu64 "%s", whole, name);
 			return buffer;
 		}
 
+		// get the fractional portion of the number
 		auto const frac = size_ - whole * bin;
 		if (size_ >= 10 * bin)
 		{
+			// >= 10, print xx.xXiB
 			std::sprintf (buffer, "%" PRIu64 ".%" PRIu64 "%s", whole, frac * 10 / bin, name);
 			return buffer;
 		}
 
 		if (size_ >= 1000 * (bin / KiB))
 		{
+			// >= 1000 of lesser bin, print x.xxXiB
 			std::sprintf (buffer, "%" PRIu64 ".%02" PRIu64 "%s", whole, frac * 100 / bin, name);
 			return buffer;
 		}
 	}
 
-	std::sprintf (buffer, "%" PRIu64, size_);
+	// < 1KiB, just print the number
+	std::sprintf (buffer, "%" PRIu64 "B", size_);
 	return buffer;
 }
 
@@ -207,5 +213,6 @@ void fs::Dir::close ()
 
 struct dirent *fs::Dir::read ()
 {
+	errno = 0;
 	return ::readdir (m_dp.get ());
 }

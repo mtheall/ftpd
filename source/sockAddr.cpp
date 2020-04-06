@@ -23,6 +23,7 @@
 #include <arpa/inet.h>
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -51,18 +52,24 @@ SockAddr::SockAddr (struct sockaddr const &addr_)
 		std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in6));
 		break;
 #endif
+
+	default:
+		std::abort ();
+		break;
 	}
 }
 
 SockAddr::SockAddr (struct sockaddr_in const &addr_)
     : SockAddr (reinterpret_cast<struct sockaddr const &> (addr_))
 {
+	assert (m_addr.ss_family == AF_INET);
 }
 
 #ifndef _3DS
 SockAddr::SockAddr (struct sockaddr_in6 const &addr_)
     : SockAddr (reinterpret_cast<struct sockaddr const &> (addr_))
 {
+	assert (m_addr.ss_family == AF_INET6);
 }
 #endif
 
@@ -111,9 +118,11 @@ std::uint16_t SockAddr::port () const
 	case AF_INET6:
 		return ntohs (reinterpret_cast<struct sockaddr_in6 const *> (&m_addr)->sin6_port);
 #endif
-	}
 
-	return 0;
+	default:
+		std::abort ();
+		break;
+	}
 }
 
 char const *SockAddr::name (char *buffer_, std::size_t size_) const
@@ -133,9 +142,11 @@ char const *SockAddr::name (char *buffer_, std::size_t size_) const
 		    buffer_,
 		    size_);
 #endif
-	}
 
-	return nullptr;
+	default:
+		std::abort ();
+		break;
+	}
 }
 
 char const *SockAddr::name () const
