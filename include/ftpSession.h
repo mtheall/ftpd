@@ -117,6 +117,13 @@ private:
 	/// \param closeData_ Whether to close data socket
 	void setState (State state_, bool closePasv_, bool closeData_);
 
+	/// \brief Close socket
+	/// \param socket_ Socket to close
+	void closeSocket (SharedSocket &socket_);
+	/// \brief Close command socket
+	void closeCommand ();
+	/// \brief Close passive socket
+	void closePasv ();
 	/// \brief Close data socket
 	void closeData ();
 
