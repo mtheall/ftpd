@@ -359,26 +359,8 @@ UniqueFtpSession FtpSession::create (UniqueSocket commandSocket_)
 	return UniqueFtpSession (new FtpSession (std::move (commandSocket_)));
 }
 
-void FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
+bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 {
-#if 0
-	auto const printEvents = [] (int const events_) {
-		std::string out;
-		if (events_ & POLLIN)
-			out += "[IN]";
-		if (events_ & POLLPRI)
-			out += "[PRI]";
-		if (events_ & POLLOUT)
-			out += "[OUT]";
-		if (events_ & POLLHUP)
-			out += "[HUP]";
-		if (events_ & POLLERR)
-			out += "[ERR]";
-
-		return out;
-	};
-#endif
-
 	// poll for pending close sockets first
 	std::vector<Socket::PollInfo> info;
 	for (auto &session : sessions_)
@@ -395,7 +377,10 @@ void FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 	{
 		auto const rc = Socket::poll (info.data (), info.size (), 0ms);
 		if (rc < 0)
+		{
 			Log::error ("poll: %s\n", std::strerror (errno));
+			return false;
+		}
 		else
 		{
 			for (auto const &i : info)
@@ -472,22 +457,18 @@ void FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 	}
 
 	if (info.empty ())
-		return;
+		return true;
 
-		// poll for activity
-#if MULTITHREADED
+	// poll for activity
 	auto const rc = Socket::poll (info.data (), info.size (), 16ms);
-#else
-	auto const rc = Socket::poll (info.data (), info.size (), 0ms);
-#endif
 	if (rc < 0)
 	{
 		Log::error ("poll: %s\n", std::strerror (errno));
-		return;
+		return false;
 	}
 
 	if (rc == 0)
-		return;
+		return true;
 
 	for (auto &session : sessions_)
 	{
@@ -568,6 +549,8 @@ void FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 			}
 		}
 	}
+
+	return true;
 }
 
 void FtpSession::setState (State const state_, bool const closePasv_, bool const closeData_)

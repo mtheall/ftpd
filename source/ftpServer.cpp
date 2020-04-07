@@ -35,13 +35,6 @@
 #include <thread>
 using namespace std::chrono_literals;
 
-#ifndef _3DS
-/// \todo Investigate multithreading on 3DS
-#define MULTITHREADED 1
-#else
-#define MULTITHREADED 0
-#endif
-
 namespace
 {
 /// \brief Application start time
@@ -57,11 +50,9 @@ std::string s_freeSpace;
 ///////////////////////////////////////////////////////////////////////////
 FtpServer::~FtpServer ()
 {
-#if MULTITHREADED
 	m_quit = true;
 
 	m_thread.join ();
-#endif
 }
 
 FtpServer::FtpServer (std::uint16_t const port_)
@@ -71,17 +62,11 @@ FtpServer::FtpServer (std::uint16_t const port_)
 
 	handleStartButton ();
 
-#if MULTITHREADED
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
-#endif
 }
 
 void FtpServer::draw ()
 {
-#if !MULTITHREADED
-	loop ();
-#endif
-
 	ImGuiIO &io       = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
 	auto const height = io.DisplaySize.y;
@@ -233,6 +218,8 @@ void FtpServer::loop ()
 				auto socket = m_socket->accept ();
 				if (socket)
 					m_sessions.emplace_back (FtpSession::create (std::move (socket)));
+				else
+					handleStopButton ();
 			}
 		}
 	}
@@ -249,12 +236,13 @@ void FtpServer::loop ()
 
 	// poll sessions
 	if (!m_sessions.empty ())
-		FtpSession::poll (m_sessions);
-#if MULTITHREADED
+	{
+		if (!FtpSession::poll (m_sessions))
+			handleStopButton ();
+	}
 	// avoid busy polling in background thread
 	else
 		platform::Thread::sleep (16ms);
-#endif
 }
 
 void FtpServer::threadFunc ()

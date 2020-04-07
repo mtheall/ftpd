@@ -52,7 +52,7 @@ public:
 
 	/// \brief Poll for activity
 	/// \param sessions_ Sessions to poll
-	static void poll (std::vector<UniqueFtpSession> const &sessions_);
+	static bool poll (std::vector<UniqueFtpSession> const &sessions_);
 
 private:
 	/// \brief Command buffer size

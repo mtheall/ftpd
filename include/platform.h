@@ -82,7 +82,7 @@ public:
 
 	/// \brief Parameterized constructor
 	/// \param func_ Thread entrypoint
-	Thread (std::function<void ()> func_);
+	Thread (std::function<void ()> &&func_);
 
 	Thread (Thread const &that_) = delete;
 

@@ -207,7 +207,7 @@ public:
 
 	/// \brief Parameterized constructor
 	/// \param func_ Thread entry point
-	privateData_t (std::function<void ()> func_) : thread (func_)
+	privateData_t (std::function<void ()> &&func_) : thread (std::move (func_))
 	{
 	}
 
@@ -222,7 +222,8 @@ platform::Thread::Thread () : m_d (new privateData_t ())
 {
 }
 
-platform::Thread::Thread (std::function<void ()> func_) : m_d (new privateData_t (func_))
+platform::Thread::Thread (std::function<void ()> &&func_)
+    : m_d (new privateData_t (std::move (func_)))
 {
 }
 

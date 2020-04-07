@@ -282,7 +282,8 @@ void platform::exit ()
 	imgui::citro3d::exit ();
 	imgui::ctru::exit ();
 
-	socExit ();
+	if (s_socuActive)
+		socExit ();
 	s_socuActive = false;
 	std::free (s_socuBuffer);
 
@@ -304,7 +305,7 @@ public:
 
 	/// \brief Parameterized constructor
 	/// \param func_ Thread entry point
-	privateData_t (std::function<void ()> func_) : thread (nullptr)
+	privateData_t (std::function<void ()> &&func_) : thread (nullptr), func (std::move (func_))
 	{
 		s32 priority = 0x30;
 		svcGetThreadPriority (&priority, CUR_THREAD_HANDLE);
@@ -335,7 +336,8 @@ platform::Thread::Thread () : m_d (new privateData_t ())
 {
 }
 
-platform::Thread::Thread (std::function<void ()> func_) : m_d (new privateData_t (func_))
+platform::Thread::Thread (std::function<void ()> &&func_)
+    : m_d (new privateData_t (std::move (func_)))
 {
 }
 
