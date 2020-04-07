@@ -36,20 +36,6 @@ namespace
 /// \brief 3DS font glyph ranges
 std::vector<ImWchar> s_fontRanges;
 
-/// \brief Clear color
-constexpr auto CLEAR_COLOR = 0x204B7AFF;
-
-/// \brief Display transfer flags
-constexpr auto DISPLAY_TRANSFER_FLAGS =
-    GX_TRANSFER_FLIP_VERT (0) | GX_TRANSFER_OUT_TILED (0) | GX_TRANSFER_RAW_COPY (0) |
-    GX_TRANSFER_IN_FORMAT (GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT (GX_TRANSFER_FMT_RGB8) |
-    GX_TRANSFER_SCALING (GX_TRANSFER_SCALE_XY);
-
-/// \brief Top screen render target
-C3D_RenderTarget *s_top = nullptr;
-/// \brief Bottom screen render target
-C3D_RenderTarget *s_bottom = nullptr;
-
 /// \brief Vertex shader
 DVLB_s *s_vsh = nullptr;
 /// \brief Vertex shader program
@@ -166,21 +152,10 @@ void setupRenderState (gfxScreen_t const screen_)
 void imgui::citro3d::init ()
 {
 	// setup back-end capabilities flags
-	ImGuiIO &io = ImGui::GetIO ();
+	auto &io = ImGui::GetIO ();
 
 	io.BackendRendererName = "citro3d";
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
-
-	// initialize citro3d
-	C3D_Init (C3D_DEFAULT_CMDBUF_SIZE);
-
-	// create top screen render target
-	s_top = C3D_RenderTargetCreate (480, 800, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
-	C3D_RenderTargetSetOutput (s_top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
-
-	// create bottom screen render target
-	s_bottom = C3D_RenderTargetCreate (480, 640, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
-	C3D_RenderTargetSetOutput (s_bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	// load vertex shader
 	s_vsh = DVLB_ParseFile (
@@ -193,10 +168,6 @@ void imgui::citro3d::init ()
 
 	// get projection matrix uniform location
 	s_projLocation = shaderInstanceGetUniformLocation (s_program.vertexShader, "proj");
-
-	// initialize projection matrices
-	Mtx_OrthoTilt (&s_projTop, 0.0f, 400.0f, 240.0f, 0.0f, -1.0f, 1.0f, false);
-	Mtx_OrthoTilt (&s_projBottom, 40.0f, 360.0f, 480.0f, 240.0f, -1.0f, 1.0f, false);
 
 	// allocate vertex data buffer
 	s_vtxSize = 65536;
@@ -421,43 +392,38 @@ void imgui::citro3d::exit ()
 	// free shader program
 	shaderProgramFree (&s_program);
 	DVLB_Free (s_vsh);
-
-	// free render targets
-	C3D_RenderTargetDelete (s_bottom);
-	C3D_RenderTargetDelete (s_top);
-
-	// deinitialize citro3d
-	C3D_Fini ();
 }
 
-void imgui::citro3d::newFrame ()
+void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *const bottom_)
 {
-}
-
-void imgui::citro3d::render ()
-{
-	C3D_FrameBegin (C3D_FRAME_SYNCDRAW);
-
-	// clear frame/depth buffers
-	C3D_RenderTargetClear (s_top, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
-	C3D_RenderTargetClear (s_bottom, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
-
 	// get draw data
 	auto const drawData = ImGui::GetDrawData ();
 	if (drawData->CmdListsCount <= 0)
-	{
-		C3D_FrameEnd (0);
 		return;
-	}
 
 	// get framebuffer dimensions
 	unsigned width  = drawData->DisplaySize.x * drawData->FramebufferScale.x;
 	unsigned height = drawData->DisplaySize.y * drawData->FramebufferScale.y;
 	if (width <= 0 || height <= 0)
-	{
-		C3D_FrameEnd (0);
 		return;
-	}
+
+	// initialize projection matrices
+	Mtx_OrthoTilt (&s_projTop,
+	    0.0f,
+	    drawData->DisplaySize.x,
+	    drawData->DisplaySize.y * 0.5f,
+	    0.0f,
+	    -1.0f,
+	    1.0f,
+	    false);
+	Mtx_OrthoTilt (&s_projBottom,
+	    drawData->DisplaySize.x * 0.1f,
+	    drawData->DisplaySize.x * 0.9f,
+	    drawData->DisplaySize.y,
+	    drawData->DisplaySize.y * 0.5f,
+	    -1.0f,
+	    1.0f,
+	    false);
 
 	// check if we need to grow vertex data buffer
 	if (s_vtxSize < static_cast<std::size_t> (drawData->TotalVtxCount))
@@ -515,9 +481,9 @@ void imgui::citro3d::render ()
 	for (auto const &screen : {GFX_TOP, GFX_BOTTOM})
 	{
 		if (screen == GFX_TOP)
-			C3D_FrameDrawOn (s_top);
+			C3D_FrameDrawOn (top_);
 		else
-			C3D_FrameDrawOn (s_bottom);
+			C3D_FrameDrawOn (bottom_);
 
 		setupRenderState (screen);
 
@@ -725,6 +691,4 @@ void imgui::citro3d::render ()
 			offsetIdx += cmdList.IdxBuffer.Size;
 		}
 	}
-
-	C3D_FrameEnd (0);
 }

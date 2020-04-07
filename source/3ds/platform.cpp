@@ -55,6 +55,45 @@ bool s_socuActive = false;
 /// \brief soc:u buffer
 u32 *s_socuBuffer = nullptr;
 
+/// \brief Clear color
+constexpr auto CLEAR_COLOR = 0x204B7AFF;
+
+/// \brief Screen width
+constexpr auto SCREEN_WIDTH = 400.0f;
+/// \brief Screen height
+constexpr auto SCREEN_HEIGHT = 480.0f;
+
+/// \brief Whether to use anti-aliasing
+#define ANTI_ALIAS 1
+
+#if ANTI_ALIAS
+/// \brief Display transfer scaling
+constexpr auto TRANSFER_SCALING = GX_TRANSFER_SCALE_XY;
+/// \brief Framebuffer scale
+constexpr auto FB_SCALE = 2.0f;
+#else
+/// \brief Display transfer scaling
+constexpr auto TRANSFER_SCALING = GX_TRANSFER_SCALE_NO;
+/// \brief Framebuffer scale
+constexpr auto FB_SCALE = 1.0f;
+#endif
+
+/// \brief Framebuffer width
+constexpr auto FB_WIDTH = SCREEN_WIDTH * FB_SCALE;
+/// \brief Framebuffer height
+constexpr auto FB_HEIGHT = SCREEN_HEIGHT * FB_SCALE;
+
+/// \brief Display transfer flags
+constexpr auto DISPLAY_TRANSFER_FLAGS =
+    GX_TRANSFER_FLIP_VERT (0) | GX_TRANSFER_OUT_TILED (0) | GX_TRANSFER_RAW_COPY (0) |
+    GX_TRANSFER_IN_FORMAT (GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT (GX_TRANSFER_FMT_RGB8) |
+    GX_TRANSFER_SCALING (TRANSFER_SCALING);
+
+/// \brief Top screen render target
+C3D_RenderTarget *s_top = nullptr;
+/// \brief Bottom screen render target
+C3D_RenderTarget *s_bottom = nullptr;
+
 /// \brief Texture atlas
 C3D_Tex s_gfxTexture;
 /// \brief Texture atlas metadata
@@ -94,16 +133,16 @@ void drawLogo ()
 	auto subTex = Tex3DS_GetSubTexture (s_gfxT3x, gfx_c3dlogo_idx);
 
 	// get framebuffer metrics
-	ImGuiIO &io             = ImGui::GetIO ();
+	auto const &io          = ImGui::GetIO ();
 	auto const screenWidth  = io.DisplaySize.x;
 	auto const screenHeight = io.DisplaySize.y;
 	auto const logoWidth    = subTex->width;
 	auto const logoHeight   = subTex->height;
 
 	// calculate top screen coords
-	auto const x1 = (screenWidth - logoWidth) / 2.0f;
+	auto const x1 = (screenWidth - logoWidth) * 0.5f;
 	auto const x2 = x1 + logoWidth;
-	auto const y1 = (screenHeight / 2.0f - logoHeight) / 2.0f;
+	auto const y1 = (screenHeight * 0.5f - logoHeight) * 0.5f;
 	auto const y2 = y1 + logoHeight;
 
 	// calculate uv coords
@@ -116,8 +155,8 @@ void drawLogo ()
 
 	// draw to bottom screen
 	ImGui::GetBackgroundDrawList ()->AddImage (&s_gfxTexture,
-	    ImVec2 (x1, y1 + screenHeight / 2.0f),
-	    ImVec2 (x2, y2 + screenHeight / 2.0f),
+	    ImVec2 (x1, y1 + screenHeight * 0.5f),
+	    ImVec2 (x2, y2 + screenHeight * 0.5f),
 	    uv1,
 	    uv2);
 }
@@ -219,6 +258,19 @@ bool platform::init ()
 	std::setvbuf (stderr, nullptr, _IOLBF, 0);
 #endif
 
+	// initialize citro3d
+	C3D_Init (C3D_DEFAULT_CMDBUF_SIZE);
+
+	// create top screen render target
+	s_top =
+	    C3D_RenderTargetCreate (FB_HEIGHT * 0.5f, FB_WIDTH, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	C3D_RenderTargetSetOutput (s_top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+
+	// create bottom screen render target
+	s_bottom = C3D_RenderTargetCreate (
+	    FB_HEIGHT * 0.5f, FB_WIDTH * 0.8f, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	C3D_RenderTargetSetOutput (s_bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+
 	if (!imgui::ctru::init ())
 		return false;
 
@@ -237,8 +289,13 @@ bool platform::init ()
 		C3D_TexSetFilter (&s_gfxTexture, GPU_LINEAR, GPU_LINEAR);
 	}
 
+	auto &io    = ImGui::GetIO ();
+	auto &style = ImGui::GetStyle ();
+
+	// disable imgui.ini file
+	io.IniFilename = nullptr;
+
 	// citro3d logo doesn't quite show with the default transparency
-	auto &style                       = ImGui::GetStyle ();
 	style.Colors[ImGuiCol_WindowBg].w = 0.8f;
 	style.ScaleAllSizes (0.5f);
 
@@ -257,8 +314,13 @@ bool platform::loop ()
 	if (hidKeysDown () & KEY_START)
 		return false;
 
+	auto &io = ImGui::GetIO ();
+
+	// setup display metrics
+	io.DisplaySize             = ImVec2 (SCREEN_WIDTH, SCREEN_HEIGHT);
+	io.DisplayFramebufferScale = ImVec2 (FB_SCALE, FB_SCALE);
+
 	imgui::ctru::newFrame ();
-	imgui::citro3d::newFrame ();
 	ImGui::NewFrame ();
 
 	return true;
@@ -271,16 +333,31 @@ void platform::render ()
 
 	ImGui::Render ();
 
-	imgui::citro3d::render ();
+	C3D_FrameBegin (C3D_FRAME_SYNCDRAW);
+
+	// clear frame/depth buffers
+	C3D_RenderTargetClear (s_top, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
+	C3D_RenderTargetClear (s_bottom, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
+
+	imgui::citro3d::render (s_top, s_bottom);
+
+	C3D_FrameEnd (0);
 }
 
 void platform::exit ()
 {
+	imgui::citro3d::exit ();
+
+	// free graphics
 	Tex3DS_TextureFree (s_gfxT3x);
 	C3D_TexDelete (&s_gfxTexture);
 
-	imgui::citro3d::exit ();
-	imgui::ctru::exit ();
+	// free render targets
+	C3D_RenderTargetDelete (s_bottom);
+	C3D_RenderTargetDelete (s_top);
+
+	// deinitialize citro3d
+	C3D_Fini ();
 
 	if (s_socuActive)
 		socExit ();

@@ -1589,7 +1589,7 @@ bool saveFontAtlas ()
 
 bool imgui::nx::init ()
 {
-	ImGuiIO &io = ImGui::GetIO ();
+	auto &io = ImGui::GetIO ();
 
 	if (!loadFontAtlas ())
 	{
@@ -1690,7 +1690,7 @@ bool imgui::nx::init ()
 
 void imgui::nx::newFrame ()
 {
-	ImGuiIO &io = ImGui::GetIO ();
+	auto &io = ImGui::GetIO ();
 
 	// check that font was built
 	IM_ASSERT (io.Fonts->IsBuilt () &&

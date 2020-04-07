@@ -36,11 +36,6 @@ using namespace std::chrono_literals;
 
 namespace
 {
-/// \brief Screen width
-constexpr auto SCREEN_WIDTH = 400.0f;
-/// \brief Screen height
-constexpr auto SCREEN_HEIGHT = 480.0f;
-
 /// \brief Clipboard
 std::string s_clipboard;
 
@@ -134,10 +129,7 @@ void updateGamepads (ImGuiIO &io_)
 
 bool imgui::ctru::init ()
 {
-	ImGuiIO &io = ImGui::GetIO ();
-
-	// disable imgui.ini file
-	io.IniFilename = nullptr;
+	auto &io = ImGui::GetIO ();
 
 	// setup config flags
 	io.ConfigFlags |= ImGuiConfigFlags_IsTouchScreen;
@@ -160,16 +152,12 @@ bool imgui::ctru::init ()
 
 void imgui::ctru::newFrame ()
 {
-	ImGuiIO &io = ImGui::GetIO ();
+	auto &io = ImGui::GetIO ();
 
 	// check that font was built
 	IM_ASSERT (io.Fonts->IsBuilt () &&
 	           "Font atlas not built! It is generally built by the renderer back-end. Missing call "
 	           "to renderer _NewFrame() function?");
-
-	// setup display metrics
-	io.DisplaySize             = ImVec2 (SCREEN_WIDTH, SCREEN_HEIGHT);
-	io.DisplayFramebufferScale = ImVec2 (2.0f, 2.0f);
 
 	// time step
 	static auto const start = platform::steady_clock::now ();
@@ -181,8 +169,4 @@ void imgui::ctru::newFrame ()
 
 	updateTouch (io);
 	updateGamepads (io);
-}
-
-void imgui::ctru::exit ()
-{
 }

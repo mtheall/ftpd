@@ -368,9 +368,9 @@ DkCmdList setupRenderState (int const slot_,
 
 void imgui::deko3d::init ()
 {
-	// setup back-end capabilities flags
-	ImGuiIO &io = ImGui::GetIO ();
+	auto &io = ImGui::GetIO ();
 
+	// setup back-end capabilities flags
 	io.BackendRendererName = "deko3d";
 	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
@@ -457,7 +457,7 @@ void imgui::deko3d::newFrame ()
 	                      .create ();
 
 	// get texture atlas
-	ImGuiIO &io = ImGui::GetIO ();
+	auto &io = ImGui::GetIO ();
 	io.Fonts->SetTexID (nullptr);
 	unsigned char *pixels;
 	int width;

@@ -154,8 +154,9 @@ bool platform::init ()
 	ImGui_ImplGlfw_InitForOpenGL (s_mainWindow.get (), true);
 	ImGui_ImplOpenGL3_Init ("#version 150");
 
+	auto &io = ImGui::GetIO ();
+
 	// disable imgui.ini file
-	ImGuiIO &io    = ImGui::GetIO ();
 	io.IniFilename = nullptr;
 
 	return true;

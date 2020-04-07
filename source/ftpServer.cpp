@@ -67,7 +67,7 @@ FtpServer::FtpServer (std::uint16_t const port_)
 
 void FtpServer::draw ()
 {
-	ImGuiIO &io       = ImGui::GetIO ();
+	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
 	auto const height = io.DisplaySize.y;
 

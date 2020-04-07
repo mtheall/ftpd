@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <citro3d.h>
+
 namespace imgui
 {
 namespace citro3d
@@ -29,9 +31,7 @@ void init ();
 /// \brief Deinitialize citro3d
 void exit ();
 
-/// \brief Prepare citro3d for a new frame
-void newFrame ();
 /// \brief Render ImGui draw list
-void render ();
+void render (C3D_RenderTarget *top_, C3D_RenderTarget *bottom_);
 }
 }

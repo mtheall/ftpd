@@ -38,7 +38,9 @@ int main (int argc_, char *argv_[])
 		return EXIT_FAILURE;
 	}
 
-	auto &style          = ImGui::GetStyle ();
+	auto &style = ImGui::GetStyle ();
+
+	// turn off window rounding
 	style.WindowRounding = 0.0f;
 
 	auto server = FtpServer::create (5000);
