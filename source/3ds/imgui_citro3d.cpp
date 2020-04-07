@@ -290,7 +290,7 @@ void imgui::citro3d::init ()
 	atlas->TexWidth        = glyphInfo->sheetWidth;
 	atlas->TexHeight       = glyphInfo->sheetHeight * glyphInfo->nSheets;
 	atlas->TexUvScale      = ImVec2 (1.0f / atlas->TexWidth, 1.0f / atlas->TexHeight);
-	atlas->TexUvWhitePixel = ImVec2 (0.5f / 8.0f, glyphInfo->nSheets + 0.5f / 8.0f);
+	atlas->TexUvWhitePixel = ImVec2 (0.5f * 0.125f, glyphInfo->nSheets + 0.5f * 0.125f);
 	atlas->TexPixelsAlpha8 = static_cast<unsigned char *> (IM_ALLOC (1)); // dummy allocation
 
 	// initialize font config

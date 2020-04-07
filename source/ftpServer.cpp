@@ -74,7 +74,7 @@ void FtpServer::draw ()
 	ImGui::SetNextWindowPos (ImVec2 (0, 0), ImGuiCond_FirstUseEver);
 #ifdef _3DS
 	// top screen
-	ImGui::SetNextWindowSize (ImVec2 (width, height / 2.0f));
+	ImGui::SetNextWindowSize (ImVec2 (width, height * 0.5f));
 #else
 	ImGui::SetNextWindowSize (ImVec2 (width, height));
 #endif
@@ -123,8 +123,8 @@ void FtpServer::draw ()
 	ImGui::End ();
 
 	// bottom screen
-	ImGui::SetNextWindowSize (ImVec2 (width * 0.8f, height / 2.0f));
-	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height / 2.0f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize (ImVec2 (width * 0.8f, height * 0.5f));
+	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height * 0.5f), ImGuiCond_FirstUseEver);
 	ImGui::Begin ("Sessions",
 	    nullptr,
 	    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);

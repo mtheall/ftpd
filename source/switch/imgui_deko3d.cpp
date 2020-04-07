@@ -809,9 +809,9 @@ void imgui::deko3d::render ()
 
 void imgui::deko3d::test ()
 {
-	auto const x1 = (s_width - LOGO_WIDTH) / 2.0f;
+	auto const x1 = (s_width - LOGO_WIDTH) * 0.5f;
 	auto const x2 = x1 + LOGO_WIDTH;
-	auto const y1 = (s_height - LOGO_HEIGHT) / 2.0f;
+	auto const y1 = (s_height - LOGO_HEIGHT) * 0.5f;
 	auto const y2 = y1 + LOGO_HEIGHT;
 
 	ImGui::GetBackgroundDrawList ()->AddImage (
