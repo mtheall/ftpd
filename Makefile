@@ -6,7 +6,7 @@ export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)
 export VERSION_MAJOR := 3
 export VERSION_MINOR := 0
 export VERSION_MICRO := 0
-export VERSION := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_MICRO)-rc1
+export VERSION := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_MICRO)-rc2
 
 ifneq ($(strip $(GITREV)),)
 export VERSION := $(VERSION)-$(GITREV)

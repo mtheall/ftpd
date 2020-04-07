@@ -287,6 +287,7 @@ $(OUTPUT).cia:  $(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
 	@echo "built ... $(notdir $@)"
 
 $(TARGET).bnr:  $(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
 	@bannertool makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
 	@echo "built ... $@"
 

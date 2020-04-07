@@ -10,15 +10,15 @@ FTP Server for 3DS/Switch/Linux.
 
 ## Latest Builds
 
-CIA: https://mtheall.com/~mtheall/ftpd-3ds.cia
+CIA: https://mtheall.com/~mtheall/ftpd.cia
 
-3DSX: https://mtheall.com/~mtheall/ftpd-3ds.3dsx
+3DSX: https://mtheall.com/~mtheall/ftpd.3dsx
 
-NRO: https://mtheall.com/~mtheall/ftpd-nx.nro
+NRO: https://mtheall.com/~mtheall/ftpd.nro
 
 CIA QR Code
 
-![ftpd-3ds.cia](https://github.com/mtheall/ftpd/raw/master/ftpd_qr.png)
+![ftpd.cia](https://github.com/mtheall/ftpd/raw/master/ftpd_qr.png)
 
 ## Build and install
 
@@ -26,7 +26,7 @@ You must set up the [development environment](https://devkitpro.org/wiki/Getting
 
 ### 3DSX
 
-The following pacman packages are required to build `ftpd-3ds.3dsx`:
+The following pacman packages are required to build `3ds/ftpd.3dsx`:
 
     3dstools
     devkitARM
@@ -34,13 +34,13 @@ The following pacman packages are required to build `ftpd-3ds.3dsx`:
 
 They are available as part of the `3ds-dev` meta-package.
 
-Build `ftpd-3ds.3dsx`:
+Build `3ds/ftpd.3dsx`:
 
     make 3dsx
 
 ### NRO
 
-The following pacman packages are required to build `ftpd-nx.nro`:
+The following pacman packages are required to build `switch/ftpd.nro`:
 
     devkitA64
     libnx
@@ -48,7 +48,7 @@ The following pacman packages are required to build `ftpd-nx.nro`:
 
 They are available as part of the `switch-dev` meta-package.
 
-Build `ftpd-nx.nro`:
+Build `switch/ftpd.nro`:
 
     make nro
 
