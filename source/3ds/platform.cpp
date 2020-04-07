@@ -97,8 +97,8 @@ void drawLogo ()
 	ImGuiIO &io             = ImGui::GetIO ();
 	auto const screenWidth  = io.DisplaySize.x;
 	auto const screenHeight = io.DisplaySize.y;
-	auto const logoWidth    = subTex->width / io.DisplayFramebufferScale.x;
-	auto const logoHeight   = subTex->height / io.DisplayFramebufferScale.y;
+	auto const logoWidth    = subTex->width;
+	auto const logoHeight   = subTex->height;
 
 	// calculate top screen coords
 	auto const x1 = (screenWidth - logoWidth) / 2.0f;
@@ -160,8 +160,8 @@ void drawStatus ()
 	// calculate battery icon metrics
 	auto const battery =
 	    Tex3DS_GetSubTexture (s_gfxT3x, charging ? gfx_batteryCharge_idx : batteryLevels[level]);
-	auto const batteryWidth  = battery->width / io.DisplayFramebufferScale.x;
-	auto const batteryHeight = battery->height / io.DisplayFramebufferScale.y;
+	auto const batteryWidth  = battery->width;
+	auto const batteryHeight = battery->height;
 
 	// calculate battery icon position
 	auto const p1 = ImVec2 (screenWidth - batteryWidth, 0.0f);
@@ -179,12 +179,12 @@ void drawStatus ()
 
 	// calculate wifi icon metrics
 	auto const wifi       = Tex3DS_GetSubTexture (s_gfxT3x, wifiLevels[wifiStrength]);
-	auto const wifiWidth  = wifi->width / io.DisplayFramebufferScale.x;
-	auto const wifiHeight = wifi->height / io.DisplayFramebufferScale.y;
+	auto const wifiWidth  = wifi->width;
+	auto const wifiHeight = wifi->height;
 
 	// calculate wifi icon position
-	auto const p3 = ImVec2 (p1.x - wifiWidth - 4.0f, 0.0f);
-	auto const p4 = ImVec2 (p1.x - 4.0f, wifiHeight);
+	auto const p3 = ImVec2 (p1.x - wifiWidth - 2.0f, 0.0f);
+	auto const p4 = ImVec2 (p1.x - 2.0f, wifiHeight);
 
 	// calculate wifi icon uv coords
 	auto const uv3 = ImVec2 (wifi->left, wifi->top);
@@ -198,7 +198,7 @@ void drawStatus ()
 	auto const now = std::time (nullptr);
 	std::strftime (buffer, sizeof (buffer), "%H:%M:%S", std::localtime (&now));
 	ImGui::GetForegroundDrawList ()->AddText (
-	    ImVec2 (p3.x - 130.0f, style.FramePadding.y), 0xFFFFFFFF, buffer);
+	    ImVec2 (p3.x - 65.0f, style.FramePadding.y), 0xFFFFFFFF, buffer);
 }
 }
 
@@ -236,6 +236,11 @@ bool platform::init ()
 
 		C3D_TexSetFilter (&s_gfxTexture, GPU_LINEAR, GPU_LINEAR);
 	}
+
+	// citro3d logo doesn't quite show with the default transparency
+	auto &style                       = ImGui::GetStyle ();
+	style.Colors[ImGuiCol_WindowBg].w = 0.8f;
+	style.ScaleAllSizes (0.5f);
 
 	return true;
 }

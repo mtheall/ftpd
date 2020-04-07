@@ -168,8 +168,8 @@ void imgui::ctru::newFrame ()
 	           "to renderer _NewFrame() function?");
 
 	// setup display metrics
-	io.DisplaySize             = ImVec2 (SCREEN_WIDTH * 2.0f, SCREEN_HEIGHT * 2.0f);
-	io.DisplayFramebufferScale = ImVec2 (0.5f, 0.5f);
+	io.DisplaySize             = ImVec2 (SCREEN_WIDTH, SCREEN_HEIGHT);
+	io.DisplayFramebufferScale = ImVec2 (2.0f, 2.0f);
 
 	// time step
 	static auto const start = platform::steady_clock::now ();

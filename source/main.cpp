@@ -41,11 +41,6 @@ int main (int argc_, char *argv_[])
 	auto &style          = ImGui::GetStyle ();
 	style.WindowRounding = 0.0f;
 
-#ifdef _3DS
-	// citro3d logo doesn't quite show with the default transparency
-	style.Colors[ImGuiCol_WindowBg].w = 0.8f;
-#endif
-
 	auto server = FtpServer::create (5000);
 
 	while (platform::loop ())
@@ -55,7 +50,9 @@ int main (int argc_, char *argv_[])
 		platform::render ();
 	}
 
+	// clean up resources before exiting switch/3ds services
 	server.reset ();
+
 	platform::exit ();
 	ImGui::DestroyContext ();
 }

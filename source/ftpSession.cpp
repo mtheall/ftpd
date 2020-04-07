@@ -302,10 +302,7 @@ void FtpSession::draw ()
 {
 	auto const lock = std::scoped_lock (m_lock);
 
-	ImGuiIO &io      = ImGui::GetIO ();
-	auto const scale = io.DisplayFramebufferScale.y;
-
-	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 50.0f / scale), true);
+	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 50.0f), true);
 
 	if (!m_workItem.empty ())
 		ImGui::TextUnformatted (m_workItem.c_str ());
@@ -350,11 +347,8 @@ void FtpSession::draw ()
 		auto const rateString = fs::printSize (m_xferRate) + "/s";
 
 		ImGui::SameLine ();
-		ImGui::PlotLines ("Rate",
-		    m_filePositionDeltas,
-		    IM_ARRAYSIZE (m_filePositionDeltas),
-		    0,
-		    rateString.c_str ());
+		ImGui::PlotLines (
+		    "", m_filePositionDeltas, IM_ARRAYSIZE (m_filePositionDeltas), 0, rateString.c_str ());
 	}
 
 	ImGui::EndChild ();

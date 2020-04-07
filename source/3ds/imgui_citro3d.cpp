@@ -43,7 +43,7 @@ constexpr auto CLEAR_COLOR = 0x204B7AFF;
 constexpr auto DISPLAY_TRANSFER_FLAGS =
     GX_TRANSFER_FLIP_VERT (0) | GX_TRANSFER_OUT_TILED (0) | GX_TRANSFER_RAW_COPY (0) |
     GX_TRANSFER_IN_FORMAT (GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT (GX_TRANSFER_FMT_RGB8) |
-    GX_TRANSFER_SCALING (GX_TRANSFER_SCALE_NO);
+    GX_TRANSFER_SCALING (GX_TRANSFER_SCALE_XY);
 
 /// \brief Top screen render target
 C3D_RenderTarget *s_top = nullptr;
@@ -175,11 +175,11 @@ void imgui::citro3d::init ()
 	C3D_Init (C3D_DEFAULT_CMDBUF_SIZE);
 
 	// create top screen render target
-	s_top = C3D_RenderTargetCreate (240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	s_top = C3D_RenderTargetCreate (480, 800, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetSetOutput (s_top, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	// create bottom screen render target
-	s_bottom = C3D_RenderTargetCreate (240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	s_bottom = C3D_RenderTargetCreate (480, 640, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetSetOutput (s_bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	// load vertex shader
@@ -195,8 +195,8 @@ void imgui::citro3d::init ()
 	s_projLocation = shaderInstanceGetUniformLocation (s_program.vertexShader, "proj");
 
 	// initialize projection matrices
-	Mtx_OrthoTilt (&s_projTop, 0.0f, 800.0f, 480.0f, 0.0f, -1.0f, 1.0f, false);
-	Mtx_OrthoTilt (&s_projBottom, 80.0f, 720.0f, 960.0f, 480.0f, -1.0f, 1.0f, false);
+	Mtx_OrthoTilt (&s_projTop, 0.0f, 400.0f, 240.0f, 0.0f, -1.0f, 1.0f, false);
+	Mtx_OrthoTilt (&s_projBottom, 40.0f, 360.0f, 480.0f, 240.0f, -1.0f, 1.0f, false);
 
 	// allocate vertex data buffer
 	s_vtxSize = 65536;
@@ -397,13 +397,13 @@ void imgui::citro3d::init ()
 
 	// finalize font
 	imFont->DisplayOffset.x = 0.0f;
-	imFont->DisplayOffset.y = fontInfo->ascent;
+	imFont->DisplayOffset.y = fontInfo->ascent * 0.5f;
 	imFont->ContainerAtlas  = atlas;
 	imFont->ConfigData      = &atlas->ConfigData[0];
 	imFont->ConfigDataCount = 1;
 	imFont->FallbackChar    = alterChar;
 	imFont->EllipsisChar    = config.EllipsisChar;
-	imFont->Scale           = s_textScale;
+	imFont->Scale           = s_textScale * 0.5f;
 	imFont->Ascent          = fontInfo->ascent;
 	imFont->Descent         = 0.0f;
 }
@@ -563,14 +563,16 @@ void imgui::citro3d::render ()
 					if (screen == GFX_TOP)
 					{
 						// check if clip starts on bottom screen
-						if (clip.y > 240.0f)
+						if (clip.y > height * 0.5f)
 							continue;
 
 						// convert from framebuffer space to screen space (3DS screen rotation)
-						auto const x1 = std::clamp<unsigned> (240.0f - clip.w, 0, 240);
-						auto const y1 = std::clamp<unsigned> (400.0f - clip.z, 0, 400);
-						auto const x2 = std::clamp<unsigned> (240.0f - clip.y, 0, 240);
-						auto const y2 = std::clamp<unsigned> (400.0f - clip.x, 0, 400);
+						auto const x1 =
+						    std::clamp<unsigned> (height * 0.5f - clip.w, 0, height * 0.5f);
+						auto const y1 = std::clamp<unsigned> (width - clip.z, 0, width);
+						auto const x2 =
+						    std::clamp<unsigned> (height * 0.5f - clip.y, 0, height * 0.5f);
+						auto const y2 = std::clamp<unsigned> (width - clip.x, 0, width);
 
 						// check if scissor needs to be updated
 						if (s_boundScissor[0] != x1 || s_boundScissor[1] != y1 ||
@@ -586,23 +588,25 @@ void imgui::citro3d::render ()
 					else
 					{
 						// check if clip ends on top screen
-						if (clip.w < 240.0f)
+						if (clip.w < height * 0.5f)
 							continue;
 
 						// check if clip ends before left edge of bottom screen
-						if (clip.z < 40.0f)
+						if (clip.z < width * 0.1f)
 							continue;
 
 						// check if clip starts after right edge of bottom screen
-						if (clip.x > 360.0f)
+						if (clip.x > width * 0.9f)
 							continue;
 
 						// convert from framebuffer space to screen space
 						// (3DS screen rotation + bottom screen offset)
-						auto const x1 = std::clamp<unsigned> (480.0f - clip.w, 0, 240);
-						auto const y1 = std::clamp<unsigned> (360.0f - clip.z, 0, 320);
-						auto const x2 = std::clamp<unsigned> (480.0f - clip.y, 0, 240);
-						auto const y2 = std::clamp<unsigned> (360.0f - clip.x, 0, 320);
+						auto const x1 = std::clamp<unsigned> (height - clip.w, 0, height * 0.5f);
+						auto const y1 =
+						    std::clamp<unsigned> (width * 0.9f - clip.z, 0, width * 0.8f);
+						auto const x2 = std::clamp<unsigned> (height - clip.y, 0, height * 0.5f);
+						auto const y2 =
+						    std::clamp<unsigned> (width * 0.9f - clip.x, 0, width * 0.8f);
 
 						// check if scissor needs to be updated
 						if (s_boundScissor[0] != x1 || s_boundScissor[1] != y1 ||
