@@ -34,10 +34,13 @@
 
 #include "gfx.h"
 
+#include <malloc.h>
+
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <ctime>
-#include <malloc.h>
+#include <mutex>
 
 namespace
 {
@@ -51,9 +54,11 @@ constexpr auto SOCU_BUFFERSIZE = 0x100000;
 static_assert (SOCU_BUFFERSIZE % SOCU_ALIGN == 0);
 
 /// \brief Whether soc:u is active
-bool s_socuActive = false;
+std::atomic<bool> s_socuActive = false;
 /// \brief soc:u buffer
 u32 *s_socuBuffer = nullptr;
+/// \brief ac:u fence
+platform::Mutex s_acuFence;
 
 /// \brief Clear color
 constexpr auto CLEAR_COLOR = 0x204B7AFF;
@@ -99,6 +104,20 @@ C3D_Tex s_gfxTexture;
 /// \brief Texture atlas metadata
 Tex3DS_Texture s_gfxT3x;
 
+/// \brief Get network visibility
+bool getNetworkVisibility ()
+{
+	// serialize ac:u access from multiple threads
+	auto lock = std::scoped_lock (s_acuFence);
+
+	// get wifi status
+	std::uint32_t wifi = 0;
+	if (R_FAILED (ACU_GetWifiStatus (&wifi)) || !wifi)
+		return false;
+
+	return true;
+}
+
 /// \brief Start network
 void startNetwork ()
 {
@@ -106,9 +125,7 @@ void startNetwork ()
 	if (s_socuActive)
 		return;
 
-	// get wifi status
-	std::uint32_t wifi = 0;
-	if (R_FAILED (ACU_GetWifiStatus (&wifi)) || !wifi)
+	if (!getNetworkVisibility ())
 		return;
 
 	// allocate soc:u buffer
@@ -300,6 +317,15 @@ bool platform::init ()
 	style.ScaleAllSizes (0.5f);
 
 	return true;
+}
+
+bool platform::networkVisible ()
+{
+	// check if soc:u is active
+	if (!s_socuActive)
+		return false;
+
+	return getNetworkVisibility ();
 }
 
 bool platform::loop ()

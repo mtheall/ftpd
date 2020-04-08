@@ -21,6 +21,7 @@
 #include "ftpServer.h"
 
 #include "fs.h"
+#include "platform.h"
 
 #include "imgui.h"
 
@@ -34,6 +35,13 @@
 #include <mutex>
 #include <thread>
 using namespace std::chrono_literals;
+
+#define LOCKED(x)                                                                                  \
+	do                                                                                             \
+	{                                                                                              \
+		auto const lock = std::scoped_lock (m_lock);                                               \
+		x;                                                                                         \
+	} while (0)
 
 namespace
 {
@@ -60,8 +68,6 @@ FtpServer::FtpServer (std::uint16_t const port_)
 {
 	Log::bind (m_log);
 
-	handleStartButton ();
-
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
 }
 
@@ -78,26 +84,10 @@ void FtpServer::draw ()
 #else
 	ImGui::SetNextWindowSize (ImVec2 (width, height));
 #endif
+	ImGui::SetNextWindowFocus ();
 	ImGui::Begin (STATUS_STRING,
 	    nullptr,
 	    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-
-	{
-		auto const lock = std::scoped_lock (m_lock);
-		if (!m_socket)
-		{
-			if (ImGui::Button ("Start"))
-				handleStartButton ();
-		}
-		else if (ImGui::Button ("Stop"))
-			handleStopButton ();
-
-		if (m_socket)
-		{
-			ImGui::SameLine ();
-			ImGui::TextUnformatted (m_name.c_str ());
-		}
-	}
 
 	{
 		auto const lock = std::scoped_lock (s_lock);
@@ -106,6 +96,15 @@ void FtpServer::draw ()
 			ImGui::SameLine ();
 			ImGui::TextUnformatted (s_freeSpace.c_str ());
 		}
+	}
+
+	{
+		ImGui::SameLine ();
+		auto const lock = std::scoped_lock (m_lock);
+		if (m_socket)
+			ImGui::TextUnformatted (m_name.c_str ());
+		else
+			ImGui::TextUnformatted ("Waiting for network...");
 	}
 
 	ImGui::Separator ();
@@ -132,8 +131,11 @@ void FtpServer::draw ()
 	ImGui::Separator ();
 #endif
 
-	for (auto &session : m_sessions)
-		session->draw ();
+	{
+		auto lock = std::scoped_lock (m_lock);
+		for (auto &session : m_sessions)
+			session->draw ();
+	}
 
 	ImGui::End ();
 }
@@ -161,10 +163,13 @@ std::time_t FtpServer::startTime ()
 	return s_startTime;
 }
 
-void FtpServer::handleStartButton ()
+void FtpServer::handleNetworkFound ()
 {
-	if (m_socket)
-		return;
+	{
+		auto lock = std::scoped_lock (m_lock);
+		if (m_socket)
+			return;
+	}
 
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
@@ -196,49 +201,66 @@ void FtpServer::handleStartButton ()
 
 	Log::info ("Started server at %s\n", m_name.c_str ());
 
-	m_socket = std::move (socket);
+	LOCKED (m_socket = std::move (socket));
 }
 
-void FtpServer::handleStopButton ()
+void FtpServer::handleNetworkLost ()
 {
-	m_socket.reset ();
+	{
+		UniqueSocket sock;
+		LOCKED (sock = std::move (m_socket));
+	}
+
 	Log::info ("Stopped server at %s\n", m_name.c_str ());
 }
 
 void FtpServer::loop ()
 {
+	if (platform::networkVisible ())
+		handleNetworkFound ();
+
+	// poll listen socket
+	if (m_socket)
 	{
-		// poll listen socket
-		auto const lock = std::scoped_lock (m_lock);
-		if (m_socket)
+		Socket::PollInfo info{*m_socket, POLLIN, 0};
+		if (Socket::poll (&info, 1, 0ms) > 0)
 		{
-			Socket::PollInfo info{*m_socket, POLLIN, 0};
-			if (Socket::poll (&info, 1, 0ms) > 0)
+			auto socket = m_socket->accept ();
+			if (socket)
 			{
-				auto socket = m_socket->accept ();
-				if (socket)
-					m_sessions.emplace_back (FtpSession::create (std::move (socket)));
-				else
-					handleStopButton ();
+				auto session = FtpSession::create (std::move (socket));
+				LOCKED (m_sessions.emplace_back (std::move (session)));
 			}
+			else
+				handleNetworkLost ();
 		}
 	}
 
-	// remove dead sessions
-	for (auto it = std::begin (m_sessions); it != std::end (m_sessions);)
 	{
-		auto const &session = *it;
-		if (session->dead ())
-			it = m_sessions.erase (it);
-		else
-			++it;
+		std::vector<UniqueFtpSession> deadSessions;
+		{
+			// remove dead sessions
+			auto lock = std::scoped_lock (m_lock);
+			auto it = std::begin (m_sessions);
+			while (it != std::end (m_sessions))
+			{
+				auto &session = *it;
+				if (session->dead ())
+				{
+					deadSessions.emplace_back (std::move (session));
+					it = m_sessions.erase (it);
+				}
+				else
+					++it;
+			}
+		}
 	}
 
 	// poll sessions
 	if (!m_sessions.empty ())
 	{
 		if (!FtpSession::poll (m_sessions))
-			handleStopButton ();
+			handleNetworkLost ();
 	}
 	// avoid busy polling in background thread
 	else

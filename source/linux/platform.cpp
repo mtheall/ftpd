@@ -162,6 +162,11 @@ bool platform::init ()
 	return true;
 }
 
+bool platform::networkVisible ()
+{
+	return true;
+}
+
 bool platform::loop ()
 {
 	bool inactive;

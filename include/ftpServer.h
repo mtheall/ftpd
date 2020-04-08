@@ -58,11 +58,11 @@ private:
 	/// \param port_ Port to listen on
 	FtpServer (std::uint16_t port_);
 
-	/// \brief Handle when start button is pressed
-	void handleStartButton ();
+	/// \brief Handle when network is found
+	void handleNetworkFound ();
 
-	/// \brief Handle when stop button is pressed
-	void handleStopButton ();
+	/// \brief Handle when network is lost
+	void handleNetworkLost ();
 
 	/// \brief Server loop
 	void loop ();

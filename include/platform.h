@@ -34,6 +34,9 @@ namespace platform
 /// \brief Initialize platform
 bool init ();
 
+/// \brief Whether network is visible
+bool networkVisible ();
+
 /// \brief Platform loop
 bool loop ();
 

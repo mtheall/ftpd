@@ -40,6 +40,17 @@ bool platform::init ()
 	return true;
 }
 
+bool platform::networkVisible ()
+{
+	NifmInternetConnectionType type;
+	std::uint32_t wifi;
+	NifmInternetConnectionStatus status;
+	if (R_FAILED (nifmGetInternetConnectionStatus (&type, &wifi, &status)))
+		return false;
+
+	return status == NifmInternetConnectionStatus_Connected;
+}
+
 bool platform::loop ()
 {
 	if (!appletMainLoop ())
