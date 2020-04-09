@@ -238,7 +238,7 @@ void FtpServer::loop ()
 		{
 			// remove dead sessions
 			auto lock = std::scoped_lock (m_lock);
-			auto it = std::begin (m_sessions);
+			auto it   = std::begin (m_sessions);
 			while (it != std::end (m_sessions))
 			{
 				auto &session = *it;

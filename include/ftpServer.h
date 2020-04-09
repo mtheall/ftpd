@@ -70,6 +70,9 @@ private:
 	/// \brief Thread entry point
 	void threadFunc ();
 
+	/// \brief Log
+	SharedLog m_log;
+
 	/// \brief Thread
 	platform::Thread m_thread;
 
@@ -81,9 +84,6 @@ private:
 
 	/// \brief ImGui window name
 	std::string m_name;
-
-	/// \brief Log
-	SharedLog m_log;
 
 	/// \brief Sessions
 	std::vector<UniqueFtpSession> m_sessions;

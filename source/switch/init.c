@@ -41,12 +41,12 @@ static SocketInitConfig const s_socketInitConfig = {
 
     .sb_efficiency = 8,
 
-    .num_bsd_sessions = 3,
+    .num_bsd_sessions = 1,
     .bsd_service_type = BsdServiceType_User,
 };
 
 /// \brief Number of FS sessions
-u32 __nx_fs_num_sessions = 3;
+u32 __nx_fs_num_sessions = 1;
 
 /// \brief Called before main ()
 void userAppInit ()
@@ -72,11 +72,11 @@ void userAppExit ()
 	if (s_fd >= 0)
 	{
 		close (s_fd);
-		socketExit ();
 		s_fd = -1;
 	}
 #endif
 
+	socketExit ();
 	nifmExit ();
 	plExit ();
 	romfsExit ();
