@@ -165,12 +165,6 @@ std::time_t FtpServer::startTime ()
 
 void FtpServer::handleNetworkFound ()
 {
-	{
-		auto lock = std::scoped_lock (m_lock);
-		if (m_socket)
-			return;
-	}
-
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 #if defined(_3DS) || defined(__SWITCH__)
@@ -216,8 +210,11 @@ void FtpServer::handleNetworkLost ()
 
 void FtpServer::loop ()
 {
-	if (platform::networkVisible ())
-		handleNetworkFound ();
+	if (!m_socket)
+	{
+		if (platform::networkVisible ())
+			handleNetworkFound ();
+	}
 
 	// poll listen socket
 	if (m_socket)
