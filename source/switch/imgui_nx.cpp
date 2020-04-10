@@ -1176,14 +1176,8 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 
 		case AppletOperationMode_Docked:
 			// use docked mode resolution (1080p)
-#if 0
 			s_width  = 1920.0f;
 			s_height = 1080.0f;
-#else
-			/// \todo check if we'd rather use framebuffer scale
-			s_width  = 1280.0f;
-			s_height = 720.0f;
-#endif
 			break;
 		}
 		break;
