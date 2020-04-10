@@ -82,7 +82,6 @@ void FtpServer::draw ()
 #else
 	ImGui::SetNextWindowSize (ImVec2 (width, height));
 #endif
-	ImGui::SetNextWindowFocus ();
 	ImGui::Begin (STATUS_STRING,
 	    nullptr,
 	    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);

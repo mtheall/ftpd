@@ -1456,7 +1456,7 @@ bool loadFontAtlas ()
 	config.FontDataSize         = 0;
 	config.FontDataOwnedByAtlas = true;
 	config.FontNo               = 0;
-	config.SizePixels           = 14.0f;
+	config.SizePixels           = 24.0f;
 	config.OversampleH          = 3;
 	config.OversampleV          = 1;
 	config.PixelSnapH           = false;
@@ -1621,7 +1621,7 @@ bool imgui::nx::init ()
 		config.FontDataOwnedByAtlas = false;
 		for (auto const &font : fonts)
 		{
-			io.Fonts->AddFontFromMemoryTTF (font.address, font.size, 14.0f, &config, nxFontRanges);
+			io.Fonts->AddFontFromMemoryTTF (font.address, font.size, 24.0f, &config, nxFontRanges);
 			config.MergeMode = true;
 		}
 

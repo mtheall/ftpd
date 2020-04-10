@@ -308,7 +308,11 @@ void FtpSession::draw ()
 {
 	auto const lock = std::scoped_lock (m_lock);
 
-	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 50.0f), true);
+#ifdef _3DS
+	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 45.0f), true);
+#else
+	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 80.0f), true);
+#endif
 
 	if (!m_workItem.empty ())
 		ImGui::TextUnformatted (m_workItem.c_str ());
