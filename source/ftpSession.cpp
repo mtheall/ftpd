@@ -368,27 +368,27 @@ UniqueFtpSession FtpSession::create (UniqueSocket commandSocket_)
 bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 {
 	// poll for pending close sockets first
-	std::vector<Socket::PollInfo> info;
+	std::vector<Socket::PollInfo> pollInfo;
 	for (auto &session : sessions_)
 	{
 		for (auto &pending : session->m_pendingCloseSocket)
 		{
 			assert (pending.unique ());
-			info.emplace_back (Socket::PollInfo{*pending, POLLIN, 0});
+			pollInfo.emplace_back (Socket::PollInfo{*pending, POLLIN, 0});
 		}
 	}
 
-	if (!info.empty ())
+	if (!pollInfo.empty ())
 	{
-		auto const rc = Socket::poll (info.data (), info.size (), 0ms);
+		auto const rc = Socket::poll (pollInfo.data (), pollInfo.size (), 0ms);
 		if (rc < 0)
 		{
-			Log::error ("poll: %s\n", std::strerror (errno));
+			error ("poll: %s\n", std::strerror (errno));
 			return false;
 		}
 		else
 		{
-			for (auto const &i : info)
+			for (auto const &i : pollInfo)
 			{
 				if (!i.revents)
 					continue;
@@ -413,14 +413,15 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 	}
 
 	// poll for everything else
-	info.clear ();
+	pollInfo.clear ();
 	for (auto &session : sessions_)
 	{
 		if (session->m_commandSocket)
 		{
-			info.emplace_back (Socket::PollInfo{*session->m_commandSocket, POLLIN | POLLPRI, 0});
+			pollInfo.emplace_back (
+			    Socket::PollInfo{*session->m_commandSocket, POLLIN | POLLPRI, 0});
 			if (session->m_responseBuffer.usedSize () != 0)
-				info.back ().events |= POLLOUT;
+				pollInfo.back ().events |= POLLOUT;
 		}
 
 		switch (session->m_state)
@@ -434,12 +435,12 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 			{
 				assert (!session->m_port);
 				// we are waiting for a PASV connection
-				info.emplace_back (Socket::PollInfo{*session->m_pasvSocket, POLLIN, 0});
+				pollInfo.emplace_back (Socket::PollInfo{*session->m_pasvSocket, POLLIN, 0});
 			}
 			else
 			{
 				// we are waiting to complete a PORT connection
-				info.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT, 0});
+				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT, 0});
 			}
 			break;
 
@@ -448,25 +449,25 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 			if (session->m_recv)
 			{
 				assert (!session->m_send);
-				info.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLIN, 0});
+				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLIN, 0});
 			}
 			else
 			{
 				assert (session->m_send);
-				info.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT, 0});
+				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT, 0});
 			}
 			break;
 		}
 	}
 
-	if (info.empty ())
+	if (pollInfo.empty ())
 		return true;
 
 	// poll for activity
-	auto const rc = Socket::poll (info.data (), info.size (), 16ms);
+	auto const rc = Socket::poll (pollInfo.data (), pollInfo.size (), 16ms);
 	if (rc < 0)
 	{
-		Log::error ("poll: %s\n", std::strerror (errno));
+		error ("poll: %s\n", std::strerror (errno));
 		return false;
 	}
 
@@ -475,7 +476,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 
 	for (auto &session : sessions_)
 	{
-		for (auto const &i : info)
+		for (auto const &i : pollInfo)
 		{
 			if (!i.revents)
 				continue;
@@ -484,7 +485,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 			if (&i.socket.get () == session->m_commandSocket.get ())
 			{
 				if (i.revents & ~(POLLIN | POLLPRI | POLLOUT))
-					Log::debug ("Command revents 0x%X\n", i.revents);
+					debug ("Command revents 0x%X\n", i.revents);
 
 				if (i.revents & POLLOUT)
 					session->writeResponse ();
@@ -508,7 +509,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 
 				case State::DATA_CONNECT:
 					if (i.revents & ~(POLLIN | POLLPRI | POLLOUT))
-						Log::debug ("Data revents 0x%X\n", i.revents);
+						debug ("Data revents 0x%X\n", i.revents);
 
 					if (i.revents & (POLLERR | POLLHUP))
 					{
@@ -524,7 +525,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 					{
 						// PORT connection completed
 						auto const &sockName = session->m_dataSocket->peerName ();
-						Log::info ("Connected to [%s]:%u\n", sockName.name (), sockName.port ());
+						info ("Connected to [%s]:%u\n", sockName.name (), sockName.port ());
 
 						session->sendResponse ("150 Ready\r\n");
 						session->setState (State::DATA_TRANSFER, true, false);
@@ -533,7 +534,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 
 				case State::DATA_TRANSFER:
 					if (i.revents & ~(POLLIN | POLLPRI | POLLOUT))
-						Log::debug ("Data revents 0x%X\n", i.revents);
+						debug ("Data revents 0x%X\n", i.revents);
 
 					// we need to transfer data
 					if (i.revents & (POLLERR | POLLHUP))
@@ -1334,7 +1335,7 @@ void FtpSession::readCommand (int const events_)
 		// prepare to receive data
 		if (m_commandBuffer.freeSize () == 0)
 		{
-			Log::error ("Exceeded command buffer size\n");
+			error ("Exceeded command buffer size\n");
 			closeCommand ();
 			return;
 		}
@@ -1349,7 +1350,7 @@ void FtpSession::readCommand (int const events_)
 		if (rc == 0)
 		{
 			// peer closed connection
-			Log::info ("Peer closed connection\n");
+			info ("Peer closed connection\n");
 			closeCommand ();
 			return;
 		}
@@ -1385,7 +1386,7 @@ void FtpSession::readCommand (int const events_)
 
 		*delim = '\0';
 		decodePath (buffer, delim - buffer);
-		Log::command ("%s\n", buffer);
+		command ("%s\n", buffer);
 
 		char const *const command = buffer;
 
@@ -1471,7 +1472,7 @@ void FtpSession::sendResponse (char const *fmt_, ...)
 	va_list ap;
 
 	va_start (ap, fmt_);
-	Log::log (Log::RESPONSE, fmt_, ap);
+	addLog (RESPONSE, fmt_, ap);
 	va_end (ap);
 
 	va_start (ap, fmt_);
@@ -1480,14 +1481,14 @@ void FtpSession::sendResponse (char const *fmt_, ...)
 
 	if (rc < 0)
 	{
-		Log::error ("vsnprintf: %s\n", std::strerror (errno));
+		error ("vsnprintf: %s\n", std::strerror (errno));
 		closeCommand ();
 		return;
 	}
 
 	if (static_cast<std::size_t> (rc) > size)
 	{
-		Log::error ("Not enough space for response\n");
+		error ("Not enough space for response\n");
 		closeCommand ();
 		return;
 	}
@@ -1512,14 +1513,14 @@ void FtpSession::sendResponse (std::string_view const response_)
 	if (!m_commandSocket)
 		return;
 
-	Log::log (Log::RESPONSE, response_);
+	addLog (RESPONSE, response_);
 
 	auto const buffer = m_responseBuffer.freeArea ();
 	auto const size   = m_responseBuffer.freeSize ();
 
 	if (response_.size () > size)
 	{
-		Log::error ("Not enough space for response\n");
+		error ("Not enough space for response\n");
 		closeCommand ();
 		return;
 	}
@@ -1616,7 +1617,7 @@ bool FtpSession::listTransfer ()
 					std::uint64_t mtime = 0;
 					auto const rc       = sdmc_getmtime (fullPath.c_str (), &mtime);
 					if (rc != 0)
-						Log::error ("sdmc_getmtime %s 0x%lx\n", fullPath.c_str (), rc);
+						error ("sdmc_getmtime %s 0x%lx\n", fullPath.c_str (), rc);
 					else
 						st.st_mtime = mtime;
 				}
@@ -2084,7 +2085,7 @@ void FtpSession::PASV (char const *args_)
 	auto const &sockName = m_pasvSocket->sockName ();
 	std::string name     = sockName.name ();
 	auto const port      = sockName.port ();
-	Log::info ("Listening on [%s]:%u\n", name.c_str (), port);
+	info ("Listening on [%s]:%u\n", name.c_str (), port);
 
 	// send the address in the ftp format
 	for (auto &c : name)

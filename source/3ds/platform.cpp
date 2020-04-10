@@ -140,7 +140,7 @@ void startNetwork ()
 		return;
 
 	s_socuActive = true;
-	Log::info ("Wifi connected\n");
+	info ("Wifi connected\n");
 }
 
 /// \brief Draw citro3d logo

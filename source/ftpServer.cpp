@@ -21,6 +21,7 @@
 #include "ftpServer.h"
 
 #include "fs.h"
+#include "log.h"
 #include "platform.h"
 
 #include "imgui.h"
@@ -63,11 +64,8 @@ FtpServer::~FtpServer ()
 	m_thread.join ();
 }
 
-FtpServer::FtpServer (std::uint16_t const port_)
-    : m_log (Log::create ()), m_port (port_), m_quit (false)
+FtpServer::FtpServer (std::uint16_t const port_) : m_port (port_), m_quit (false)
 {
-	Log::bind (m_log);
-
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
 }
 
@@ -115,7 +113,7 @@ void FtpServer::draw ()
 #else
 	ImGui::BeginChild ("Logs", ImVec2 (0, 200), false, ImGuiWindowFlags_HorizontalScrollbar);
 #endif
-	m_log->draw ();
+	drawLog ();
 	ImGui::EndChild ();
 
 #ifdef _3DS
@@ -193,7 +191,7 @@ void FtpServer::handleNetworkFound ()
 	m_name.resize (std::strlen (name) + 3 + 5);
 	m_name.resize (std::sprintf (&m_name[0], "[%s]:%u", name, sockName.port ()));
 
-	Log::info ("Started server at %s\n", m_name.c_str ());
+	info ("Started server at %s\n", m_name.c_str ());
 
 	LOCKED (m_socket = std::move (socket));
 }
@@ -205,7 +203,7 @@ void FtpServer::handleNetworkLost ()
 		LOCKED (sock = std::move (m_socket));
 	}
 
-	Log::info ("Stopped server at %s\n", m_name.c_str ());
+	info ("Stopped server at %s\n", m_name.c_str ());
 }
 
 void FtpServer::loop ()
@@ -266,9 +264,6 @@ void FtpServer::loop ()
 
 void FtpServer::threadFunc ()
 {
-	// bind log for this thread
-	Log::bind (m_log);
-
 	while (!m_quit)
 		loop ();
 }

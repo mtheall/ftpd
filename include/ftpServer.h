@@ -21,7 +21,6 @@
 #pragma once
 
 #include "ftpSession.h"
-#include "log.h"
 #include "platform.h"
 #include "socket.h"
 
@@ -69,9 +68,6 @@ private:
 
 	/// \brief Thread entry point
 	void threadFunc ();
-
-	/// \brief Log
-	SharedLog m_log;
 
 	/// \brief Thread
 	platform::Thread m_thread;

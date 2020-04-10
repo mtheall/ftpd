@@ -37,13 +37,13 @@
 Socket::~Socket ()
 {
 	if (m_listening)
-		Log::info ("Stop listening on [%s]:%u\n", m_sockName.name (), m_sockName.port ());
+		info ("Stop listening on [%s]:%u\n", m_sockName.name (), m_sockName.port ());
 
 	if (m_connected)
-		Log::info ("Closing connection to [%s]:%u\n", m_peerName.name (), m_peerName.port ());
+		info ("Closing connection to [%s]:%u\n", m_peerName.name (), m_peerName.port ());
 
 	if (::close (m_fd) != 0)
-		Log::error ("close: %s\n", std::strerror (errno));
+		error ("close: %s\n", std::strerror (errno));
 }
 
 Socket::Socket (int const fd_) : m_fd (fd_), m_listening (false), m_connected (false)
@@ -67,11 +67,11 @@ UniqueSocket Socket::accept ()
 	auto const fd = ::accept (m_fd, addr, &addrLen);
 	if (fd < 0)
 	{
-		Log::error ("accept: %s\n", std::strerror (errno));
+		error ("accept: %s\n", std::strerror (errno));
 		return nullptr;
 	}
 
-	Log::info ("Accepted connection from [%s]:%u\n", addr.name (), addr.port ());
+	info ("Accepted connection from [%s]:%u\n", addr.name (), addr.port ());
 	return UniqueSocket (new Socket (fd, m_sockName, addr));
 }
 
@@ -79,7 +79,7 @@ int Socket::atMark ()
 {
 	auto const rc = ::sockatmark (m_fd);
 	if (rc < 0)
-		Log::error ("sockatmark: %s\n", std::strerror (errno));
+		error ("sockatmark: %s\n", std::strerror (errno));
 
 	return rc;
 }
@@ -91,7 +91,7 @@ bool Socket::bind (SockAddr const &addr_)
 	case AF_INET:
 		if (::bind (m_fd, addr_, sizeof (struct sockaddr_in)) != 0)
 		{
-			Log::error ("bind: %s\n", std::strerror (errno));
+			error ("bind: %s\n", std::strerror (errno));
 			return false;
 		}
 		break;
@@ -100,7 +100,7 @@ bool Socket::bind (SockAddr const &addr_)
 	case AF_INET6:
 		if (::bind (m_fd, addr_, sizeof (struct sockaddr_in6)) != 0)
 		{
-			Log::error ("bind: %s\n", std::strerror (errno));
+			error ("bind: %s\n", std::strerror (errno));
 			return false;
 		}
 		break;
@@ -108,7 +108,7 @@ bool Socket::bind (SockAddr const &addr_)
 
 	default:
 		errno = EINVAL;
-		Log::error ("bind: %s\n", std::strerror (errno));
+		error ("bind: %s\n", std::strerror (errno));
 		break;
 	}
 
@@ -117,7 +117,7 @@ bool Socket::bind (SockAddr const &addr_)
 		// get socket name due to request for ephemeral port
 		socklen_t addrLen = sizeof (struct sockaddr_storage);
 		if (::getsockname (m_fd, m_sockName, &addrLen) != 0)
-			Log::error ("getsockname: %s\n", std::strerror (errno));
+			error ("getsockname: %s\n", std::strerror (errno));
 	}
 	else
 		m_sockName = addr_;
@@ -130,19 +130,19 @@ bool Socket::connect (SockAddr const &addr_)
 	if (::connect (m_fd, addr_, sizeof (struct sockaddr_storage)) != 0)
 	{
 		if (errno != EINPROGRESS)
-			Log::error ("connect: %s\n", std::strerror (errno));
+			error ("connect: %s\n", std::strerror (errno));
 		else
 		{
 			m_peerName  = addr_;
 			m_connected = true;
-			Log::info ("Connecting to [%s]:%u\n", addr_.name (), addr_.port ());
+			info ("Connecting to [%s]:%u\n", addr_.name (), addr_.port ());
 		}
 		return false;
 	}
 
 	m_peerName  = addr_;
 	m_connected = true;
-	Log::info ("Connected to [%s]:%u\n", addr_.name (), addr_.port ());
+	info ("Connected to [%s]:%u\n", addr_.name (), addr_.port ());
 	return true;
 }
 
@@ -150,7 +150,7 @@ bool Socket::listen (int const backlog_)
 {
 	if (::listen (m_fd, backlog_) != 0)
 	{
-		Log::error ("listen: %s\n", std::strerror (errno));
+		error ("listen: %s\n", std::strerror (errno));
 		return false;
 	}
 
@@ -162,7 +162,7 @@ bool Socket::shutdown (int const how_)
 {
 	if (::shutdown (m_fd, how_) != 0)
 	{
-		Log::info ("shutdown: %s\n", std::strerror (errno));
+		info ("shutdown: %s\n", std::strerror (errno));
 		return false;
 	}
 
@@ -177,7 +177,7 @@ bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_LINGER, &linger, sizeof (linger)) != 0)
 	{
-		Log::error ("setsockopt(SO_LINGER, %s, %lus): %s\n",
+		error ("setsockopt(SO_LINGER, %s, %lus): %s\n",
 		    enable_ ? "on" : "off",
 		    static_cast<unsigned long> (time_.count ()),
 		    std::strerror (errno));
@@ -192,7 +192,7 @@ bool Socket::setNonBlocking (bool const nonBlocking_)
 	auto flags = ::fcntl (m_fd, F_GETFL, 0);
 	if (flags == -1)
 	{
-		Log::error ("fcntl(F_GETFL): %s\n", std::strerror (errno));
+		error ("fcntl(F_GETFL): %s\n", std::strerror (errno));
 		return false;
 	}
 
@@ -203,7 +203,7 @@ bool Socket::setNonBlocking (bool const nonBlocking_)
 
 	if (::fcntl (m_fd, F_SETFL, flags) != 0)
 	{
-		Log::error ("fcntl(F_SETFL, %d): %s\n", flags, std::strerror (errno));
+		error ("fcntl(F_SETFL, %d): %s\n", flags, std::strerror (errno));
 		return false;
 	}
 
@@ -215,8 +215,7 @@ bool Socket::setReuseAddress (bool const reuse_)
 	int reuse = reuse_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof (reuse)) != 0)
 	{
-		Log::error (
-		    "setsockopt(SO_REUSEADDR, %s): %s\n", reuse_ ? "yes" : "no", std::strerror (errno));
+		error ("setsockopt(SO_REUSEADDR, %s): %s\n", reuse_ ? "yes" : "no", std::strerror (errno));
 		return false;
 	}
 
@@ -228,7 +227,7 @@ bool Socket::setRecvBufferSize (std::size_t const size_)
 	int size = size_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof (size)) != 0)
 	{
-		Log::error ("setsockopt(SO_RCVBUF, %zu): %s\n", size_, std::strerror (errno));
+		error ("setsockopt(SO_RCVBUF, %zu): %s\n", size_, std::strerror (errno));
 		return false;
 	}
 
@@ -240,7 +239,7 @@ bool Socket::setSendBufferSize (std::size_t const size_)
 	int size = size_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size)) != 0)
 	{
-		Log::error ("setsockopt(SO_SNDBUF, %zu): %s\n", size_, std::strerror (errno));
+		error ("setsockopt(SO_SNDBUF, %zu): %s\n", size_, std::strerror (errno));
 		return false;
 	}
 
@@ -253,7 +252,7 @@ ssize_t Socket::read (void *const buffer_, std::size_t const size_, bool const o
 	assert (size_);
 	auto const rc = ::recv (m_fd, buffer_, size_, oob_ ? MSG_OOB : 0);
 	if (rc < 0 && errno != EWOULDBLOCK)
-		Log::error ("recv: %s\n", std::strerror (errno));
+		error ("recv: %s\n", std::strerror (errno));
 
 	return rc;
 }
@@ -273,7 +272,7 @@ ssize_t Socket::write (void const *const buffer_, std::size_t const size_)
 	assert (size_);
 	auto const rc = ::send (m_fd, buffer_, size_, 0);
 	if (rc < 0 && errno != EWOULDBLOCK)
-		Log::error ("send: %s\n", std::strerror (errno));
+		error ("send: %s\n", std::strerror (errno));
 
 	return rc;
 }
@@ -302,7 +301,7 @@ UniqueSocket Socket::create ()
 	auto const fd = ::socket (AF_INET, SOCK_STREAM, 0);
 	if (fd < 0)
 	{
-		Log::error ("socket: %s\n", std::strerror (errno));
+		error ("socket: %s\n", std::strerror (errno));
 		return nullptr;
 	}
 
@@ -327,7 +326,7 @@ int Socket::poll (PollInfo *const info_,
 	auto const rc = ::poll (pfd.get (), count_, timeout_.count ());
 	if (rc < 0)
 	{
-		Log::error ("poll: %s\n", std::strerror (errno));
+		error ("poll: %s\n", std::strerror (errno));
 		return rc;
 	}
 
