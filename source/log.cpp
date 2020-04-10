@@ -81,12 +81,12 @@ void drawLog ()
 		s_messages.erase (begin, end);
 	}
 
-	static ImVec4 const s_colors[] = {
-	    [DEBUG]    = ImVec4 (1.0f, 1.0f, 0.4f, 1.0f), // yellow
-	    [INFO]     = ImVec4 (1.0f, 1.0f, 1.0f, 1.0f), // white
-	    [ERROR]    = ImVec4 (1.0f, 0.4f, 0.4f, 1.0f), // red
-	    [COMMAND]  = ImVec4 (0.4f, 1.0f, 0.4f, 1.0f), // green
-	    [RESPONSE] = ImVec4 (0.4f, 1.0f, 1.0f, 1.0f), // cyan
+	ImVec4 const s_colors[] = {
+	    [DEBUG]    = ImVec4 (1.0f, 1.0f, 0.4f, 1.0f),          // yellow
+	    [INFO]     = ImGui::GetStyleColorVec4 (ImGuiCol_Text), // normal
+	    [ERROR]    = ImVec4 (1.0f, 0.4f, 0.4f, 1.0f),          // red
+	    [COMMAND]  = ImVec4 (0.4f, 1.0f, 0.4f, 1.0f),          // green
+	    [RESPONSE] = ImVec4 (0.4f, 1.0f, 1.0f, 1.0f),          // cyan
 	};
 
 	for (auto const &message : s_messages)

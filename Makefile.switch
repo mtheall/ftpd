@@ -209,7 +209,7 @@ $(BUILD)/%.rgba: $(GRAPHICS)/%.png | $(BUILD)
 	@convert $< $@
 	
 $(ROMFS_GFX): $(ROMFS)/%.rgba.zst: $(BUILD)/%.rgba
-	@zstd $< -o $@ --ultra -22
+	@zstd -f $< -o $@ --ultra -22
 
 $(ROMFS_SHADERS)/%_vsh.dksh: %_vsh.glsl
 	@echo {vert} $(notdir $<)

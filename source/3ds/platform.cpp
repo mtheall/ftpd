@@ -228,7 +228,8 @@ void drawStatus ()
 	auto const uv2 = ImVec2 (battery->right, battery->bottom);
 
 	// draw battery icon
-	ImGui::GetForegroundDrawList ()->AddImage (&s_gfxTexture, p1, p2, uv1, uv2);
+	ImGui::GetForegroundDrawList ()->AddImage (
+	    &s_gfxTexture, p1, p2, uv1, uv2, ImGui::GetColorU32 (ImGuiCol_Text));
 
 	// get wifi strength
 	auto const wifiStrength = osGetWifiStrength ();
@@ -247,14 +248,15 @@ void drawStatus ()
 	auto const uv4 = ImVec2 (wifi->right, wifi->bottom);
 
 	// draw wifi icon
-	ImGui::GetForegroundDrawList ()->AddImage (&s_gfxTexture, p3, p4, uv3, uv4);
+	ImGui::GetForegroundDrawList ()->AddImage (
+	    &s_gfxTexture, p3, p4, uv3, uv4, ImGui::GetColorU32 (ImGuiCol_Text));
 
 	// draw current timestamp
 	char buffer[64];
 	auto const now = std::time (nullptr);
 	std::strftime (buffer, sizeof (buffer), "%H:%M:%S", std::localtime (&now));
 	ImGui::GetForegroundDrawList ()->AddText (
-	    ImVec2 (p3.x - 65.0f, style.FramePadding.y), 0xFFFFFFFF, buffer);
+	    ImVec2 (p3.x - 65.0f, style.FramePadding.y), ImGui::GetColorU32 (ImGuiCol_Text), buffer);
 }
 }
 

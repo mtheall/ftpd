@@ -56,6 +56,7 @@ void userAppInit ()
 
 	romfsInit ();
 	plInitialize ();
+	psmInitialize ();
 	nifmInitialize (NifmServiceType_User);
 
 	if (R_FAILED (socketInitialize (&s_socketInitConfig)))
@@ -78,6 +79,7 @@ void userAppExit ()
 
 	socketExit ();
 	nifmExit ();
+	psmExit ();
 	plExit ();
 	romfsExit ();
 	appletUnlockExit ();
