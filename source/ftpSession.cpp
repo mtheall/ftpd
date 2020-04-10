@@ -468,7 +468,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 		return true;
 
 	// poll for activity
-	auto const rc = Socket::poll (pollInfo.data (), pollInfo.size (), 16ms);
+	auto const rc = Socket::poll (pollInfo.data (), pollInfo.size (), 100ms);
 	if (rc < 0)
 	{
 		error ("poll: %s\n", std::strerror (errno));

@@ -56,9 +56,11 @@ OUT_SHADERS	:=	shaders
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
+OPTIMIZE:=	-Os
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -Wall -Wno-narrowing -Os -ffunction-sections -fdata-sections -save-temps \
+CFLAGS	:=	-g -Wall -Wno-narrowing $(OPTIMIZE) \
+			-ffunction-sections -fdata-sections \
 			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ \
@@ -70,7 +72,7 @@ CXXFLAGS	:= $(CFLAGS) -std=gnu++17 -fno-exceptions -fno-rtti
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) \
-			-Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
+			$(OPTIMIZE) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
 
 LIBS	:= `$(PREFIX)pkg-config --libs libzstd` -ldeko3dd -lnx
 

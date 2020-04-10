@@ -479,9 +479,9 @@ void drawPowerStatus ()
 	    ImGui::GetColorU32 (ImGuiCol_Text));
 
 	char buffer[16];
-	std::sprintf (buffer, "%u%%", batteryCharge);
+	std::sprintf (buffer, "%3u%%", batteryCharge);
 	ImGui::GetForegroundDrawList ()->AddText (
-	    ImVec2 (x1 - 60.0f, y1), ImGui::GetColorU32 (ImGuiCol_Text), buffer);
+	    ImVec2 (x1 - 70.0f, y1), ImGui::GetColorU32 (ImGuiCol_Text), buffer);
 }
 
 /// \brief Draw status

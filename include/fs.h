@@ -100,28 +100,6 @@ public:
 	/// \note Fails on partials writes and errors
 	bool writeAll (void const *data_, std::size_t size_);
 
-	/// \brief Read data
-	/// \tparam T Type to read
-	template <typename T>
-	T read ()
-	{
-		T data;
-		if (!readAll (&data, sizeof (data)))
-			std::abort ();
-
-		return data;
-	}
-
-	/// \brief Write data
-	/// \tparam T type to write
-	/// \param data_ Data to write
-	template <typename T>
-	void write (T const &data_)
-	{
-		if (!writeAll (&data_, sizeof (data_)))
-			std::abort ();
-	}
-
 private:
 	/// \brief Underlying std::FILE*
 	std::unique_ptr<std::FILE, int (*) (std::FILE *)> m_fp{nullptr, nullptr};
