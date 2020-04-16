@@ -393,6 +393,7 @@ void platform::exit ()
 	std::free (s_socuBuffer);
 
 	gfxExit ();
+	romfsExit ();
 	ptmuExit ();
 	acExit ();
 }
