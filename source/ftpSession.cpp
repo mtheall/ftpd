@@ -21,21 +21,12 @@
 #include "ftpSession.h"
 
 #include "ftpServer.h"
-
 #include "log.h"
+#include "platform.h"
 
 #include "imgui.h"
 
-#ifdef _3DS
-#include <3ds.h>
-#endif
-
-#ifdef __SWITCH__
-#include <switch.h>
-#endif
-
 #include <arpa/inet.h>
-#include <poll.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -49,16 +40,20 @@
 #include <mutex>
 using namespace std::chrono_literals;
 
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
 #define lstat stat
 #endif
 
+#ifdef NDS
+#define LOCKED(x) x
+#else
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
 		auto const lock = std::scoped_lock (m_lock);                                               \
 		x;                                                                                         \
 	} while (0)
+#endif
 
 namespace
 {
@@ -297,7 +292,9 @@ FtpSession::FtpSession (UniqueSocket commandSocket_)
 
 bool FtpSession::dead ()
 {
+#ifndef NDS
 	auto const lock = std::scoped_lock (m_lock);
+#endif
 	if (m_commandSocket || m_pasvSocket || m_dataSocket)
 		return false;
 
@@ -306,8 +303,19 @@ bool FtpSession::dead ()
 
 void FtpSession::draw ()
 {
+#ifndef NDS
 	auto const lock = std::scoped_lock (m_lock);
+#endif
 
+#ifdef CLASSIC
+	if (m_filePosition)
+	{
+		std::fputs (fs::printSize (m_filePosition).c_str (), stdout);
+		std::fputc (' ', stdout);
+	}
+
+	std::fputs (m_workItem.empty () ? m_cwd.c_str () : m_workItem.c_str (), stdout);
+#else
 #ifdef _3DS
 	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 45.0f), true);
 #else
@@ -362,6 +370,7 @@ void FtpSession::draw ()
 	}
 
 	ImGui::EndChild ();
+#endif
 }
 
 UniqueFtpSession FtpSession::create (UniqueSocket commandSocket_)
@@ -571,7 +580,9 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 	if (state_ == State::COMMAND)
 	{
 		{
+#ifndef NDS
 			auto lock = std::scoped_lock (m_lock);
+#endif
 
 			m_restartPosition = 0;
 			m_fileSize        = 0;
@@ -1294,6 +1305,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 
 void FtpSession::readCommand (int const events_)
 {
+#ifndef NDS
 	// check out-of-band data
 	if (events_ & POLLPRI)
 	{
@@ -1333,6 +1345,7 @@ void FtpSession::readCommand (int const events_)
 		m_commandBuffer.clear ();
 		return;
 	}
+#endif
 
 	if (events_ & POLLIN)
 	{
@@ -1591,9 +1604,9 @@ bool FtpSession::listTransfer ()
 			auto const dp    = static_cast<DIR *> (m_dir);
 			auto const magic = *reinterpret_cast<u32 *> (dp->dirData->dirStruct);
 
-			if (magic == SDMC_DIRITER_MAGIC)
+			if (magic == ARCHIVE_DIRITER_MAGIC)
 			{
-				auto const dir   = reinterpret_cast<sdmc_dir_t const *> (dp->dirData->dirStruct);
+				auto const dir   = reinterpret_cast<archive_dir_t const *> (dp->dirData->dirStruct);
 				auto const entry = &dir->entry_data[dir->index];
 
 				if (entry->attributes & FS_ATTRIBUTE_DIRECTORY)
@@ -1619,7 +1632,7 @@ bool FtpSession::listTransfer ()
 				if (getmtime)
 				{
 					std::uint64_t mtime = 0;
-					auto const rc       = sdmc_getmtime (fullPath.c_str (), &mtime);
+					auto const rc       = archive_getmtime (fullPath.c_str (), &mtime);
 					if (rc != 0)
 						error ("sdmc_getmtime %s 0x%lx\n", fullPath.c_str (), rc);
 					else
@@ -2060,7 +2073,7 @@ void FtpSession::PASV (char const *args_)
 
 	// create an address to bind
 	struct sockaddr_in addr = m_commandSocket->sockName ();
-#ifdef _3DS
+#if defined(NDS) || defined(_3DS)
 	static std::uint16_t ephemeralPort = 5001;
 	if (ephemeralPort > 10000)
 		ephemeralPort = 5001;
@@ -2256,7 +2269,7 @@ void FtpSession::RMD (char const *args_)
 	// remove the directory
 	if (::rmdir (path.c_str ()) != 0)
 	{
-		sendResponse ("550 %s\r\n", std::strerror (errno));
+		sendResponse ("550 %d %s\r\n", __LINE__, std::strerror (errno));
 		return;
 	}
 

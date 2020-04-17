@@ -69,11 +69,13 @@ private:
 	/// \brief Thread entry point
 	void threadFunc ();
 
+#ifndef NDS
 	/// \brief Thread
 	platform::Thread m_thread;
 
 	/// \brief Mutex
 	platform::Mutex m_lock;
+#endif
 
 	/// \brief Listen socket
 	UniqueSocket m_socket;

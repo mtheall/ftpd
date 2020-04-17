@@ -18,6 +18,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef CLASSIC
 #include "imgui_deko3d.h"
 
 #include "fs.h"
@@ -528,3 +529,4 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 	// submit final commands
 	queue_.submitCommands (cmdBuf_.finishList ());
 }
+#endif

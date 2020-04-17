@@ -28,19 +28,28 @@
 
 #include "imgui.h"
 
-#include <3ds.h>
 #include <citro3d.h>
 #include <tex3ds.h>
 
+#ifndef CLASSIC
 #include "gfx.h"
+#endif
 
+#include <arpa/inet.h>
 #include <malloc.h>
 
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <ctime>
 #include <mutex>
+
+#ifdef CLASSIC
+PrintConsole g_statusConsole;
+PrintConsole g_logConsole;
+PrintConsole g_sessionConsole;
+#endif
 
 namespace
 {
@@ -60,6 +69,9 @@ u32 *s_socuBuffer = nullptr;
 /// \brief ac:u fence
 platform::Mutex s_acuFence;
 
+#ifdef CLASSIC
+in_addr_t s_addr = 0;
+#else
 /// \brief Clear color
 constexpr auto CLEAR_COLOR = 0x204B7AFF;
 
@@ -103,6 +115,7 @@ C3D_RenderTarget *s_bottom = nullptr;
 C3D_Tex s_gfxTexture;
 /// \brief Texture atlas metadata
 Tex3DS_Texture s_gfxT3x;
+#endif
 
 /// \brief Get network visibility
 bool getNetworkVisibility ()
@@ -113,7 +126,20 @@ bool getNetworkVisibility ()
 	// get wifi status
 	std::uint32_t wifi = 0;
 	if (R_FAILED (ACU_GetWifiStatus (&wifi)) || !wifi)
+	{
+#ifdef CLASSIC
+		s_addr = 0;
+#endif
 		return false;
+	}
+
+#ifdef CLASSIC
+	if (!s_addr)
+		s_addr = gethostid ();
+
+	if (s_addr == INADDR_BROADCAST)
+		s_addr = 0;
+#endif
 
 	return true;
 }
@@ -146,6 +172,7 @@ void startNetwork ()
 /// \brief Draw citro3d logo
 void drawLogo ()
 {
+#ifndef CLASSIC
 	// get citro3d logo subtexture
 	auto subTex = Tex3DS_GetSubTexture (s_gfxT3x, gfx_c3dlogo_idx);
 
@@ -176,11 +203,13 @@ void drawLogo ()
 	    ImVec2 (x2, y2 + screenHeight * 0.5f),
 	    uv1,
 	    uv2);
+#endif
 }
 
 /// \brief Draw status
 void drawStatus ()
 {
+#ifndef CLASSIC
 	constexpr unsigned batteryLevels[] = {
 	    gfx_battery0_idx,
 	    gfx_battery0_idx,
@@ -250,13 +279,37 @@ void drawStatus ()
 	// draw wifi icon
 	ImGui::GetForegroundDrawList ()->AddImage (
 	    &s_gfxTexture, p3, p4, uv3, uv4, ImGui::GetColorU32 (ImGuiCol_Text));
+#endif
 
 	// draw current timestamp
-	char buffer[64];
+	char timeBuffer[16];
 	auto const now = std::time (nullptr);
-	std::strftime (buffer, sizeof (buffer), "%H:%M:%S", std::localtime (&now));
-	ImGui::GetForegroundDrawList ()->AddText (
-	    ImVec2 (p3.x - 65.0f, style.FramePadding.y), ImGui::GetColorU32 (ImGuiCol_Text), buffer);
+	std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
+
+#ifdef CLASSIC
+	static std::string statusString;
+
+	std::string newStatusString (256, '\0');
+	newStatusString.resize (std::sprintf (&newStatusString[0],
+	    "\x1b[0;0H\x1b[32;1m%s \x1b[36;1m%s%s \x1b[37;1m%s\x1b[K",
+	    STATUS_STRING,
+	    s_addr ? inet_ntoa (in_addr{s_addr}) : "Waiting",
+	    s_addr ? ":5000" : "",
+	    timeBuffer));
+
+	if (newStatusString != statusString)
+	{
+		statusString = std::move (newStatusString);
+
+		consoleSelect (&g_statusConsole);
+		std::fputs (statusString.c_str (), stdout);
+		std::fflush (stdout);
+	}
+#else
+	ImGui::GetForegroundDrawList ()->AddText (ImVec2 (p3.x - 65.0f, style.FramePadding.y),
+	    ImGui::GetColorU32 (ImGuiCol_Text),
+	    timeBuffer);
+#endif
 }
 }
 
@@ -267,16 +320,28 @@ bool platform::init ()
 
 	acInit ();
 	ptmuInit ();
+#ifndef CLASSIC
 	romfsInit ();
+#endif
 	gfxInitDefault ();
 	gfxSet3D (false);
-	sdmcWriteSafe (false);
+
+#ifdef CLASSIC
+	consoleInit (GFX_TOP, &g_statusConsole);
+	consoleInit (GFX_TOP, &g_logConsole);
+	consoleInit (GFX_BOTTOM, &g_sessionConsole);
+
+	consoleSetWindow (&g_statusConsole, 0, 0, 50, 1);
+	consoleSetWindow (&g_logConsole, 0, 1, 50, 29);
+	consoleSetWindow (&g_sessionConsole, 0, 0, 40, 30);
+#endif
 
 #ifndef NDEBUG
 	consoleDebugInit (debugDevice_SVC);
 	std::setvbuf (stderr, nullptr, _IOLBF, 0);
 #endif
 
+#ifndef CLASSIC
 	// initialize citro3d
 	C3D_Init (C3D_DEFAULT_CMDBUF_SIZE);
 
@@ -317,6 +382,7 @@ bool platform::init ()
 	// citro3d logo doesn't quite show with the default transparency
 	style.Colors[ImGuiCol_WindowBg].w = 0.8f;
 	style.ScaleAllSizes (0.5f);
+#endif
 
 	return true;
 }
@@ -342,6 +408,7 @@ bool platform::loop ()
 	if (hidKeysDown () & KEY_START)
 		return false;
 
+#ifndef CLASSIC
 	auto &io = ImGui::GetIO ();
 
 	// setup display metrics
@@ -350,6 +417,7 @@ bool platform::loop ()
 
 	imgui::ctru::newFrame ();
 	ImGui::NewFrame ();
+#endif
 
 	return true;
 }
@@ -359,6 +427,12 @@ void platform::render ()
 	drawLogo ();
 	drawStatus ();
 
+#ifdef CLASSIC
+	drawLog ();
+	gfxFlushBuffers ();
+	gspWaitForVBlank ();
+	gfxSwapBuffers ();
+#else
 	ImGui::Render ();
 
 	C3D_FrameBegin (C3D_FRAME_SYNCDRAW);
@@ -370,10 +444,12 @@ void platform::render ()
 	imgui::citro3d::render (s_top, s_bottom);
 
 	C3D_FrameEnd (0);
+#endif
 }
 
 void platform::exit ()
 {
+#ifndef CLASSIC
 	imgui::citro3d::exit ();
 
 	// free graphics
@@ -386,6 +462,7 @@ void platform::exit ()
 
 	// deinitialize citro3d
 	C3D_Fini ();
+#endif
 
 	if (s_socuActive)
 		socExit ();
@@ -393,9 +470,17 @@ void platform::exit ()
 	std::free (s_socuBuffer);
 
 	gfxExit ();
+#ifndef CLASSIC
 	romfsExit ();
+#endif
 	ptmuExit ();
 	acExit ();
+}
+
+///////////////////////////////////////////////////////////////////////////
+platform::steady_clock::time_point platform::steady_clock::now () noexcept
+{
+	return time_point (duration (svcGetSystemTick ()));
 }
 
 ///////////////////////////////////////////////////////////////////////////

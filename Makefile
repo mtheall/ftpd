@@ -1,24 +1,20 @@
-.PHONY: all nro 3dsx cia clean linux 3dslink nxlink format release release-3dsx release-cia release-3ds release-nro
+.PHONY: all all-classic format clean
+.PHONY: dslink 3dslink 3dslink-classic nxlink-classic
+.PHONY: nds 3dsx cia nro linux
+.PHONY: 3dsx-classic cia-classic nro-classic
+.PHONY: release release-nds release-3dsx release-cia release-nro
+.PHONY: release-3dsx-classic release-cia-classic release-nro-classic
 
-TARGET := $(notdir $(CURDIR))
-
-export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)
+export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-6)
 export VERSION_MAJOR := 3
 export VERSION_MINOR := 0
 export VERSION_MICRO := 0
-export VERSION := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_MICRO)-rc3
+export VERSION := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_MICRO)
 
-ifneq ($(strip $(GITREV)),)
-export VERSION := $(VERSION)-$(GITREV)
-endif
+###########################################################################
+all: nds 3dsx nro linux
 
-all: 3dsx nro linux
-
-nxlink:
-	@$(MAKE) -f Makefile.switch nxlink
-
-3dslink:
-	@$(MAKE) -f Makefile.3ds 3dslink
+all-classic: nds 3dsx-classic nro-classic linux
 
 format:
 	@clang-format -style=file -i $(filter-out \
@@ -40,40 +36,86 @@ format:
 		source/imgui/imgui_internal.h, \
 		$(shell find source include -type f -name \*.c -o -name \*.cpp -o -name \*.h))
 
-release: release-3ds release-nro
-	@xz -c <3ds/$(TARGET).3dsx >ftpd.3dsx.xz
-	@xz -c <3ds/$(TARGET).cia >ftpd.cia.xz
-	@xz -c <switch/$(TARGET).nro >ftpd.nro.xz
+clean:
+	@$(MAKE) -f Makefile.nds clean
+	@$(MAKE) -f Makefile.3ds clean
+	@$(MAKE) -f Makefile.3ds clean CLASSIC="-DCLASSIC"
+	@$(MAKE) -f Makefile.switch clean
+	@$(MAKE) -f Makefile.switch clean CLASSIC="-DCLASSIC"
+	@$(MAKE) -f Makefile.linux clean
+	@$(RM) ftpd.nds.xz ftpd*.3dsx.xz ftpd*.cia.xz ftpd*.nro.xz
 
-nro:
-	@$(MAKE) -f Makefile.switch all
+###########################################################################
+dslink:
+	@$(MAKE) -f Makefile.nds dslink
 
-release-nro:
-	@$(MAKE) DEFINES=-DNDEBUG -f Makefile.switch all
+3dslink:
+	@$(MAKE) -f Makefile.3ds 3dslink
+
+3dslink-classic:
+	@$(MAKE) -f Makefile.3ds 3dslink CLASSIC="-DCLASSIC"
+
+nxlink:
+	@$(MAKE) -f Makefile.switch nxlink
+
+nxlink-classic:
+	@$(MAKE) -f Makefile.switch nxlink CLASSIC="-DCLASSIC"
+
+###########################################################################
+nds:
+	@$(MAKE) -f Makefile.nds CLASSIC="-DCLASSIC"
 
 3dsx:
 	@$(MAKE) -f Makefile.3ds 3dsx
 
-release-3dsx:
-	@$(MAKE) DEFINES=-DNDEBUG -f Makefile.3ds 3dsx
+3dsx-classic:
+	@$(MAKE) -f Makefile.3ds 3dsx CLASSIC="-DCLASSIC"
 
 cia: 3dsx
 	@$(MAKE) -f Makefile.3ds cia
 
-release-cia: release-3dsx
-	@$(MAKE) DEFINES=-NDEBUG -f Makefile.3ds cia
+cia-classic: 3dsx-classic
+	@$(MAKE) -f Makefile.3ds cia CLASSIC="-DCLASSIC"
 
-release-3ds:
-	# can't let these run in parallel with each other due to using same
-	# .elf file name
-	@$(MAKE) DEFINES=-DNDEBUG -f Makefile.3ds 3dsx
-	@$(MAKE) DEFINES=-DNDEBUG -f Makefile.3ds cia
+nro:
+	@$(MAKE) -f Makefile.switch all
+
+nro-classic:
+	@$(MAKE) -f Makefile.switch all CLASSIC="-DCLASSIC"
 
 linux:
 	@$(MAKE) -f Makefile.linux
 
-clean:
-	@$(MAKE) -f Makefile.switch clean
-	@$(MAKE) -f Makefile.3ds clean
-	@$(MAKE) -f Makefile.linux clean
-	@$(RM) ftpd.3dsx.xz	ftpd.cia.xz	ftpd.nro.xz
+###########################################################################
+release: release-nds \
+		release-3dsx release-3dsx-classic \
+		release-cia release-cia-classic \
+		release-nro release-nro-classic
+	@xz -c <nds/ftpd.nds >ftpd.nds.xz
+	@xz -c <3ds/ftpd.3dsx >ftpd.3dsx.xz
+	@xz -c <3ds-classic/ftpd-classic.3dsx >ftpd-classic.3dsx.xz
+	@xz -c <3ds/ftpd.cia >ftpd.cia.xz
+	@xz -c <3ds-classic/ftpd-classic.cia >ftpd-classic.cia.xz
+	@xz -c <switch/ftpd.nro >ftpd.nro.xz
+	@xz -c <switch-classic/ftpd-classic.nro >ftpd-classic.nro.xz
+
+release-nds:
+	@$(MAKE) -f Makefile.nds DEFINES=-DNDEBUG 
+
+release-3dsx:
+	@$(MAKE) -f Makefile.3ds 3dsx DEFINES=-DNDEBUG
+
+release-3dsx-classic:
+	@$(MAKE) -f Makefile.3ds 3dsx DEFINES=-DNDEBUG CLASSIC="-DCLASSIC"
+
+release-cia: release-3dsx
+	@$(MAKE) -f Makefile.3ds cia DEFINES=-DNDEBUG
+
+release-cia-classic: release-3dsx-classic
+	@$(MAKE) -f Makefile.3ds cia DEFINES=-DNDEBUG CLASSIC="-DCLASSIC"
+
+release-nro:
+	@$(MAKE) -f Makefile.switch all DEFINES=-DNDEBUG
+
+release-nro-classic:
+	@$(MAKE) -f Makefile.switch all DEFINES=-DNDEBUG CLASSIC="-DCLASSIC"

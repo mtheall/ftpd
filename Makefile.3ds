@@ -31,16 +31,24 @@ include $(DEVKITARM)/3ds_rules
 #     - icon.png
 #     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
-TARGET   := 3ds/$(notdir $(CURDIR))
-BUILD    := 3ds/build
-SOURCES  := source source/3ds source/imgui
+SOURCES  := source source/3ds
 DATA     := data
 INCLUDES := include
-GRAPHICS := 3ds/gfx
-ROMFS    := 3ds/romfs
-GFXBUILD := $(ROMFS)
 
-APP_TITLE       := ftpd
+ifeq ($(strip $(CLASSIC)),)
+APP_TITLE := ftpd pro
+TARGET    := 3ds/ftpd
+BUILD     := 3ds/build
+SOURCES   += source/imgui
+GRAPHICS  := 3ds/gfx
+ROMFS     := 3ds/romfs
+GFXBUILD  := $(ROMFS)
+else
+APP_TITLE := ftpd classic
+TARGET    := 3ds-classic/ftpd-classic
+BUILD     := 3ds-classic/build
+endif
+
 APP_DESCRIPTION := v$(VERSION)
 APP_AUTHOR      := mtheall
 
@@ -52,16 +60,17 @@ RSF_FILE        := meta/ftpd-cia.rsf
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-OPTIMIZE := -O2
+OPTIMIZE := -O0
 ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
 CFLAGS   := -g -Wall $(OPTIMIZE) -mword-relocations \
             -fomit-frame-pointer -ffunction-sections -fdata-sections \
-            $(ARCH) $(DEFINES)
+            $(ARCH) $(DEFINES) $(CLASSIC)
 
 CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
-            -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1
+            -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+            -DNO_IPV6
 
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 
@@ -96,10 +105,13 @@ export DEPSDIR :=  $(CURDIR)/$(BUILD)
 CFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES    := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-PICAFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.v.pica)))
 SHLISTFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.shlist)))
 GFXFILES    := $(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.t3s)))
 BINFILES    := $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+
+ifeq ($(strip $(CLASSIC)),)
+PICAFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.v.pica)))
+endif
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C

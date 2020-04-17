@@ -21,6 +21,7 @@
 #include "platform.h"
 
 #include "fs.h"
+#include "log.h"
 
 #include "imgui_deko3d.h"
 #include "imgui_nx.h"
@@ -29,8 +30,7 @@
 
 #include <zstd.h>
 
-#include <switch.h>
-
+#include <arpa/inet.h>
 #include <sys/stat.h>
 
 #include <cerrno>
@@ -41,8 +41,17 @@
 #include <numeric>
 #include <thread>
 
+#ifdef CLASSIC
+PrintConsole g_statusConsole;
+PrintConsole g_logConsole;
+PrintConsole g_sessionConsole;
+#endif
+
 namespace
 {
+#ifdef CLASSIC
+in_addr_t s_addr = 0;
+#else
 /// \brief Texture index
 enum TextureIndex
 {
@@ -385,26 +394,52 @@ void deko3dExit ()
 	s_depthMemBlock = nullptr;
 	s_device        = nullptr;
 }
+#endif
 
 /// \brief Draw time status
 void drawTimeStatus ()
 {
+#ifndef CLASSIC
 	auto const &io    = ImGui::GetIO ();
 	auto const &style = ImGui::GetStyle ();
+#endif
 
 	// draw current timestamp
-	char buffer[64];
+	char timeBuffer[64];
 	auto const now = std::time (nullptr);
-	std::strftime (buffer, sizeof (buffer), "%H:%M:%S", std::localtime (&now));
+	std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
+
+#ifdef CLASSIC
+	static std::string statusString;
+
+	std::string newStatusString (256, '\0');
+	newStatusString.resize (std::sprintf (&newStatusString[0],
+	    "\x1b[0;0H\x1b[32;1m%s \x1b[36;1m%s%s \x1b[37;1m%s\x1b[K",
+	    STATUS_STRING,
+	    s_addr ? inet_ntoa (in_addr{s_addr}) : "Waiting",
+	    s_addr ? ":5000" : "",
+	    timeBuffer));
+
+	if (newStatusString != statusString)
+	{
+		statusString = std::move (newStatusString);
+
+		consoleSelect (&g_statusConsole);
+		std::fputs (statusString.c_str (), stdout);
+		std::fflush (stdout);
+	}
+#else
 	ImGui::GetForegroundDrawList ()->AddText (
 	    ImVec2 (io.DisplaySize.x - 240.0f, style.FramePadding.y),
 	    ImGui::GetColorU32 (ImGuiCol_Text),
-	    buffer);
+	    timeBuffer);
+#endif
 }
 
 /// \brief Draw network status
 void drawNetworkStatus ()
 {
+#ifndef CLASSIC
 	TextureIndex netIcon = AIRPLANE_ICON;
 
 	NifmInternetConnectionType type;
@@ -447,11 +482,13 @@ void drawNetworkStatus ()
 	    ImVec2 (0, 0),
 	    ImVec2 (1, 1),
 	    ImGui::GetColorU32 (ImGuiCol_Text));
+#endif
 }
 
 /// \brief Draw power status
 void drawPowerStatus ()
 {
+#ifndef CLASSIC
 	std::uint32_t batteryCharge = 0;
 	psmGetBatteryChargePercentage (&batteryCharge);
 
@@ -480,8 +517,10 @@ void drawPowerStatus ()
 
 	char buffer[16];
 	std::sprintf (buffer, "%3u%%", batteryCharge);
+
 	ImGui::GetForegroundDrawList ()->AddText (
 	    ImVec2 (x1 - 70.0f, y1), ImGui::GetColorU32 (ImGuiCol_Text), buffer);
+#endif
 }
 
 /// \brief Draw status
@@ -495,10 +534,21 @@ void drawStatus ()
 
 bool platform::init ()
 {
+#ifdef CLASSIC
+	consoleInit (&g_statusConsole);
+	consoleInit (&g_logConsole);
+	consoleInit (&g_sessionConsole);
+
+	consoleSetWindow (&g_statusConsole, 0, 0, 80, 1);
+	consoleSetWindow (&g_logConsole, 0, 1, 80, 29);
+	consoleSetWindow (&g_sessionConsole, 0, 30, 80, 15);
+#endif
+
 #ifndef NDEBUG
 	std::setvbuf (stderr, nullptr, _IOLBF, 0);
 #endif
 
+#ifndef CLASSIC
 	if (!imgui::nx::init ())
 		return false;
 
@@ -511,6 +561,7 @@ bool platform::init ()
 	    s_imageDescriptors[0],
 	    dkMakeTextureHandle (0, 0),
 	    FB_NUM);
+#endif
 
 	return true;
 }
@@ -522,6 +573,11 @@ bool platform::networkVisible ()
 	NifmInternetConnectionStatus status;
 	if (R_FAILED (nifmGetInternetConnectionStatus (&type, &wifi, &status)))
 		return false;
+
+#ifdef CLASSIC
+	if (!s_addr)
+		s_addr = gethostid ();
+#endif
 
 	return status == NifmInternetConnectionStatus_Connected;
 }
@@ -537,6 +593,7 @@ bool platform::loop ()
 	if (keysDown & KEY_PLUS)
 		return false;
 
+#ifndef CLASSIC
 	imgui::nx::newFrame ();
 	ImGui::NewFrame ();
 
@@ -554,6 +611,7 @@ bool platform::loop ()
 	    imgui::deko3d::makeTextureID (dkMakeTextureHandle (1, 1)),
 	    ImVec2 (x1, y1),
 	    ImVec2 (x2, y2));
+#endif
 
 	drawStatus ();
 
@@ -562,6 +620,12 @@ bool platform::loop ()
 
 void platform::render ()
 {
+#ifdef CLASSIC
+	drawLog ();
+	consoleUpdate (&g_statusConsole);
+	consoleUpdate (&g_logConsole);
+	consoleUpdate (&g_sessionConsole);
+#else
 	ImGui::Render ();
 
 	auto &io = ImGui::GetIO ();
@@ -595,10 +659,16 @@ void platform::render ()
 
 	// present image
 	s_queue.presentImage (s_swapchain, slot);
+#endif
 }
 
 void platform::exit ()
 {
+#ifdef CLASSIC
+	consoleExit (&g_sessionConsole);
+	consoleExit (&g_logConsole);
+	consoleExit (&g_statusConsole);
+#else
 	imgui::nx::exit ();
 
 	// wait for queue to be idle
@@ -606,6 +676,7 @@ void platform::exit ()
 
 	imgui::deko3d::exit ();
 	deko3dExit ();
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -23,11 +23,15 @@
 #include "fs.h"
 #include "log.h"
 #include "platform.h"
+#include "socket.h"
 
 #include "imgui.h"
 
+#ifdef NDS
+#include <dswifi9.h>
+#endif
+
 #include <arpa/inet.h>
-#include <poll.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -37,20 +41,26 @@
 #include <thread>
 using namespace std::chrono_literals;
 
+#ifdef NDS
+#define LOCKED(x) x
+#else
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
 		auto const lock = std::scoped_lock (m_lock);                                               \
 		x;                                                                                         \
 	} while (0)
+#endif
 
 namespace
 {
 /// \brief Application start time
 auto const s_startTime = std::time (nullptr);
 
+#ifndef NDS
 /// \brief Mutex for s_freeSpace
 platform::Mutex s_lock;
+#endif
 
 /// \brief Free space string
 std::string s_freeSpace;
@@ -61,16 +71,54 @@ FtpServer::~FtpServer ()
 {
 	m_quit = true;
 
+#ifndef NDS
 	m_thread.join ();
+#endif
 }
 
 FtpServer::FtpServer (std::uint16_t const port_) : m_port (port_), m_quit (false)
 {
+#ifndef NDS
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
+#endif
 }
 
 void FtpServer::draw ()
 {
+#ifdef NDS
+	loop ();
+#endif
+
+#ifdef CLASSIC
+	{
+#ifndef NDS
+		auto const lock = std::scoped_lock (s_lock);
+#endif
+		if (!s_freeSpace.empty ())
+		{
+			consoleSelect (&g_statusConsole);
+			std::printf ("\x1b[0;%uH\x1b[32;1m%s",
+			    static_cast<unsigned> (g_statusConsole.windowWidth - s_freeSpace.size () + 1),
+			    s_freeSpace.c_str ());
+			std::fflush (stdout);
+		}
+	}
+
+	{
+#ifndef NDS
+		auto lock = std::scoped_lock (m_lock);
+#endif
+		consoleSelect (&g_sessionConsole);
+		std::fputs ("\x1b[2J", stdout);
+		for (auto &session : m_sessions)
+		{
+			session->draw ();
+			if (&session != &m_sessions.back ())
+				std::fputc ('\n', stdout);
+			std::fflush (stdout);
+		}
+	}
+#else
 	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
 	auto const height = io.DisplaySize.y;
@@ -135,6 +183,7 @@ void FtpServer::draw ()
 	}
 
 	ImGui::End ();
+#endif
 }
 
 UniqueFtpServer FtpServer::create (std::uint16_t const port_)
@@ -150,8 +199,11 @@ void FtpServer::updateFreeSpace ()
 	if (::statvfs ("sdmc:/", &st) != 0)
 		return;
 
+	auto freeSpace = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
+
 	auto const lock = std::scoped_lock (s_lock);
-	s_freeSpace     = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
+	if (freeSpace != s_freeSpace)
+		s_freeSpace = std::move (freeSpace);
 #endif
 }
 
@@ -164,7 +216,9 @@ void FtpServer::handleNetworkFound ()
 {
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(NDS)
+	addr.sin_addr = Wifi_GetIPInfo (nullptr, nullptr, nullptr, nullptr);
+#elif defined(_3DS) || defined(__SWITCH__)
 	addr.sin_addr.s_addr = gethostid ();
 #else
 	addr.sin_addr.s_addr = INADDR_ANY;
@@ -234,8 +288,10 @@ void FtpServer::loop ()
 		std::vector<UniqueFtpSession> deadSessions;
 		{
 			// remove dead sessions
+#ifndef NDS
 			auto lock = std::scoped_lock (m_lock);
-			auto it   = std::begin (m_sessions);
+#endif
+			auto it = std::begin (m_sessions);
 			while (it != std::end (m_sessions))
 			{
 				auto &session = *it;
@@ -256,9 +312,11 @@ void FtpServer::loop ()
 		if (!FtpSession::poll (m_sessions))
 			handleNetworkLost ();
 	}
+#ifndef NDS
 	// avoid busy polling in background thread
 	else
 		platform::Thread::sleep (16ms);
+#endif
 }
 
 void FtpServer::threadFunc ()

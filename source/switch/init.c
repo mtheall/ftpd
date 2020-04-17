@@ -63,7 +63,7 @@ void userAppInit ()
 		return;
 
 #ifndef NDEBUG
-	s_fd = nxlinkStdio ();
+		// s_fd = nxlinkStdioForDebug ();
 #endif
 }
 

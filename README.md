@@ -9,6 +9,7 @@ FTP Server for 3DS/Switch/Linux.
 - Cutting-edge graphics.
 
 ## Latest Builds
+NDS: https://mtheall.com/~mtheall/ftpd.nds
 
 CIA: https://mtheall.com/~mtheall/ftpd.cia
 
@@ -18,11 +19,34 @@ NRO: https://mtheall.com/~mtheall/ftpd.nro
 
 CIA QR Code
 
-![ftpd.cia](https://github.com/mtheall/ftpd/raw/master/ftpd_qr.png)
+![ftpd.cia](https://github.com/mtheall/ftpd/raw/feature/v3.0.0/ftpd-qr.png)
+
+## Classic Builds
+
+CIA: https://mtheall.com/~mtheall/ftpd-classic.cia
+
+3DSX: https://mtheall.com/~mtheall/ftpd-classic.3dsx
+
+NRO: https://mtheall.com/~mtheall/ftpd-classic.nro
+
+CIA QR Code
+
+![ftpd-classic.cia](https://github.com/mtheall/ftpd/raw/feature/v3.0.0/ftpd-classic-qr.png)
 
 ## Build and install
 
 You must set up the [development environment](https://devkitpro.org/wiki/Getting_Started).
+
+### NDS
+
+The following pacman packages are required to build `nds/ftpd.nds`:
+
+	devkitARM
+	dswifi
+	libfat-nds
+	libnds
+
+They are available as part of the `nds-dev` meta-package.
 
 ### 3DSX
 

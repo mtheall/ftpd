@@ -58,16 +58,30 @@ private:
 	/// \brief Command buffer size
 	constexpr static auto COMMAND_BUFFERSIZE = 4096;
 
+#ifdef NDS
+	/// \brief Response buffer size
+	constexpr static auto RESPONSE_BUFFERSIZE = 4096;
+
+	/// \brief Transfer buffersize
+	constexpr static auto XFER_BUFFERSIZE = 8192;
+#else
 	/// \brief Response buffer size
 	constexpr static auto RESPONSE_BUFFERSIZE = 32768;
 
 	/// \brief Transfer buffersize
 	constexpr static auto XFER_BUFFERSIZE = 65536;
+#endif
 
 	/// \brief File buffersize
 	constexpr static auto FILE_BUFFERSIZE = 4 * XFER_BUFFERSIZE;
 
-#ifdef _3DS
+#if defined(NDS)
+	/// \brief Socket buffer size
+	constexpr static auto SOCK_BUFFERSIZE = 4096;
+
+	/// \brief Amount of file position history to keep
+	constexpr static auto POSITION_HISTORY = 60;
+#elif defined(_3DS)
 	/// \brief Socket buffer size
 	constexpr static auto SOCK_BUFFERSIZE = 32768;
 
@@ -184,8 +198,10 @@ private:
 	/// \brief Transfer upload
 	bool storeTransfer ();
 
+#ifndef NDS
 	/// \brief Mutex
 	platform::Mutex m_lock;
+#endif
 
 	/// \brief Command socket
 	SharedSocket m_commandSocket;

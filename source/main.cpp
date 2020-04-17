@@ -29,19 +29,25 @@
 
 int main (int argc_, char *argv_[])
 {
+#ifndef CLASSIC
 	IMGUI_CHECKVERSION ();
 	ImGui::CreateContext ();
+#endif
 
 	if (!platform::init ())
 	{
+#ifndef CLASSIC
 		ImGui::DestroyContext ();
+#endif
 		return EXIT_FAILURE;
 	}
 
+#ifndef CLASSIC
 	auto &style = ImGui::GetStyle ();
 
 	// turn off window rounding
 	style.WindowRounding = 0.0f;
+#endif
 
 	auto server = FtpServer::create (5000);
 
@@ -56,5 +62,8 @@ int main (int argc_, char *argv_[])
 	server.reset ();
 
 	platform::exit ();
+
+#ifndef CLASSIC
 	ImGui::DestroyContext ();
+#endif
 }

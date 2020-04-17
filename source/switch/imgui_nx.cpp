@@ -18,14 +18,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef CLASSIC
 #include "imgui_nx.h"
 
 #include "imgui.h"
 
 #include "fs.h"
 #include "platform.h"
-
-#include <switch.h>
 
 #include <chrono>
 #include <cstring>
@@ -1512,3 +1511,4 @@ void imgui::nx::exit ()
 	// deinitialize applet hooks
 	appletUnhook (&s_appletHookCookie);
 }
+#endif

@@ -18,14 +18,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef CLASSIC
 #include "imgui_ctru.h"
 
 #include "imgui.h"
 
 #include "fs.h"
 #include "platform.h"
-
-#include <3ds.h>
 
 #include <chrono>
 #include <cstring>
@@ -174,3 +173,4 @@ void imgui::ctru::newFrame ()
 	updateTouch (io);
 	updateGamepads (io);
 }
+#endif

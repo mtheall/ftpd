@@ -1,9 +1,12 @@
+*.nds
+*.nds.xz
 *.3dsx
 *.3dsx.xz
 *.cia
 *.cia.xz
 *.elf
 *.nacp
+*.nds
 *.nro
 *.nro.xz
 *.nso
@@ -11,9 +14,12 @@
 *.smdh
 .gdb_history
 3ds/build
+3ds-classic/build
 3ds/romfs/*.t3x
 linux/build
 linux/ftpd
+nds/build
 switch/build
+switch-classic/build
 switch/romfs/*.zst
 switch/romfs/shaders/*.dksh

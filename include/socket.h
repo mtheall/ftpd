@@ -26,6 +26,28 @@
 #include <chrono>
 #include <memory>
 
+#ifdef NDS
+struct pollfd
+{
+	int fd;
+	int events;
+	int revents;
+};
+
+using socklen_t = int;
+using nfds_t    = unsigned int;
+
+extern "C" int poll (struct pollfd *fds_, nfds_t nfds_, int timeout_);
+
+#define POLLIN (1 << 0)
+#define POLLPRI (1 << 1)
+#define POLLOUT (1 << 2)
+#define POLLERR (1 << 3)
+#define POLLHUP (1 << 4)
+#else
+#include <poll.h>
+#endif
+
 class Socket;
 using UniqueSocket = std::unique_ptr<Socket>;
 using SharedSocket = std::shared_ptr<Socket>;

@@ -37,6 +37,10 @@ constexpr auto MAX_LOGS = 250;
 constexpr auto MAX_LOGS = 10000;
 #endif
 
+#ifdef CLASSIC
+bool s_logUpdated = true;
+#endif
+
 /// \brief Message prefix
 static char const *const s_prefix[] = {
     [DEBUG]    = "[DEBUG]",
@@ -66,21 +70,62 @@ struct Message
 /// \brief Log messages
 std::vector<Message> s_messages;
 
+#ifndef NDS
 /// \brief Log lock
 platform::Mutex s_lock;
+#endif
 }
 
 void drawLog ()
 {
+#ifndef NDS
 	auto const lock = std::scoped_lock (s_lock);
+#endif
 
-	if (s_messages.size () > MAX_LOGS)
+#ifdef CLASSIC
+	if (!s_logUpdated)
+		return;
+
+	s_logUpdated = false;
+#endif
+
+	auto const maxLogs =
+#ifdef CLASSIC
+	    g_logConsole.windowHeight;
+#else
+	    MAX_LOGS;
+#endif
+
+	if (s_messages.size () > static_cast<unsigned> (maxLogs))
 	{
 		auto const begin = std::begin (s_messages);
-		auto const end   = std::next (begin, s_messages.size () - MAX_LOGS);
+		auto const end   = std::next (begin, s_messages.size () - maxLogs);
 		s_messages.erase (begin, end);
 	}
 
+#ifdef CLASSIC
+	char const *const s_colors[] = {
+	    [DEBUG]    = "\x1b[33;1m", // yellow
+	    [INFO]     = "\x1b[37;1m", // white
+	    [ERROR]    = "\x1b[31;1m", // red
+	    [COMMAND]  = "\x1b[32;1m", // green
+	    [RESPONSE] = "\x1b[36;1m", // cyan
+	};
+
+	auto it = std::begin (s_messages);
+	if (s_messages.size () > static_cast<unsigned> (g_logConsole.windowHeight))
+		it = std::next (it, s_messages.size () - g_logConsole.windowHeight);
+
+	consoleSelect (&g_logConsole);
+	while (it != std::end (s_messages))
+	{
+		std::fputs (s_colors[it->level], stdout);
+		std::fputs (it->message.c_str (), stdout);
+		++it;
+	}
+	std::fflush (stdout);
+	s_messages.clear ();
+#else
 	ImVec4 const s_colors[] = {
 	    [DEBUG]    = ImVec4 (1.0f, 1.0f, 0.4f, 1.0f),          // yellow
 	    [INFO]     = ImGui::GetStyleColorVec4 (ImGuiCol_Text), // normal
@@ -101,6 +146,7 @@ void drawLog ()
 	// auto-scroll if scroll bar is at end
 	if (ImGui::GetScrollY () >= ImGui::GetScrollMaxY ())
 		ImGui::SetScrollHereY (1.0f);
+#endif
 }
 
 void debug (char const *const fmt_, ...)
@@ -157,17 +203,25 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 		return;
 #endif
 
-	thread_local static char buffer[1024];
+#ifndef NDS
+	thread_local
+#endif
+	    static char buffer[1024];
 
 	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
 	buffer[sizeof (buffer) - 1] = '\0';
 
+#ifndef NDS
 	auto const lock = std::scoped_lock (s_lock);
+#endif
 #ifndef NDEBUG
-	std::fprintf (stderr, "%s", s_prefix[level_]);
-	std::fputs (buffer, stderr);
+	// std::fprintf (stderr, "%s", s_prefix[level_]);
+	// std::fputs (buffer, stderr);
 #endif
 	s_messages.emplace_back (level_, buffer);
+#ifdef CLASSIC
+	s_logUpdated = true;
+#endif
 }
 
 void addLog (LogLevel const level_, std::string_view const message_)
@@ -185,10 +239,15 @@ void addLog (LogLevel const level_, std::string_view const message_)
 			c = '?';
 	}
 
+#ifndef NDS
 	auto const lock = std::scoped_lock (s_lock);
+#endif
 #ifndef NDEBUG
-	std::fprintf (stderr, "%s", s_prefix[level_]);
-	std::fwrite (msg.data (), 1, msg.size (), stderr);
+	// std::fprintf (stderr, "%s", s_prefix[level_]);
+	// std::fwrite (msg.data (), 1, msg.size (), stderr);
 #endif
 	s_messages.emplace_back (level_, msg);
+#ifdef CLASSIC
+	s_logUpdated = true;
+#endif
 }

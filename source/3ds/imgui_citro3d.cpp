@@ -18,6 +18,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef CLASSIC
 #include "imgui_citro3d.h"
 
 #include <citro3d.h>
@@ -692,3 +693,4 @@ void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *con
 		}
 	}
 }
+#endif

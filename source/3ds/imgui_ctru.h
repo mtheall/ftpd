@@ -20,6 +20,7 @@
 
 #pragma once
 
+#ifndef CLASSIC
 namespace imgui
 {
 namespace ctru
@@ -31,3 +32,4 @@ bool init ();
 void newFrame ();
 }
 }
+#endif

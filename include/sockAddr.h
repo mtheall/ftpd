@@ -25,6 +25,14 @@
 
 #include <cstdint>
 
+#ifdef NDS
+struct sockaddr_storage
+{
+	unsigned short ss_family;
+	char ss_data[sizeof (struct sockaddr_in) - sizeof (unsigned short)];
+};
+#endif
+
 /// \brief Socket address
 class SockAddr
 {

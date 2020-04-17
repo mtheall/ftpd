@@ -20,6 +20,7 @@
 
 #pragma once
 
+#ifndef CLASSIC
 #include <citro3d.h>
 
 namespace imgui
@@ -35,3 +36,4 @@ void exit ();
 void render (C3D_RenderTarget *top_, C3D_RenderTarget *bottom_);
 }
 }
+#endif

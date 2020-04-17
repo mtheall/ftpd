@@ -20,14 +20,24 @@
 
 #pragma once
 
-#ifdef _3DS
+#if defined(NDS)
+#include <nds.h>
+#elif defined(_3DS)
 #include <3ds.h>
+#elif defined(__SWITCH__)
+#include <switch.h>
 #endif
 
 #include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
+
+#ifdef CLASSIC
+extern PrintConsole g_statusConsole;
+extern PrintConsole g_logConsole;
+extern PrintConsole g_sessionConsole;
+#endif
 
 namespace platform
 {
@@ -66,16 +76,14 @@ struct steady_clock
 	constexpr static bool is_steady = true;
 
 	/// \brief Current timestamp
-	static time_point now () noexcept
-	{
-		return time_point (duration (svcGetSystemTick ()));
-	}
+	static time_point now () noexcept;
 };
 #else
 /// \brief Steady clock
 using steady_clock = std::chrono::steady_clock;
 #endif
 
+#ifndef NDS
 /// \brief Platform thread
 class Thread
 {
@@ -132,4 +140,5 @@ private:
 	/// \brief pimpl
 	std::unique_ptr<privateData_t> m_d;
 };
+#endif
 }
