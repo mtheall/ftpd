@@ -1226,8 +1226,6 @@ void moveMouse (ImGuiIO &io_, ImVec2 const &pos_, bool const force_ = false)
 	s_showMouse       = true;
 	s_lastMouseUpdate = now;
 	s_mousePos        = pos_;
-
-	io_.MousePos = s_mousePos;
 }
 
 /// \brief Update mouse buttons
@@ -1254,8 +1252,15 @@ void updateMousePos (ImGuiIO &io_)
 	MousePosition pos;
 	hidMouseRead (&pos);
 
-	io_.MouseWheelH += pos.scrollVelocityX;
-	io_.MouseWheel += pos.scrollVelocityY;
+	if (pos.scrollVelocityX > 0)
+		io_.MouseWheel += 1;
+	else if (pos.scrollVelocityX < 0)
+		io_.MouseWheel -= 1;
+
+	if (pos.scrollVelocityY > 0)
+		io_.MouseWheelH += 1;
+	else if (pos.scrollVelocityY < 0)
+		io_.MouseWheelH -= 1;
 
 	moveMouse (
 	    io_, ImVec2 (s_mousePos.x + 2.0f * pos.velocityX, s_mousePos.y + 2.0f * pos.velocityY));
@@ -1504,6 +1509,7 @@ void imgui::nx::newFrame ()
 	// clamp mouse to screen
 	s_mousePos.x = std::clamp (s_mousePos.x, 0.0f, s_width);
 	s_mousePos.y = std::clamp (s_mousePos.y, 0.0f, s_height);
+	io.MousePos  = s_mousePos;
 }
 
 void imgui::nx::exit ()

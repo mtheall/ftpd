@@ -20,6 +20,7 @@
 
 #pragma once
 
+#ifndef CLASSIC
 #include <deko3d.hpp>
 
 namespace imgui
@@ -74,3 +75,4 @@ constexpr inline std::uint32_t align (T const &size_, U const &align_)
 }
 }
 }
+#endif
