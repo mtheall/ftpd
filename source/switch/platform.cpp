@@ -21,6 +21,7 @@
 #include "platform.h"
 
 #include "fs.h"
+#include "ftpServer.h"
 #include "log.h"
 
 #include "imgui_deko3d.h"
@@ -396,139 +397,109 @@ void deko3dExit ()
 }
 #endif
 
-/// \brief Draw time status
-void drawTimeStatus ()
-{
-#ifndef CLASSIC
-	auto const &io    = ImGui::GetIO ();
-	auto const &style = ImGui::GetStyle ();
-#endif
-
-	// draw current timestamp
-	char timeBuffer[64];
-	auto const now = std::time (nullptr);
-	std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
-
-#ifdef CLASSIC
-	static std::string statusString;
-
-	std::string newStatusString (256, '\0');
-	newStatusString.resize (std::sprintf (&newStatusString[0],
-	    "\x1b[0;0H\x1b[32;1m%s \x1b[36;1m%s%s \x1b[37;1m%s\x1b[K",
-	    STATUS_STRING,
-	    s_addr ? inet_ntoa (in_addr{s_addr}) : "Waiting",
-	    s_addr ? ":5000" : "",
-	    timeBuffer));
-
-	if (newStatusString != statusString)
-	{
-		statusString = std::move (newStatusString);
-
-		consoleSelect (&g_statusConsole);
-		std::fputs (statusString.c_str (), stdout);
-		std::fflush (stdout);
-	}
-#else
-	ImGui::GetForegroundDrawList ()->AddText (
-	    ImVec2 (io.DisplaySize.x - 240.0f, style.FramePadding.y),
-	    ImGui::GetColorU32 (ImGuiCol_Text),
-	    timeBuffer);
-#endif
-}
-
-/// \brief Draw network status
-void drawNetworkStatus ()
-{
-#ifndef CLASSIC
-	TextureIndex netIcon = AIRPLANE_ICON;
-
-	NifmInternetConnectionType type;
-	std::uint32_t wifiStrength;
-	NifmInternetConnectionStatus status;
-	if (R_SUCCEEDED (nifmGetInternetConnectionStatus (&type, &wifiStrength, &status)))
-	{
-		if (type == NifmInternetConnectionType_Ethernet)
-		{
-			if (status == NifmInternetConnectionStatus_Connected)
-				netIcon = ETH_ICON;
-			else
-				netIcon = ETH_NONE_ICON;
-		}
-		else
-		{
-			if (wifiStrength >= 3)
-				netIcon = WIFI3_ICON;
-			else if (wifiStrength == 2)
-				netIcon = WIFI3_ICON;
-			else if (wifiStrength == 1)
-				netIcon = WIFI3_ICON;
-			else if (wifiStrength == 0)
-				netIcon = WIFI_NONE_ICON;
-		}
-	}
-
-	auto const &io    = ImGui::GetIO ();
-	auto const &style = ImGui::GetStyle ();
-
-	auto const x1 = io.DisplaySize.x - ICON_WIDTH - 100.0f;
-	auto const x2 = x1 + ICON_WIDTH;
-	auto const y1 = style.FramePadding.y;
-	auto const y2 = y1 + ICON_HEIGHT;
-
-	ImGui::GetForegroundDrawList ()->AddImage (
-	    imgui::deko3d::makeTextureID (dkMakeTextureHandle (netIcon, 1)),
-	    ImVec2 (x1, y1),
-	    ImVec2 (x2, y2),
-	    ImVec2 (0, 0),
-	    ImVec2 (1, 1),
-	    ImGui::GetColorU32 (ImGuiCol_Text));
-#endif
-}
-
-/// \brief Draw power status
-void drawPowerStatus ()
-{
-#ifndef CLASSIC
-	std::uint32_t batteryCharge = 0;
-	psmGetBatteryChargePercentage (&batteryCharge);
-
-	ChargerType charger = ChargerType_None;
-	psmGetChargerType (&charger);
-
-	TextureIndex powerIcon = BATTERY_ICON;
-	if (charger != ChargerType_None)
-		powerIcon = CHARGING_ICON;
-
-	auto const &io    = ImGui::GetIO ();
-	auto const &style = ImGui::GetStyle ();
-
-	auto const x1 = io.DisplaySize.x - ICON_WIDTH - style.FramePadding.x;
-	auto const x2 = x1 + ICON_WIDTH;
-	auto const y1 = style.FramePadding.y;
-	auto const y2 = y1 + ICON_HEIGHT;
-
-	ImGui::GetForegroundDrawList ()->AddImage (
-	    imgui::deko3d::makeTextureID (dkMakeTextureHandle (powerIcon, 1)),
-	    ImVec2 (x1, y1),
-	    ImVec2 (x2, y2),
-	    ImVec2 (0, 0),
-	    ImVec2 (1, 1),
-	    ImGui::GetColorU32 (ImGuiCol_Text));
-
-	char buffer[16];
-	std::sprintf (buffer, "%3u%%", batteryCharge);
-
-	ImGui::GetForegroundDrawList ()->AddText (
-	    ImVec2 (x1 - 70.0f, y1), ImGui::GetColorU32 (ImGuiCol_Text), buffer);
-#endif
-}
-
 /// \brief Draw status
 void drawStatus ()
 {
-	drawTimeStatus ();
-	drawNetworkStatus ();
-	drawPowerStatus ();
+#ifndef CLASSIC
+	auto const &io    = ImGui::GetIO ();
+	auto const &style = ImGui::GetStyle ();
+
+	auto pos = ImVec2 (io.DisplaySize.x, style.FramePadding.y);
+
+	{
+		std::uint32_t batteryCharge = 0;
+		psmGetBatteryChargePercentage (&batteryCharge);
+
+		ChargerType charger = ChargerType_None;
+		psmGetChargerType (&charger);
+
+		TextureIndex powerIcon = BATTERY_ICON;
+		if (charger != ChargerType_None)
+			powerIcon = CHARGING_ICON;
+
+		// draw battery/charging icon
+		pos.x -= ICON_WIDTH + style.FramePadding.x;
+		ImGui::GetForegroundDrawList ()->AddImage (
+		    imgui::deko3d::makeTextureID (dkMakeTextureHandle (powerIcon, 1)),
+		    pos,
+		    ImVec2 (pos.x + ICON_WIDTH, pos.y + ICON_HEIGHT),
+		    ImVec2 (0, 0),
+		    ImVec2 (1, 1),
+		    ImGui::GetColorU32 (ImGuiCol_Text));
+
+		char buffer[16];
+		std::sprintf (buffer, "%u%%", batteryCharge);
+
+		// draw battery percentage
+		auto const fullWidth = ImGui::CalcTextSize ("100%").x;
+		auto const partWidth = ImGui::CalcTextSize (buffer).x;
+		auto const diffWidth = fullWidth - partWidth;
+
+		// janky right-align
+		pos.x -= partWidth + style.FramePadding.x;
+		ImGui::GetForegroundDrawList ()->AddText (pos, ImGui::GetColorU32 (ImGuiCol_Text), buffer);
+		pos.x -= diffWidth;
+	}
+
+	{
+		TextureIndex netIcon = AIRPLANE_ICON;
+
+		NifmInternetConnectionType type;
+		std::uint32_t wifiStrength;
+		NifmInternetConnectionStatus status;
+		if (R_SUCCEEDED (nifmGetInternetConnectionStatus (&type, &wifiStrength, &status)))
+		{
+			if (type == NifmInternetConnectionType_Ethernet)
+			{
+				if (status == NifmInternetConnectionStatus_Connected)
+					netIcon = ETH_ICON;
+				else
+					netIcon = ETH_NONE_ICON;
+			}
+			else
+			{
+				if (wifiStrength >= 3)
+					netIcon = WIFI3_ICON;
+				else if (wifiStrength == 2)
+					netIcon = WIFI3_ICON;
+				else if (wifiStrength == 1)
+					netIcon = WIFI3_ICON;
+				else if (wifiStrength == 0)
+					netIcon = WIFI_NONE_ICON;
+			}
+		}
+
+		// draw network icon
+		pos.x -= ICON_WIDTH + style.FramePadding.x;
+		ImGui::GetForegroundDrawList ()->AddImage (
+		    imgui::deko3d::makeTextureID (dkMakeTextureHandle (netIcon, 1)),
+		    pos,
+		    ImVec2 (pos.x + ICON_WIDTH, pos.y + ICON_HEIGHT),
+		    ImVec2 (0, 0),
+		    ImVec2 (1, 1),
+		    ImGui::GetColorU32 (ImGuiCol_Text));
+	}
+
+	{
+		// draw free space
+		auto const freeSpace = FtpServer::getFreeSpace ();
+		pos.x -= ImGui::CalcTextSize (freeSpace.c_str ()).x + style.FramePadding.x;
+		ImGui::GetForegroundDrawList ()->AddText (
+		    pos, ImGui::GetColorU32 (ImGuiCol_Text), freeSpace.c_str ());
+	}
+
+	{
+		// get current timestamp
+		char timeBuffer[16];
+		auto const now = std::time (nullptr);
+		std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
+
+		// draw time (centered)
+		pos.x = (io.DisplaySize.x - ImGui::CalcTextSize (timeBuffer).x) / 2.0f;
+		ImGui::GetForegroundDrawList ()->AddText (
+		    pos, ImGui::GetColorU32 (ImGuiCol_Text), timeBuffer);
+	}
+#endif
 }
 }
 
@@ -621,7 +592,6 @@ bool platform::loop ()
 void platform::render ()
 {
 #ifdef CLASSIC
-	drawLog ();
 	consoleUpdate (&g_statusConsole);
 	consoleUpdate (&g_logConsole);
 	consoleUpdate (&g_sessionConsole);

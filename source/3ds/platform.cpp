@@ -21,6 +21,7 @@
 #include "platform.h"
 
 #include "fs.h"
+#include "ftpServer.h"
 #include "log.h"
 
 #include "imgui_citro3d.h"
@@ -250,7 +251,7 @@ void drawStatus ()
 
 	// calculate battery icon position
 	auto const p1 = ImVec2 (screenWidth - batteryWidth, 0.0f);
-	auto const p2 = ImVec2 (screenWidth, batteryHeight);
+	auto const p2 = ImVec2 (p1.x + batteryWidth, p1.y + batteryHeight);
 
 	// calculate battery icon uv coords
 	auto const uv1 = ImVec2 (battery->left, battery->top);
@@ -269,8 +270,8 @@ void drawStatus ()
 	auto const wifiHeight = wifi->height;
 
 	// calculate wifi icon position
-	auto const p3 = ImVec2 (p1.x - wifiWidth - 2.0f, 0.0f);
-	auto const p4 = ImVec2 (p1.x - 2.0f, wifiHeight);
+	auto const p3 = ImVec2 (p1.x - wifiWidth - style.FramePadding.x, 0.0f);
+	auto const p4 = ImVec2 (p3.x + wifiWidth, p3.y + wifiHeight);
 
 	// calculate wifi icon uv coords
 	auto const uv3 = ImVec2 (wifi->left, wifi->top);
@@ -279,36 +280,22 @@ void drawStatus ()
 	// draw wifi icon
 	ImGui::GetForegroundDrawList ()->AddImage (
 	    &s_gfxTexture, p3, p4, uv3, uv4, ImGui::GetColorU32 (ImGuiCol_Text));
-#endif
 
 	// draw current timestamp
 	char timeBuffer[16];
 	auto const now = std::time (nullptr);
 	std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
 
-#ifdef CLASSIC
-	static std::string statusString;
+	// draw free space
+	char buffer[64];
+	auto const freeSpace = FtpServer::getFreeSpace ();
 
-	std::string newStatusString (256, '\0');
-	newStatusString.resize (std::sprintf (&newStatusString[0],
-	    "\x1b[0;0H\x1b[32;1m%s \x1b[36;1m%s%s \x1b[37;1m%s\x1b[K",
-	    STATUS_STRING,
-	    s_addr ? inet_ntoa (in_addr{s_addr}) : "Waiting",
-	    s_addr ? ":5000" : "",
-	    timeBuffer));
+	std::snprintf (
+	    buffer, sizeof (buffer), "%s %s", timeBuffer, freeSpace.empty () ? "" : freeSpace.c_str ());
 
-	if (newStatusString != statusString)
-	{
-		statusString = std::move (newStatusString);
-
-		consoleSelect (&g_statusConsole);
-		std::fputs (statusString.c_str (), stdout);
-		std::fflush (stdout);
-	}
-#else
-	ImGui::GetForegroundDrawList ()->AddText (ImVec2 (p3.x - 65.0f, style.FramePadding.y),
-	    ImGui::GetColorU32 (ImGuiCol_Text),
-	    timeBuffer);
+	auto const size = ImGui::CalcTextSize (buffer);
+	auto const p5   = ImVec2 (p3.x - size.x - style.FramePadding.x, style.FramePadding.y);
+	ImGui::GetForegroundDrawList ()->AddText (p5, ImGui::GetColorU32 (ImGuiCol_Text), buffer);
 #endif
 }
 }
@@ -428,7 +415,6 @@ void platform::render ()
 	drawStatus ();
 
 #ifdef CLASSIC
-	drawLog ();
 	gfxFlushBuffers ();
 	gspWaitForVBlank ();
 	gfxSwapBuffers ();

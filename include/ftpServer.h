@@ -28,6 +28,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 class FtpServer;
@@ -45,6 +46,9 @@ public:
 	/// \brief Create server
 	/// \param port_ Port to listen on
 	static UniqueFtpServer create (std::uint16_t port_);
+
+	/// \brief Get free space
+	static std::string getFreeSpace ();
 
 	/// \brief Update free space
 	static void updateFreeSpace ();

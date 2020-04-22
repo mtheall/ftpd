@@ -108,13 +108,6 @@ bool platform::loop ()
 void platform::render ()
 {
 	swiWaitForVBlank ();
-	consoleSelect (&g_statusConsole);
-	std::printf ("\n%s %s%s",
-	    STATUS_STRING,
-	    s_addr.s_addr ? inet_ntoa (s_addr) : "Waiting on WiFi",
-	    s_addr.s_addr ? ":5000" : "");
-	std::fflush (stdout);
-	drawLog ();
 }
 
 void platform::exit ()

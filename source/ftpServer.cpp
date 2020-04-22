@@ -32,6 +32,7 @@
 #endif
 
 #include <arpa/inet.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -91,6 +92,32 @@ void FtpServer::draw ()
 
 #ifdef CLASSIC
 	{
+		char port[7];
+#ifndef NDS
+		auto lock = std::scoped_lock (m_lock);
+#endif
+		if (m_socket)
+			std::sprintf (port, ":%u", m_socket->sockName ().port ());
+
+		consoleSelect (&g_statusConsole);
+		std::printf ("\x1b[0;0H\x1b[32;1m%s \x1b[36;1m%s%s",
+		    STATUS_STRING,
+		    m_socket ? m_socket->sockName ().name () : "Waiting on WiFi",
+		    m_socket ? port : "");
+
+#ifndef NDS
+		char timeBuffer[16];
+		auto const now = std::time (nullptr);
+		std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
+
+		std::printf (" \x1b[37;1m%s", timeBuffer);
+#endif
+
+		std::fputs ("\x1b[K", stdout);
+		std::fflush (stdout);
+	}
+
+	{
 #ifndef NDS
 		auto const lock = std::scoped_lock (s_lock);
 #endif
@@ -115,9 +142,11 @@ void FtpServer::draw ()
 			session->draw ();
 			if (&session != &m_sessions.back ())
 				std::fputc ('\n', stdout);
-			std::fflush (stdout);
 		}
+		std::fflush (stdout);
 	}
+
+	drawLog ();
 #else
 	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
@@ -130,38 +159,29 @@ void FtpServer::draw ()
 #else
 	ImGui::SetNextWindowSize (ImVec2 (width, height));
 #endif
-	ImGui::Begin (STATUS_STRING,
-	    nullptr,
-	    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-
 	{
-		auto const lock = std::scoped_lock (s_lock);
-		if (!s_freeSpace.empty ())
+		char title[64];
+
 		{
-			ImGui::SameLine ();
-			ImGui::TextUnformatted (s_freeSpace.c_str ());
+			auto const serverLock = std::scoped_lock (m_lock);
+			std::snprintf (title,
+			    sizeof (title),
+			    STATUS_STRING " %s###ftpd",
+			    m_socket ? m_name.c_str () : "Waiting for WiFi...");
 		}
+
+		ImGui::Begin (title,
+		    nullptr,
+		    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 	}
 
-	{
-		ImGui::SameLine ();
-		auto const lock = std::scoped_lock (m_lock);
-		if (m_socket)
-			ImGui::TextUnformatted (m_name.c_str ());
-		else
-			ImGui::TextUnformatted ("Waiting for network...");
-	}
-
-	ImGui::Separator ();
-
-#ifdef _3DS
-	// Fill rest of top screen window
-	ImGui::BeginChild ("Logs", ImVec2 (0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-#else
+#ifndef _3DS
 	ImGui::BeginChild ("Logs", ImVec2 (0, 200), false, ImGuiWindowFlags_HorizontalScrollbar);
 #endif
 	drawLog ();
+#ifndef _3DS
 	ImGui::EndChild ();
+#endif
 
 #ifdef _3DS
 	ImGui::End ();
@@ -192,19 +212,31 @@ UniqueFtpServer FtpServer::create (std::uint16_t const port_)
 	return UniqueFtpServer (new FtpServer (port_));
 }
 
+std::string FtpServer::getFreeSpace ()
+{
+#ifndef NDS
+	auto const lock = std::scoped_lock (s_lock);
+#endif
+	return s_freeSpace;
+}
+
 void FtpServer::updateFreeSpace ()
 {
-#if defined(_3DS) || defined(__SWITCH__)
 	struct statvfs st;
+#if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
 	if (::statvfs ("sdmc:/", &st) != 0)
+#else
+	if (::statvfs ("/", &st) != 0)
+#endif
 		return;
 
 	auto freeSpace = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
 
+#ifndef NDS
 	auto const lock = std::scoped_lock (s_lock);
+#endif
 	if (freeSpace != s_freeSpace)
 		s_freeSpace = std::move (freeSpace);
-#endif
 }
 
 std::time_t FtpServer::startTime ()

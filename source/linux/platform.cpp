@@ -20,6 +20,8 @@
 
 #include "platform.h"
 
+#include "ftpServer.h"
+
 #include "imgui.h"
 
 #include <glad/glad.h>
@@ -188,6 +190,19 @@ bool platform::loop ()
 
 void platform::render ()
 {
+	auto const freeSpace = FtpServer::getFreeSpace ();
+	if (!freeSpace.empty ())
+	{
+		auto const &io    = ImGui::GetIO ();
+		auto const &style = ImGui::GetStyle ();
+
+		auto const size = ImGui::CalcTextSize (freeSpace.c_str ());
+		auto const x    = io.DisplaySize.x - size.x - style.FramePadding.x;
+		ImGui::GetForegroundDrawList ()->AddText (ImVec2 (x, style.FramePadding.y),
+		    ImGui::GetColorU32 (ImGuiCol_Text),
+		    freeSpace.c_str ());
+	}
+
 	ImGui::Render ();
 
 	glClearColor (0.45f, 0.55f, 0.60f, 1.00f);

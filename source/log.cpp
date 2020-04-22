@@ -209,7 +209,6 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 	    static char buffer[1024];
 
 	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
-	buffer[sizeof (buffer) - 1] = '\0';
 
 #ifndef NDS
 	auto const lock = std::scoped_lock (s_lock);
