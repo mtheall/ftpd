@@ -100,22 +100,22 @@ release: release-nds \
 	@xz -c <switch-classic/ftpd-classic.nro >ftpd-classic.nro.xz
 
 release-nds:
-	@$(MAKE) -f Makefile.nds DEFINES=-DNDEBUG 
+	@$(MAKE) -f Makefile.nds DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto"
 
 release-3dsx:
-	@$(MAKE) -f Makefile.3ds 3dsx DEFINES=-DNDEBUG
+	@$(MAKE) -f Makefile.3ds 3dsx DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto"
 
 release-3dsx-classic:
-	@$(MAKE) -f Makefile.3ds 3dsx DEFINES=-DNDEBUG CLASSIC="-DCLASSIC"
+	@$(MAKE) -f Makefile.3ds 3dsx DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto" CLASSIC="-DCLASSIC"
 
 release-cia: release-3dsx
-	@$(MAKE) -f Makefile.3ds cia DEFINES=-DNDEBUG
+	@$(MAKE) -f Makefile.3ds cia DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto"
 
 release-cia-classic: release-3dsx-classic
-	@$(MAKE) -f Makefile.3ds cia DEFINES=-DNDEBUG CLASSIC="-DCLASSIC"
+	@$(MAKE) -f Makefile.3ds cia DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto" CLASSIC="-DCLASSIC"
 
 release-nro:
-	@$(MAKE) -f Makefile.switch all DEFINES=-DNDEBUG
+	@$(MAKE) -f Makefile.switch all DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto"
 
 release-nro-classic:
-	@$(MAKE) -f Makefile.switch all DEFINES=-DNDEBUG CLASSIC="-DCLASSIC"
+	@$(MAKE) -f Makefile.switch all DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto" CLASSIC="-DCLASSIC"

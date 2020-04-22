@@ -43,24 +43,25 @@ SOURCES   += source/imgui
 GRAPHICS  := 3ds/gfx
 ROMFS     := 3ds/romfs
 GFXBUILD  := $(ROMFS)
+RSF_FILE  := meta/ftpd-cia.rsf
 else
 APP_TITLE := ftpd classic
 TARGET    := 3ds-classic/ftpd-classic
 BUILD     := 3ds-classic/build
+RSF_FILE  := meta/ftpd-classic-cia.rsf
 endif
 
 APP_DESCRIPTION := v$(VERSION)
 APP_AUTHOR      := mtheall
 
-ICON            := meta/icon.png
-BNR_IMAGE       := meta/banner.png
-BNR_AUDIO       := meta/audio.wav
-RSF_FILE        := meta/ftpd-cia.rsf
+ICON      := meta/icon.png
+BNR_IMAGE := meta/banner.png
+BNR_AUDIO := meta/audio.wav
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-OPTIMIZE := -O0
+OPTIMIZE := -Og
 ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
 CFLAGS   := -g -Wall $(OPTIMIZE) -mword-relocations \

@@ -64,12 +64,12 @@ OUT_SHADERS	:=	shaders
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-OPTIMIZE:=	-Os
+OPTIMIZE:=	-Og
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
 CFLAGS	:=	-g -Wall -Wno-narrowing $(OPTIMIZE) \
 			-ffunction-sections -fdata-sections \
-			$(ARCH) $(DEFINES) $(CLASSIC)
+			$(ARCH) $(DEFINES) $(CLASSIC) -DNO_IPV6
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ \
 			-DSTATUS_STRING="\"ftpd v$(VERSION)\"" \

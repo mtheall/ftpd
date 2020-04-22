@@ -40,16 +40,17 @@ GAME_SUBTITLE2 := (c) mtheall
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
+OPTIMIZE := -Og
 ARCH := -marm -mthumb-interwork -march=armv5te -mtune=arm946e-s
 
-CFLAGS   := -g -Wall -Os \
+CFLAGS   := -g -Wall $(OPTIMIZE) \
             $(ARCH) $(INCLUDE) -DARM9 -DNDS \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
             -DNO_IPV6 -DCLASSIC
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 ASFLAGS  := -g $(ARCH)
-LDFLAGS   = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS   = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) $(OPTIMIZE)
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
