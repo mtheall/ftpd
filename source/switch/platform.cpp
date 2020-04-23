@@ -511,8 +511,8 @@ bool platform::init ()
 	consoleInit (&g_sessionConsole);
 
 	consoleSetWindow (&g_statusConsole, 0, 0, 80, 1);
-	consoleSetWindow (&g_logConsole, 0, 1, 80, 29);
-	consoleSetWindow (&g_sessionConsole, 0, 30, 80, 15);
+	consoleSetWindow (&g_logConsole, 0, 1, 80, 36);
+	consoleSetWindow (&g_sessionConsole, 0, 37, 80, 8);
 #endif
 
 #ifndef NDEBUG

@@ -176,7 +176,8 @@ void FtpServer::draw ()
 	}
 
 #ifndef _3DS
-	ImGui::BeginChild ("Logs", ImVec2 (0, 200), false, ImGuiWindowFlags_HorizontalScrollbar);
+	ImGui::BeginChild (
+	    "Logs", ImVec2 (0, 0.55f * height), false, ImGuiWindowFlags_HorizontalScrollbar);
 #endif
 	drawLog ();
 #ifndef _3DS
