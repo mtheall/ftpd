@@ -324,9 +324,19 @@ void imgui::citro3d::init ()
 	atlas->Fonts.push_back (imFont);
 	atlas->SetTexID (s_fontTextures.data ());
 
-	// initialize font metrics
+	// initialize font
 	imFont->FallbackAdvanceX = fontInfo->defaultWidth.charWidth;
 	imFont->FontSize         = fontInfo->lineFeed;
+	imFont->DisplayOffset.x  = 0.0f;
+	imFont->DisplayOffset.y  = fontInfo->ascent * 0.5f;
+	imFont->ContainerAtlas   = atlas;
+	imFont->ConfigData       = &atlas->ConfigData[0];
+	imFont->ConfigDataCount  = 1;
+	imFont->FallbackChar     = alterChar;
+	imFont->EllipsisChar     = config.EllipsisChar;
+	imFont->Scale            = s_textScale * 0.5f;
+	imFont->Ascent           = fontInfo->ascent;
+	imFont->Descent          = 0.0f;
 
 	// add glyphs to font
 	fontGlyphPos_s glyphPos;
@@ -344,40 +354,21 @@ void imgui::citro3d::init ()
 		    1.0f,
 		    1.0f);
 
-		// convert to ImGui font metrics
-		ImFontGlyph glyph;
-		glyph.Codepoint = code;
-		glyph.AdvanceX  = glyphPos.xAdvance;
-		glyph.X0        = glyphPos.vtxcoord.left;
-		glyph.Y0        = glyphPos.vtxcoord.top;
-		glyph.X1        = glyphPos.vtxcoord.right;
-		glyph.Y1        = glyphPos.vtxcoord.bottom;
-		glyph.U0        = glyphPos.texcoord.left;
-		glyph.V0        = glyphPos.sheetIndex + glyphPos.texcoord.top;
-		glyph.U1        = glyphPos.texcoord.right;
-		glyph.V1        = glyphPos.sheetIndex + glyphPos.texcoord.bottom;
-
 		// add glyph to font
-		imFont->Glyphs.push_back (glyph);
-		imFont->MetricsTotalSurface +=
-		    static_cast<int> ((glyph.U1 - glyph.U0) * atlas->TexWidth + 1.99f) *
-		    static_cast<int> ((glyph.V1 - glyph.V0) * atlas->TexHeight + 1.99f);
+		imFont->AddGlyph (code,
+		    glyphPos.vtxcoord.left,
+		    glyphPos.vtxcoord.top,
+		    glyphPos.vtxcoord.right,
+		    glyphPos.vtxcoord.bottom,
+		    glyphPos.texcoord.left,
+		    glyphPos.sheetIndex + glyphPos.texcoord.top,
+		    glyphPos.texcoord.right,
+		    glyphPos.sheetIndex + glyphPos.texcoord.bottom,
+		    glyphPos.xAdvance);
 	}
 
 	// build lookup table
 	imFont->BuildLookupTable ();
-
-	// finalize font
-	imFont->DisplayOffset.x = 0.0f;
-	imFont->DisplayOffset.y = fontInfo->ascent * 0.5f;
-	imFont->ContainerAtlas  = atlas;
-	imFont->ConfigData      = &atlas->ConfigData[0];
-	imFont->ConfigDataCount = 1;
-	imFont->FallbackChar    = alterChar;
-	imFont->EllipsisChar    = config.EllipsisChar;
-	imFont->Scale           = s_textScale * 0.5f;
-	imFont->Ascent          = fontInfo->ascent;
-	imFont->Descent         = 0.0f;
 }
 
 void imgui::citro3d::exit ()
