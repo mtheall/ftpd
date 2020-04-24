@@ -49,7 +49,7 @@ int main (int argc_, char *argv_[])
 	style.WindowRounding = 0.0f;
 #endif
 
-	auto server = FtpServer::create (5000);
+	auto server = FtpServer::create ();
 
 	while (platform::loop ())
 	{

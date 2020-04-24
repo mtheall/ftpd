@@ -47,7 +47,7 @@ CFLAGS   := -g -Wall $(OPTIMIZE) \
             $(ARCH) $(INCLUDE) -DARM9 -DNDS \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
-            -DNO_IPV6 -DCLASSIC
+            -DNO_IPV6 -DCLASSIC -DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\""
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 ASFLAGS  := -g $(ARCH)
 LDFLAGS   = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) $(OPTIMIZE)

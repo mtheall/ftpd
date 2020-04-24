@@ -23,6 +23,10 @@
 #include <cinttypes>
 #include <cstdio>
 
+#if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
+#define getline __getline
+#endif
+
 std::string fs::printSize (std::uint64_t const size_)
 {
 	constexpr std::uint64_t const KiB = 1024;
@@ -77,7 +81,10 @@ std::string fs::printSize (std::uint64_t const size_)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-fs::File::~File () = default;
+fs::File::~File ()
+{
+	std::free (m_lineBuffer);
+}
 
 fs::File::File () = default;
 
@@ -134,6 +141,27 @@ ssize_t fs::File::seek (std::size_t const pos_, int const origin_)
 ssize_t fs::File::read (void *const data_, std::size_t const size_)
 {
 	return std::fread (data_, 1, size_, m_fp.get ());
+}
+
+std::string_view fs::File::readLine ()
+{
+	while (true)
+	{
+		auto rc = ::getline (&m_lineBuffer, &m_lineBufferSize, m_fp.get ());
+		if (rc < 0)
+			return {};
+
+		while (rc > 0)
+		{
+			if (m_lineBuffer[rc - 1] != '\r' && m_lineBuffer[rc - 1] != '\n')
+				break;
+
+			m_lineBuffer[--rc] = 0;
+		}
+
+		if (rc > 0)
+			return std::string_view (m_lineBuffer, rc);
+	}
 }
 
 bool fs::File::readAll (void *const data_, std::size_t const size_)

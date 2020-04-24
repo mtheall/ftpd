@@ -23,6 +23,8 @@
 
 #include "imgui.h"
 
+#include "../imgui/imgui_internal.h"
+
 #include "fs.h"
 #include "platform.h"
 
@@ -1376,6 +1378,46 @@ void updateKeyboard (ImGuiIO &io_)
 
 	for (int i = 0; i < 256; ++i)
 		io_.KeysDown[i] = hidKeyboardHeld (static_cast<HidKeyboardScancode> (i));
+
+	static enum {
+		INACTIVE,
+		KEYBOARD,
+		CLEARED,
+	} state = INACTIVE;
+
+	switch (state)
+	{
+	case INACTIVE:
+	{
+		if (!io_.WantTextInput)
+			return;
+
+		auto &textState = ImGui::GetCurrentContext ()->InputTextState;
+
+		SwkbdConfig kbd;
+		swkbdCreate (&kbd, 0);
+		swkbdConfigMakePresetDefault (&kbd);
+		swkbdConfigSetInitialText (
+		    &kbd, std::string (textState.InitialTextA.Data, textState.InitialTextA.Size).c_str ());
+
+		char buffer[32];
+		if (R_SUCCEEDED (swkbdShow (&kbd, buffer, sizeof (buffer))))
+			io_.AddInputCharactersUTF8 (buffer);
+
+		state = KEYBOARD;
+		break;
+	}
+
+	case KEYBOARD:
+		// need to skip a frame for active id to really be cleared
+		ImGui::ClearActiveID ();
+		state = CLEARED;
+		break;
+
+	case CLEARED:
+		state = INACTIVE;
+		break;
+	}
 }
 }
 

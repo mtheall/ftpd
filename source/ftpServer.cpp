@@ -77,7 +77,7 @@ FtpServer::~FtpServer ()
 #endif
 }
 
-FtpServer::FtpServer (std::uint16_t const port_) : m_port (port_), m_quit (false)
+FtpServer::FtpServer (UniqueFtpConfig config_) : m_config (std::move (config_)), m_quit (false)
 {
 #ifndef NDS
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
@@ -172,12 +172,20 @@ void FtpServer::draw ()
 
 		ImGui::Begin (title,
 		    nullptr,
-		    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+		    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+#ifndef _3DS
+		        | ImGuiWindowFlags_MenuBar
+#endif
+		);
 	}
 
 #ifndef _3DS
+	showMenu ();
+#endif
+
+#ifndef _3DS
 	ImGui::BeginChild (
-	    "Logs", ImVec2 (0, 0.55f * height), false, ImGuiWindowFlags_HorizontalScrollbar);
+	    "Logs", ImVec2 (0, 0.5f * height), false, ImGuiWindowFlags_HorizontalScrollbar);
 #endif
 	drawLog ();
 #ifndef _3DS
@@ -192,7 +200,10 @@ void FtpServer::draw ()
 	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height * 0.5f), ImGuiCond_FirstUseEver);
 	ImGui::Begin ("Sessions",
 	    nullptr,
-	    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+	    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+	        ImGuiWindowFlags_MenuBar);
+
+	showMenu ();
 #else
 	ImGui::Separator ();
 #endif
@@ -207,10 +218,13 @@ void FtpServer::draw ()
 #endif
 }
 
-UniqueFtpServer FtpServer::create (std::uint16_t const port_)
+UniqueFtpServer FtpServer::create ()
 {
 	updateFreeSpace ();
-	return UniqueFtpServer (new FtpServer (port_));
+
+	auto config = FtpConfig::load (FTPDCONFIG);
+
+	return UniqueFtpServer (new FtpServer (std::move (config)));
 }
 
 std::string FtpServer::getFreeSpace ()
@@ -256,13 +270,13 @@ void FtpServer::handleNetworkFound ()
 #else
 	addr.sin_addr.s_addr = INADDR_ANY;
 #endif
-	addr.sin_port = htons (m_port);
+	addr.sin_port = htons (m_config->port ());
 
 	auto socket = Socket::create ();
 	if (!socket)
 		return;
 
-	if (m_port != 0 && !socket->setReuseAddress (true))
+	if (m_config->port () != 0 && !socket->setReuseAddress (true))
 		return;
 
 	if (!socket->bind (addr))
@@ -292,6 +306,115 @@ void FtpServer::handleNetworkLost ()
 	info ("Stopped server at %s\n", m_name.c_str ());
 }
 
+void FtpServer::showMenu ()
+{
+#ifndef CLASSIC
+	auto const prevShowSettings = m_showSettings;
+
+	if (ImGui::BeginMenuBar ())
+	{
+#if defined(_3DS) || defined(__SWITCH__)
+		if (ImGui::BeginMenu (u8"Menu \xee\x80\x83")) // Y Button
+#else
+		if (ImGui::BeginMenu ("Menu"))
+#endif
+		{
+			if (ImGui::MenuItem ("Settings"))
+				m_showSettings = true;
+
+			ImGui::EndMenu ();
+		}
+		ImGui::EndMenuBar ();
+	}
+
+	if (!prevShowSettings && m_showSettings)
+	{
+		m_userSetting = m_config->user ();
+		m_userSetting.resize (32);
+
+		m_passSetting = m_config->pass ();
+		m_passSetting.resize (32);
+
+		m_portSetting = m_config->port ();
+
+#ifdef _3DS
+		m_getMTimeSetting = m_config->getMTime ();
+#endif
+
+		ImGui::OpenPopup ("Settings");
+	}
+
+#ifdef _3DS
+	auto const &io    = ImGui::GetIO ();
+	auto const width  = io.DisplaySize.x;
+	auto const height = io.DisplaySize.y;
+
+	ImGui::SetNextWindowSize (ImVec2 (width * 0.8f, height * 0.5f));
+	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height * 0.5f));
+	if (ImGui::BeginPopupModal ("Settings",
+	        nullptr,
+	        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+#else
+	if (ImGui::BeginPopupModal ("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+#endif
+	{
+		ImGui::InputText (
+		    "User", &m_userSetting[0], m_userSetting.size (), ImGuiInputTextFlags_AutoSelectAll);
+
+		ImGui::InputText ("Pass",
+		    &m_passSetting[0],
+		    m_passSetting.size (),
+		    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_Password);
+
+		ImGui::InputScalar ("Port",
+		    ImGuiDataType_U16,
+		    &m_portSetting,
+		    nullptr,
+		    nullptr,
+		    "%u",
+		    ImGuiInputTextFlags_AutoSelectAll);
+
+#ifdef _3DS
+		ImGui::Checkbox ("Get mtime", &m_getMTimeSetting);
+#endif
+
+		auto const apply = ImGui::Button ("Apply", ImVec2 (100, 0));
+		ImGui::SameLine ();
+		auto const save = ImGui::Button ("Save", ImVec2 (100, 0));
+		ImGui::SameLine ();
+		auto const cancel = ImGui::Button ("Cancel", ImVec2 (100, 0));
+
+		if (apply || save)
+		{
+			m_showSettings = false;
+			ImGui::CloseCurrentPopup ();
+
+			m_config->setUser (m_userSetting);
+			m_config->setPass (m_passSetting);
+			m_config->setPort (m_portSetting);
+
+#ifdef _3DS
+			m_config->setGetMTime (m_getMTimeSetting);
+#endif
+
+			UniqueSocket socket;
+			LOCKED (socket = std::move (m_socket));
+		}
+
+		if (save && !m_config->save (FTPDCONFIG))
+			error ("Failed to save config\n");
+
+		if (apply || save || cancel)
+		{
+			m_showSettings = false;
+			ImGui::CloseCurrentPopup ();
+		}
+
+		ImGui::EndPopup ();
+	}
+#endif
+}
+
 void FtpServer::loop ()
 {
 	if (!m_socket)
@@ -309,7 +432,7 @@ void FtpServer::loop ()
 			auto socket = m_socket->accept ();
 			if (socket)
 			{
-				auto session = FtpSession::create (std::move (socket));
+				auto session = FtpSession::create (*m_config, std::move (socket));
 				LOCKED (m_sessions.emplace_back (std::move (session)));
 			}
 			else

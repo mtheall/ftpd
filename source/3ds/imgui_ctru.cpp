@@ -23,6 +23,8 @@
 
 #include "imgui.h"
 
+#include "../imgui/imgui_internal.h"
+
 #include "fs.h"
 #include "platform.h"
 
@@ -136,6 +138,57 @@ void updateGamepads (ImGuiIO &io_)
 		io_.NavInputs[out] = std::clamp ((value - min) / (max - min), 0.0f, 1.0f);
 	}
 }
+
+/// \brief Update keyboard inputs
+/// \param io_ ImGui IO
+void updateKeyboard (ImGuiIO &io_)
+{
+	static enum {
+		INACTIVE,
+		KEYBOARD,
+		CLEARED,
+	} state = INACTIVE;
+
+	switch (state)
+	{
+	case INACTIVE:
+	{
+		if (!io_.WantTextInput)
+			return;
+
+		auto &textState = ImGui::GetCurrentContext ()->InputTextState;
+
+		SwkbdState kbd;
+
+		swkbdInit (&kbd, SWKBD_TYPE_NORMAL, 2, -1);
+		swkbdSetButton (&kbd, SWKBD_BUTTON_LEFT, "Cancel", false);
+		swkbdSetButton (&kbd, SWKBD_BUTTON_RIGHT, "OK", true);
+		swkbdSetInitialText (
+		    &kbd, std::string (textState.InitialTextA.Data, textState.InitialTextA.Size).c_str ());
+
+		if (textState.UserFlags & ImGuiInputTextFlags_Password)
+			swkbdSetPasswordMode (&kbd, SWKBD_PASSWORD_HIDE_DELAY);
+
+		char buffer[32]   = {0};
+		auto const button = swkbdInputText (&kbd, buffer, sizeof (buffer));
+		if (button == SWKBD_BUTTON_RIGHT)
+			io_.AddInputCharactersUTF8 (buffer);
+
+		state = KEYBOARD;
+		break;
+	}
+
+	case KEYBOARD:
+		// need to skip a frame for active id to really be cleared
+		ImGui::ClearActiveID ();
+		state = CLEARED;
+		break;
+
+	case CLEARED:
+		state = INACTIVE;
+		break;
+	}
+}
 }
 
 bool imgui::ctru::init ()
@@ -180,5 +233,6 @@ void imgui::ctru::newFrame ()
 
 	updateTouch (io);
 	updateGamepads (io);
+	updateKeyboard (io);
 }
 #endif

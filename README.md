@@ -105,6 +105,7 @@ Build `switch/ftpd.nro`:
 - RMD
 - RNFR
 - RNTO
+- SITE
 - SIZE
 - STAT
 - STOR
@@ -121,3 +122,12 @@ Build `switch/ftpd.nro`:
 ## Planned Commands
 
 - STOU
+
+## SITE commands
+
+- Show help:    SITE HELP
+- Set username: SITE USER <NAME>
+- Set password: SITE PASS <PASS>
+- Set port:     SITE PORT <PORT>
+- Set getMTime: SITE MTIME [0|1]
+- Save config:  SITE SAVE

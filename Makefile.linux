@@ -11,7 +11,8 @@ CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/linux \
              `pkg-config --cflags gl glfw3` \
              -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
              -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
-             -DIMGUI_IMPL_OPENGL_LOADER_GLAD=1
+             -DIMGUI_IMPL_OPENGL_LOADER_GLAD=1 \
+             -DFTPDCONFIG="\"ftpd.cfg\""
 CFLAGS    := $(CPPFLAGS)
 CXXFLAGS  := $(CPPFLAGS) -std=gnu++17
 LDFLAGS   := -pthread `pkg-config --libs gl glfw3` -ldl

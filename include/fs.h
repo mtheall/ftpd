@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <string_view>
 
 namespace fs
 {
@@ -82,6 +83,9 @@ public:
 	/// \note Can return partial reads
 	ssize_t read (void *data_, std::size_t size_);
 
+	/// \brief Read line
+	std::string_view readLine ();
+
 	/// \brief Read data
 	/// \param data_ Output buffer
 	/// \param size_ Size to read
@@ -109,6 +113,12 @@ private:
 
 	/// \brief Buffer size
 	std::size_t m_bufferSize = 0;
+
+	/// \brief Line buffer
+	char *m_lineBuffer = nullptr;
+
+	/// \brief Line buffer size
+	std::size_t m_lineBufferSize = 0;
 };
 
 /// Directory object

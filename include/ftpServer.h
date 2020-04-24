@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "ftpConfig.h"
 #include "ftpSession.h"
 #include "platform.h"
 #include "socket.h"
@@ -44,8 +45,7 @@ public:
 	void draw ();
 
 	/// \brief Create server
-	/// \param port_ Port to listen on
-	static UniqueFtpServer create (std::uint16_t port_);
+	static UniqueFtpServer create ();
 
 	/// \brief Get free space
 	static std::string getFreeSpace ();
@@ -58,14 +58,17 @@ public:
 
 private:
 	/// \brief Paramterized constructor
-	/// \param port_ Port to listen on
-	FtpServer (std::uint16_t port_);
+	/// \param config_ FTP config
+	FtpServer (UniqueFtpConfig config_);
 
 	/// \brief Handle when network is found
 	void handleNetworkFound ();
 
 	/// \brief Handle when network is lost
 	void handleNetworkLost ();
+
+	/// \brief Show menu in the current window
+	void showMenu ();
 
 	/// \brief Server loop
 	void loop ();
@@ -81,6 +84,9 @@ private:
 	platform::Mutex m_lock;
 #endif
 
+	/// \brief Config
+	UniqueFtpConfig m_config;
+
 	/// \brief Listen socket
 	UniqueSocket m_socket;
 
@@ -90,9 +96,25 @@ private:
 	/// \brief Sessions
 	std::vector<UniqueFtpSession> m_sessions;
 
-	/// \brief Port to listen on
-	std::uint16_t const m_port;
-
 	/// \brief Whether thread should quit
 	std::atomic<bool> m_quit;
+
+#ifndef CLASSIC
+	/// \brief Whether to show settings menu
+	bool m_showSettings = false;
+
+	/// \brief User name setting
+	std::string m_userSetting;
+
+	/// \brief Password setting
+	std::string m_passSetting;
+
+	/// \brief Port setting
+	std::uint16_t m_portSetting;
+
+#ifdef _3DS
+	/// \brief getMTime setting
+	bool m_getMTimeSetting;
+#endif
+#endif
 };

@@ -74,6 +74,7 @@ CFLAGS	:=	-g -Wall -Wno-narrowing $(OPTIMIZE) \
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ \
 			-DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
 			-DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+			-DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
 			`$(PREFIX)pkg-config --cflags libzstd`
 
 CXXFLAGS	:= $(CFLAGS) -std=gnu++17 -fno-exceptions -fno-rtti

@@ -262,11 +262,14 @@ FtpSession::~FtpSession ()
 	closeData ();
 }
 
-FtpSession::FtpSession (UniqueSocket commandSocket_)
-    : m_commandSocket (std::move (commandSocket_)),
+FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
+    : m_config (config_),
+      m_commandSocket (std::move (commandSocket_)),
       m_commandBuffer (COMMAND_BUFFERSIZE),
       m_responseBuffer (RESPONSE_BUFFERSIZE),
       m_xferBuffer (XFER_BUFFERSIZE),
+      m_authorizedUser (false),
+      m_authorizedPass (false),
       m_pasv (false),
       m_port (false),
       m_recv (false),
@@ -278,6 +281,11 @@ FtpSession::FtpSession (UniqueSocket commandSocket_)
       m_mlstPerm (true),
       m_mlstUnixMode (false)
 {
+	if (m_config.user ().empty ())
+		m_authorizedUser = true;
+	if (m_config.pass ().empty ())
+		m_authorizedPass = true;
+
 	char buffer[32];
 	std::sprintf (buffer, "Session#%p", this);
 	m_windowName = buffer;
@@ -373,9 +381,9 @@ void FtpSession::draw ()
 #endif
 }
 
-UniqueFtpSession FtpSession::create (UniqueSocket commandSocket_)
+UniqueFtpSession FtpSession::create (FtpConfig &config_, UniqueSocket commandSocket_)
 {
-	return UniqueFtpSession (new FtpSession (std::move (commandSocket_)));
+	return UniqueFtpSession (new FtpSession (config_, std::move (commandSocket_)));
 }
 
 bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
@@ -557,8 +565,11 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 					}
 					else if (i.revents & (POLLIN | POLLOUT))
 					{
-						while (((*session).*(session->m_transfer)) ())
-							;
+						for (unsigned i = 0; i < 10; ++i)
+						{
+							if (!((*session).*(session->m_transfer)) ())
+								break;
+						}
 					}
 				}
 			}
@@ -566,6 +577,11 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 	}
 
 	return true;
+}
+
+bool FtpSession::authorized () const
+{
+	return m_authorizedUser && m_authorizedPass;
 }
 
 void FtpSession::setState (State const state_, bool const closePasv_, bool const closeData_)
@@ -989,8 +1005,10 @@ int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_
 		if (!tm)
 			return errno;
 
-		auto fmt = "%b %e %H:%M ";
-		rc       = std::strftime (&buffer[pos], size - pos, fmt, tm);
+		auto fmt = "%b %e %Y ";
+		if (m_timestamp > st_.st_mtime && m_timestamp - st_.st_mtime < (60 * 60 * 24 * 365 / 2))
+			fmt = "%b %e %H:%M ";
+		rc = std::strftime (&buffer[pos], size - pos, fmt, tm);
 		if (rc < 0)
 			return errno;
 		if (static_cast<std::size_t> (rc) > size - pos)
@@ -1009,6 +1027,7 @@ int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_
 	buffer[pos++] = '\n';
 
 	m_xferBuffer.markUsed (pos);
+	LOCKED (m_filePosition += pos);
 
 	return 0;
 }
@@ -1145,6 +1164,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 	m_recv        = false;
 	m_send        = true;
 
+	m_filePosition = 0;
 	m_xferBuffer.clear ();
 
 	m_transfer = &FtpSession::listTransfer;
@@ -1233,7 +1253,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 				// everything else uses basename
 				auto const pos = path.find_last_of ('/');
 				assert (pos != std::string::npos);
-				name = encodePath (std::string_view (path).substr (pos));
+				name = encodePath (std::string_view (path).substr (pos + 1));
 			}
 
 			auto const rc = fillDirent (st, name);
@@ -1420,6 +1440,7 @@ void FtpSession::readCommand (int const events_)
 			    return ::strcasecmp (lhs_.first.data (), rhs_) < 0;
 		    });
 
+		m_timestamp = std::time (nullptr);
 		if (it == std::end (handlers) || ::strcasecmp (it->first.data (), command) != 0)
 		{
 			std::string response = "502 Invalid command \"";
@@ -1585,13 +1606,17 @@ bool FtpSession::listTransfer ()
 		if (m_xferDirMode == XferDirMode::NLST)
 		{
 			// NLST gives the whole path name
-			auto const path = encodePath (buildPath (m_lwd, dent->d_name));
+			auto const path = encodePath (buildPath (m_lwd, dent->d_name)) + "\r\n";
 			if (m_xferBuffer.freeSize () < path.size ())
 			{
 				sendResponse ("501 %s\r\n", std::strerror (ENOMEM));
 				setState (State::COMMAND, true, true);
 				return false;
 			}
+
+			std::memcpy (m_xferBuffer.freeArea (), path.data (), path.size ());
+			m_xferBuffer.markUsed (path.size ());
+			LOCKED (m_filePosition += path.size ());
 		}
 		else
 		{
@@ -1629,7 +1654,7 @@ bool FtpSession::listTransfer ()
 				else if (m_xferDirMode == XferDirMode::NLST)
 					getmtime = false;
 
-				if (getmtime)
+				if (getmtime && m_config.getMTime ())
 				{
 					std::uint64_t mtime = 0;
 					auto const rc       = archive_getmtime (fullPath.c_str (), &mtime);
@@ -1801,6 +1826,13 @@ void FtpSession::ALLO (char const *args_)
 
 void FtpSession::APPE (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// open the file in append mode
 	xferFile (args_, XferFileMode::APPE);
 }
@@ -1808,6 +1840,12 @@ void FtpSession::APPE (char const *args_)
 void FtpSession::CDUP (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	if (!changeDir (".."))
 	{
@@ -1822,6 +1860,12 @@ void FtpSession::CWD (char const *args_)
 {
 	setState (State::COMMAND, false, false);
 
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	if (!changeDir (args_))
 	{
 		sendResponse ("550 %s\r\n", std::strerror (errno));
@@ -1834,6 +1878,12 @@ void FtpSession::CWD (char const *args_)
 void FtpSession::DELE (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// build the path to remove
 	auto const path = buildResolvedPath (m_cwd, args_);
@@ -1885,6 +1935,13 @@ void FtpSession::HELP (char const *args_)
 
 void FtpSession::LIST (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// open the path in LIST mode
 	xferDir (args_, XferDirMode::LIST, true);
 }
@@ -1892,12 +1949,25 @@ void FtpSession::LIST (char const *args_)
 void FtpSession::MDTM (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	sendResponse ("502 Command not implemented\r\n");
 }
 
 void FtpSession::MKD (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// build the path to create
 	auto const path = buildResolvedPath (m_cwd, args_);
@@ -1920,6 +1990,13 @@ void FtpSession::MKD (char const *args_)
 
 void FtpSession::MLSD (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// open the path in MLSD mode
 	xferDir (args_, XferDirMode::MLSD, true);
 }
@@ -1977,6 +2054,13 @@ void FtpSession::MODE (char const *args_)
 
 void FtpSession::NLST (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// open the path in NLST mode
 	xferDir (args_, XferDirMode::NLST, false);
 }
@@ -2048,11 +2132,34 @@ void FtpSession::OPTS (char const *args_)
 void FtpSession::PASS (char const *args_)
 {
 	setState (State::COMMAND, false, false);
-	sendResponse ("230 OK\r\n");
+
+	m_authorizedPass = false;
+
+	if (!m_config.user ().empty () && !m_authorizedUser)
+	{
+		sendResponse ("430 User not authorized\r\n");
+		return;
+	}
+
+	if (m_config.pass ().empty () || m_config.pass () == args_)
+	{
+		m_authorizedPass = true;
+		sendResponse ("230 OK\r\n");
+		return;
+	}
+
+	sendResponse ("430 Invalid password\r\n");
 }
 
 void FtpSession::PASV (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// reset state
 	setState (State::COMMAND, true, true);
 	m_pasv = false;
@@ -2117,6 +2224,13 @@ void FtpSession::PASV (char const *args_)
 
 void FtpSession::PORT (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// reset state
 	setState (State::COMMAND, true, true);
 	m_pasv = false;
@@ -2203,6 +2317,12 @@ void FtpSession::PWD (char const *args_)
 {
 	setState (State::COMMAND, false, false);
 
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	auto const path = encodePath (m_cwd);
 
 	std::string response = "257 \"";
@@ -2221,6 +2341,12 @@ void FtpSession::QUIT (char const *args_)
 void FtpSession::REST (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// parse the offset
 	std::uint64_t pos = 0;
@@ -2250,6 +2376,13 @@ void FtpSession::REST (char const *args_)
 
 void FtpSession::RETR (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// open the file to retrieve
 	xferFile (args_, XferFileMode::RETR);
 }
@@ -2257,6 +2390,12 @@ void FtpSession::RETR (char const *args_)
 void FtpSession::RMD (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// build the path to remove
 	auto const path = buildResolvedPath (m_cwd, args_);
@@ -2280,6 +2419,12 @@ void FtpSession::RMD (char const *args_)
 void FtpSession::RNFR (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// build the path to rename from
 	auto const path = buildResolvedPath (m_cwd, args_);
@@ -2305,6 +2450,12 @@ void FtpSession::RNFR (char const *args_)
 void FtpSession::RNTO (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// make sure the previous command was RNFR
 	if (m_rename.empty ())
@@ -2337,9 +2488,98 @@ void FtpSession::RNTO (char const *args_)
 	sendResponse ("250 OK\r\n");
 }
 
+void FtpSession::SITE (char const *args_)
+{
+	setState (State::COMMAND, false, false);
+
+	auto const str = std::string (args_);
+	auto const pos = str.find_first_of (' ');
+
+	auto const command = str.substr (0, pos);
+	auto const arg     = pos == std::string::npos ? std::string () : str.substr (pos + 1);
+
+	if (::strcasecmp (command.c_str (), "HELP") == 0)
+	{
+		sendResponse ("211-\r\n"
+		              " Show this help: SITE HELP\r\n"
+		              " Set username: SITE USER <NAME>\r\n"
+		              " Set password: SITE PASS <PASS>\r\n"
+		              " Set port: SITE PORT <PORT>\r\n"
+#ifdef _3DS
+		              " Set getMTime: SITE MTIME [0|1]\r\n"
+#endif
+		              " Save config: SITE SAVE\r\n"
+		              "211 End\r\n");
+		return;
+	}
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
+	if (::strcasecmp (command.c_str (), "USER") == 0)
+	{
+		m_config.setUser (arg);
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+	else if (::strcasecmp (command.c_str (), "PASS") == 0)
+	{
+		m_config.setPass (arg);
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+	else if (::strcasecmp (command.c_str (), "PORT") == 0)
+	{
+		if (!m_config.setPort (arg))
+		{
+			sendResponse ("550 %s\r\n", std::strerror (errno));
+			return;
+		}
+
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+#ifdef _3DS
+	else if (::strcasecmp (command.c_str (), "MTIME") == 0)
+	{
+		if (arg == "0")
+			m_config.setGetMTime (false);
+		else if (arg == "1")
+			m_config.setGetMTime (true);
+		else
+		{
+			sendResponse ("550 %s\r\n", std::strerror (EINVAL));
+			return;
+		}
+	}
+#endif
+	else if (::strcasecmp (command.c_str (), "SAVE") == 0)
+	{
+		if (!m_config.save (FTPDCONFIG))
+		{
+			sendResponse ("550 %s\r\n", std::strerror (errno));
+			return;
+		}
+
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+
+	sendResponse ("550 Invalid command\r\n");
+}
+
 void FtpSession::SIZE (char const *args_)
 {
 	setState (State::COMMAND, false, false);
+
+	if (!authorized ())
+	{
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
 
 	// build the path to stat
 	auto const path = buildResolvedPath (m_cwd, args_);
@@ -2371,7 +2611,7 @@ void FtpSession::STAT (char const *args_)
 	if (m_state == State::DATA_CONNECT)
 	{
 		sendResponse ("211-FTP server status\r\n"
-		              " Waitin for data connection\r\n"
+		              " Waiting for data connection\r\n"
 		              "211 End\r\n");
 		return;
 	}
@@ -2404,11 +2644,25 @@ void FtpSession::STAT (char const *args_)
 		return;
 	}
 
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	xferDir (args_, XferDirMode::STAT, false);
 }
 
 void FtpSession::STOR (char const *args_)
 {
+	if (!authorized ())
+	{
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
+		return;
+	}
+
 	// open the file to store
 	xferFile (args_, XferFileMode::STOR);
 }
@@ -2450,7 +2704,23 @@ void FtpSession::TYPE (char const *args_)
 void FtpSession::USER (char const *args_)
 {
 	setState (State::COMMAND, false, false);
-	sendResponse ("230 OK\r\n");
+
+	m_authorizedUser = false;
+
+	if (m_config.user ().empty () || m_config.user () == args_)
+	{
+		m_authorizedUser = true;
+		if (m_config.pass ().empty ())
+		{
+			sendResponse ("230 OK\r\n");
+			return;
+		}
+
+		sendResponse ("331 Need password\r\n");
+		return;
+	}
+
+	sendResponse ("502 Invalid user\r\n");
 }
 
 // clang-format off
@@ -2484,6 +2754,7 @@ std::vector<std::pair<std::string_view, void (FtpSession::*) (char const *)>> co
 	{"RMD",  &FtpSession::RMD},
 	{"RNFR", &FtpSession::RNFR}, 
 	{"RNTO", &FtpSession::RNTO}, 
+	{"SITE", &FtpSession::SITE}, 
 	{"SIZE", &FtpSession::SIZE}, 
 	{"STAT", &FtpSession::STAT}, 
 	{"STOR", &FtpSession::STOR}, 

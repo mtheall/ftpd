@@ -21,6 +21,7 @@
 #pragma once
 
 #include "fs.h"
+#include "ftpConfig.h"
 #include "ioBuffer.h"
 #include "platform.h"
 #include "socket.h"
@@ -47,8 +48,9 @@ public:
 	void draw ();
 
 	/// \brief Create session
+	/// \param config_ FTP config
 	/// \param commandSocket_ Command socket
-	static UniqueFtpSession create (UniqueSocket commandSocket_);
+	static UniqueFtpSession create (FtpConfig &config_, UniqueSocket commandSocket_);
 
 	/// \brief Poll for activity
 	/// \param sessions_ Sessions to poll
@@ -122,8 +124,12 @@ private:
 	};
 
 	/// \brief Parameterized constructor
+	/// \param config_ FTP config
 	/// \param commandSocket_ Command socket
-	FtpSession (UniqueSocket commandSocket_);
+	FtpSession (FtpConfig &config_, UniqueSocket commandSocket_);
+
+	/// \brief Whether session is authorized
+	bool authorized () const;
 
 	/// \brief Set session state
 	/// \param state_ State to set
@@ -203,6 +209,9 @@ private:
 	platform::Mutex m_lock;
 #endif
 
+	/// \brief FTP config
+	FtpConfig &m_config;
+
 	/// \brief Command socket
 	SharedSocket m_commandSocket;
 
@@ -278,6 +287,13 @@ private:
 	/// \brief Directory transfer mode
 	XferDirMode m_xferDirMode;
 
+	/// \brief Last command timestamp
+	time_t m_timestamp;
+
+	/// \brief Whether user has been authorized
+	bool m_authorizedUser : 1;
+	/// \brief Whether password has been authorized
+	bool m_authorizedPass : 1;
 	/// \brief Whether previous command was PASV
 	bool m_pasv : 1;
 	/// \brief Whether previous command was PORT
@@ -408,6 +424,10 @@ private:
 	/// \brief Rename to
 	/// \param args_ Command arguments
 	void RNTO (char const *args_);
+
+	/// \brief Site command
+	/// \param args_ Command arguments
+	void SITE (char const *args_);
 
 	/// \brief Get file size
 	/// \param args_ Command arguments
