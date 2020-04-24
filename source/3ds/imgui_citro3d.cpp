@@ -173,18 +173,16 @@ void imgui::citro3d::init ()
 	// allocate vertex data buffer
 	s_vtxSize = 65536;
 	s_vtxData = reinterpret_cast<ImDrawVert *> (linearAlloc (sizeof (ImDrawVert) * s_vtxSize));
-	if (!s_vtxData)
-		svcBreak (USERBREAK_PANIC);
+	assert (s_vtxData);
 
 	// allocate index data buffer
 	s_idxSize = 65536;
 	s_idxData = reinterpret_cast<ImDrawIdx *> (linearAlloc (sizeof (ImDrawIdx) * s_idxSize));
-	if (!s_idxData)
-		svcBreak (USERBREAK_PANIC);
+	assert (s_idxData);
 
 	// ensure the shared system font is mapped
 	if (R_FAILED (fontEnsureMapped ()))
-		svcBreak (USERBREAK_PANIC);
+		assert (false);
 
 	// load the glyph texture sheets
 	auto const font      = fontGetSystemFont ();
@@ -201,8 +199,8 @@ void imgui::citro3d::init ()
 	{
 		auto &tex = s_fontTextures[i];
 		tex.data  = fontGetGlyphSheetTex (font, i);
-		if (!tex.data)
-			svcBreak (USERBREAK_PANIC);
+		assert (tex.data);
+
 		tex.fmt    = static_cast<GPU_TEXCOLOR> (glyphInfo->sheetFmt);
 		tex.size   = glyphInfo->sheetSize;
 		tex.width  = glyphInfo->sheetWidth;
@@ -221,8 +219,8 @@ void imgui::citro3d::init ()
 		// fill texture with full alpha
 		std::uint32_t size;
 		auto data = C3D_Tex2DGetImagePtr (&tex, 0, &size);
-		if (!data || !size)
-			svcBreak (USERBREAK_PANIC);
+		assert (data);
+		assert (size);
 		std::memset (data, 0xFF, size);
 	}
 
@@ -238,26 +236,46 @@ void imgui::citro3d::init ()
 		switch (cmap->mappingMethod)
 		{
 		case CMAP_TYPE_DIRECT:
+			assert (cmap->codeEnd >= cmap->codeBegin);
+			charSet.reserve (charSet.size () + cmap->codeEnd - cmap->codeBegin + 1);
+			for (auto i = cmap->codeBegin; i <= cmap->codeEnd; ++i)
+			{
+				if (cmap->indexOffset + (i - cmap->codeBegin) == 0xFFFF)
+					break;
+
+				charSet.emplace_back (i);
+			}
+			break;
+
 		case CMAP_TYPE_TABLE:
 			assert (cmap->codeEnd >= cmap->codeBegin);
 			charSet.reserve (charSet.size () + cmap->codeEnd - cmap->codeBegin + 1);
 			for (auto i = cmap->codeBegin; i <= cmap->codeEnd; ++i)
+			{
+				if (cmap->indexTable[i - cmap->codeBegin] == 0xFFFF)
+					continue;
+
 				charSet.emplace_back (i);
+			}
 			break;
+
 		case CMAP_TYPE_SCAN:
 			charSet.reserve (charSet.size () + cmap->nScanEntries);
 			for (unsigned i = 0; i < cmap->nScanEntries; ++i)
 			{
 				assert (cmap->scanEntries[i].code >= cmap->codeBegin);
 				assert (cmap->scanEntries[i].code <= cmap->codeEnd);
+
+				if (cmap->scanEntries[i].glyphIndex == 0xFFFF)
+					continue;
+
 				charSet.emplace_back (cmap->scanEntries[i].code);
 			}
 			break;
 		}
 	}
 
-	if (charSet.empty ())
-		svcBreak (USERBREAK_PANIC);
+	assert (!charSet.empty ());
 
 	// deduplicate character map
 	std::sort (std::begin (charSet), std::end (charSet));
@@ -343,8 +361,8 @@ void imgui::citro3d::init ()
 	for (auto const &code : charSet)
 	{
 		auto const glyphIndex = fontGlyphIndexFromCodePoint (font, code);
-		if (glyphIndex < 0)
-			svcBreak (USERBREAK_PANIC);
+		assert (glyphIndex >= 0);
+		assert (glyphIndex < 0xFFFF);
 
 		// calculate glyph metrics
 		fontCalcGlyphPos (&glyphPos,
@@ -353,6 +371,9 @@ void imgui::citro3d::init ()
 		    GLYPH_POS_CALC_VTXCOORD | GLYPH_POS_AT_BASELINE,
 		    1.0f,
 		    1.0f);
+
+		assert (glyphPos.sheetIndex >= 0);
+		assert (static_cast<std::size_t> (glyphPos.sheetIndex) < s_fontTextures.size ());
 
 		// add glyph to font
 		imFont->AddGlyph (code,
@@ -425,8 +446,7 @@ void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *con
 		// add 10% to avoid growing many frames in a row
 		s_vtxSize = drawData->TotalVtxCount * 1.1f;
 		s_vtxData = reinterpret_cast<ImDrawVert *> (linearAlloc (sizeof (ImDrawVert) * s_vtxSize));
-		if (!s_vtxData)
-			svcBreak (USERBREAK_PANIC);
+		assert (s_vtxData);
 	}
 
 	// check if we need to grow index data buffer
@@ -435,8 +455,7 @@ void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *con
 		// add 10% to avoid growing many frames in a row
 		s_idxSize = drawData->TotalIdxCount * 1.1f;
 		s_idxData = reinterpret_cast<ImDrawIdx *> (linearAlloc (sizeof (ImDrawIdx) * s_idxSize));
-		if (!s_vtxData)
-			svcBreak (USERBREAK_PANIC);
+		assert (s_idxData);
 	}
 
 	// will project scissor/clipping rectangles into framebuffer space
@@ -453,10 +472,8 @@ void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *con
 		auto const &cmdList = *drawData->CmdLists[i];
 
 		// double check that we don't overrun vertex/index data buffers
-		if (s_vtxSize - offsetVtx < static_cast<std::size_t> (cmdList.VtxBuffer.Size))
-			svcBreak (USERBREAK_PANIC);
-		if (s_idxSize - offsetIdx < static_cast<std::size_t> (cmdList.IdxBuffer.Size))
-			svcBreak (USERBREAK_PANIC);
+		assert (s_vtxSize - offsetVtx >= static_cast<std::size_t> (cmdList.VtxBuffer.Size));
+		assert (s_idxSize - offsetIdx >= static_cast<std::size_t> (cmdList.IdxBuffer.Size));
 
 		// copy vertex/index data into buffers
 		std::memcpy (&s_vtxData[offsetVtx],
@@ -602,12 +619,33 @@ void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *con
 							// assert that these three vertices use the same sheet
 							for (unsigned i = 0; i < 3; ++i)
 								assert (vtx_[idx_[i]].uv.y - sheet <= 1.0f);
+
+							assert (sheet < s_fontTextures.size ());
 							return sheet;
 						};
 
+						/// \todo avoid repeating this work?
+						for (unsigned i = 0; i < cmd.ElemCount; i += 3)
+						{
+							auto const idx = &cmdList.IdxBuffer.Data[cmd.IdxOffset + i];
+							auto const vtx = &cmdList.VtxBuffer.Data[cmd.VtxOffset];
+							auto drawVtx   = &s_vtxData[cmd.VtxOffset + offsetVtx];
+
+							auto const sheet = getSheet (vtx, idx);
+							if (sheet != 0)
+							{
+								float dummy;
+								drawVtx[idx[0]].uv.y = std::modf (drawVtx[idx[0]].uv.y, &dummy);
+								drawVtx[idx[1]].uv.y = std::modf (drawVtx[idx[1]].uv.y, &dummy);
+								drawVtx[idx[2]].uv.y = std::modf (drawVtx[idx[2]].uv.y, &dummy);
+							}
+						}
+
 						// initialize texture binding
-						unsigned boundSheet = getSheet (&s_vtxData[cmd.VtxOffset + offsetVtx],
-						    &s_idxData[cmd.IdxOffset + offsetIdx]);
+						unsigned boundSheet = getSheet (&cmdList.VtxBuffer.Data[cmd.VtxOffset],
+						    &cmdList.IdxBuffer.Data[cmd.IdxOffset]);
+
+						assert (boundSheet < s_fontTextures.size ());
 						C3D_TexBind (0, &s_fontTextures[boundSheet]);
 
 						unsigned offset = 0;
@@ -626,8 +664,8 @@ void imgui::citro3d::render (C3D_RenderTarget *const top_, C3D_RenderTarget *con
 						for (unsigned i = 3; i < cmd.ElemCount; i += 3)
 						{
 							// get sheet for this triangle
-							unsigned const sheet = getSheet (&s_vtxData[cmd.VtxOffset + offsetVtx],
-							    &s_idxData[cmd.IdxOffset + offsetIdx + i]);
+							unsigned const sheet = getSheet (&cmdList.VtxBuffer.Data[cmd.VtxOffset],
+							    &cmdList.IdxBuffer.Data[cmd.IdxOffset + i]);
 
 							// check if we're changing textures
 							if (boundSheet != sheet)

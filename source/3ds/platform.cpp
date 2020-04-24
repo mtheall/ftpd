@@ -330,7 +330,7 @@ bool platform::init ()
 
 #ifndef CLASSIC
 	// initialize citro3d
-	C3D_Init (C3D_DEFAULT_CMDBUF_SIZE);
+	C3D_Init (2 * C3D_DEFAULT_CMDBUF_SIZE);
 
 	// create top screen render target
 	s_top =
