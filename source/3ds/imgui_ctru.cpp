@@ -59,7 +59,15 @@ void setClipboardText (void *const userData_, char const *const text_)
 /// \param io_ ImGui IO
 void updateTouch (ImGuiIO &io_)
 {
-	// check if touchpad was touched
+	// check if touchpad was released
+	if (hidKeysUp () & KEY_TOUCH)
+	{
+		// keep mouse position for one frame for release event
+		io_.MouseDown[0] = false;
+		return;
+	}
+
+	// check if touchpad is touched
 	if (!(hidKeysHeld () & KEY_TOUCH))
 	{
 		// set mouse cursor off-screen
@@ -73,7 +81,7 @@ void updateTouch (ImGuiIO &io_)
 	hidTouchRead (&pos);
 
 	// transform to bottom-screen space
-	io_.MousePos     = ImVec2 ((pos.px + 40.0f) * 2.0f, (pos.py + 240.0f) * 2.0f);
+	io_.MousePos     = ImVec2 (pos.px + 40.0f, pos.py + 240.0f);
 	io_.MouseDown[0] = true;
 }
 
