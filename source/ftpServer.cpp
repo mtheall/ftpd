@@ -21,6 +21,7 @@
 #include "ftpServer.h"
 
 #include "fs.h"
+#include "licenses.h"
 #include "log.h"
 #include "platform.h"
 #include "socket.h"
@@ -317,6 +318,7 @@ void FtpServer::showMenu ()
 {
 #ifndef CLASSIC
 	auto const prevShowSettings = m_showSettings;
+	auto const prevShowAbout    = m_showAbout;
 
 	if (ImGui::BeginMenuBar ())
 	{
@@ -329,28 +331,48 @@ void FtpServer::showMenu ()
 			if (ImGui::MenuItem ("Settings"))
 				m_showSettings = true;
 
+			if (ImGui::MenuItem ("About"))
+				m_showAbout = true;
+
 			ImGui::EndMenu ();
 		}
 		ImGui::EndMenuBar ();
 	}
 
-	if (!prevShowSettings && m_showSettings)
+	if (m_showSettings)
 	{
-		m_userSetting = m_config->user ();
-		m_userSetting.resize (32);
+		if (!prevShowSettings)
+		{
+			m_userSetting = m_config->user ();
+			m_userSetting.resize (32);
 
-		m_passSetting = m_config->pass ();
-		m_passSetting.resize (32);
+			m_passSetting = m_config->pass ();
+			m_passSetting.resize (32);
 
-		m_portSetting = m_config->port ();
+			m_portSetting = m_config->port ();
 
 #ifdef _3DS
-		m_getMTimeSetting = m_config->getMTime ();
+			m_getMTimeSetting = m_config->getMTime ();
 #endif
 
-		ImGui::OpenPopup ("Settings");
+			ImGui::OpenPopup ("Settings");
+		}
+
+		showSettings ();
 	}
 
+	if (m_showAbout)
+	{
+		if (!prevShowAbout)
+			ImGui::OpenPopup ("About");
+
+		showAbout ();
+	}
+}
+
+void FtpServer::showSettings ()
+{
+#ifndef CLASSIC
 #ifdef _3DS
 	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
@@ -416,6 +438,103 @@ void FtpServer::showMenu ()
 			m_showSettings = false;
 			ImGui::CloseCurrentPopup ();
 		}
+
+		ImGui::EndPopup ();
+	}
+#endif
+#endif
+}
+
+void FtpServer::showAbout ()
+{
+#ifndef CLASSIC
+	auto const &io    = ImGui::GetIO ();
+	auto const width  = io.DisplaySize.x;
+	auto const height = io.DisplaySize.y;
+
+#ifdef _3DS
+	ImGui::SetNextWindowSize (ImVec2 (width * 0.8f, height * 0.5f));
+	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height * 0.5f));
+#else
+	ImGui::SetNextWindowSize (ImVec2 (width * 0.8f, height * 0.8f));
+	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height * 0.1f));
+#endif
+	if (ImGui::BeginPopupModal ("About",
+	        nullptr,
+	        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+	{
+		ImGui::TextUnformatted (STATUS_STRING);
+		ImGui::TextWrapped ("Copyright © 2014-2020 Michael Theall, Dave Murphy, TuxSH");
+		ImGui::Separator ();
+		ImGui::Text ("Platform: %s", io.BackendPlatformName);
+		ImGui::Text ("Renderer: %s", io.BackendRendererName);
+
+		if (ImGui::Button ("OK", ImVec2 (100, 0)))
+		{
+			m_showAbout = false;
+			ImGui::CloseCurrentPopup ();
+		}
+
+		ImGui::Separator ();
+		if (ImGui::TreeNode (g_dearImGuiVersion))
+		{
+			ImGui::TextWrapped (g_dearImGuiCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_mitLicense);
+			ImGui::TreePop ();
+		}
+
+#if defined(NDS)
+#elif defined(_3DS)
+		if (ImGui::TreeNode (g_libctruVersion))
+		{
+			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TreePop ();
+		}
+
+		if (ImGui::TreeNode (g_citro3dVersion))
+		{
+			ImGui::TextWrapped (g_citro3dCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TreePop ();
+		}
+
+#elif defined(__SWITCH__)
+		if (ImGui::TreeNode (g_libnxVersion))
+		{
+			ImGui::TextWrapped (g_libnxCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_libnxLicense);
+			ImGui::TreePop ();
+		}
+
+		if (ImGui::TreeNode (g_deko3dVersion))
+		{
+			ImGui::TextWrapped (g_deko3dCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TreePop ();
+		}
+
+		if (ImGui::TreeNode (g_zstdVersion))
+		{
+			ImGui::TextWrapped (g_zstdCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_bsdLicense);
+			ImGui::TreePop ();
+		}
+#else
+		if (ImGui::TreeNode (g_glfwVersion))
+		{
+			ImGui::TextWrapped (g_glfwCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TreePop ();
+		}
+#endif
 
 		ImGui::EndPopup ();
 	}

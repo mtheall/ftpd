@@ -52,7 +52,7 @@ RSF_FILE  := meta/ftpd-classic-cia.rsf
 endif
 
 APP_DESCRIPTION := v$(VERSION)
-APP_AUTHOR      := mtheall
+APP_AUTHOR      := (c) 2014-2020 Michael Theall, Dave Murphy, TuxSH
 
 ICON      := meta/icon.png
 BNR_IMAGE := meta/banner.png

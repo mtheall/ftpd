@@ -70,6 +70,12 @@ private:
 	/// \brief Show menu in the current window
 	void showMenu ();
 
+	/// \brief Show settings menu
+	void showSettings ();
+
+	/// \brief Show about window
+	void showAbout ();
+
 	/// \brief Server loop
 	void loop ();
 
@@ -102,6 +108,8 @@ private:
 #ifndef CLASSIC
 	/// \brief Whether to show settings menu
 	bool m_showSettings = false;
+	/// \brief Whether to show about window
+	bool m_showAbout = false;
 
 	/// \brief User name setting
 	std::string m_userSetting;

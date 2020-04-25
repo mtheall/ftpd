@@ -35,7 +35,7 @@ NITRO    :=
 # These set the information text in the nds file
 GAME_TITLE     := ftpd classic
 GAME_SUBTITLE1 := v$(VERSION)
-GAME_SUBTITLE2 := (c) mtheall
+GAME_SUBTITLE2 := (c) 2014-2020 mtheall
 
 #---------------------------------------------------------------------------------
 # options for code generation
