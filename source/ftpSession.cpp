@@ -525,7 +525,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 				switch (session->m_state)
 				{
 				case State::COMMAND:
-					assert (false);
+					std::abort ();
 					break;
 
 				case State::DATA_CONNECT:
@@ -571,6 +571,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 								break;
 						}
 					}
+					break;
 				}
 			}
 		}
@@ -1535,15 +1536,14 @@ void FtpSession::sendResponse (char const *fmt_, ...)
 
 	// try to write data immediately
 	assert (m_commandSocket);
-	auto const bytes =
-	    m_commandSocket->write (m_responseBuffer.usedArea (), m_responseBuffer.usedSize ());
-	if (bytes < 0 && errno != EWOULDBLOCK)
-		closeCommand ();
-	else if (bytes > 0)
+	auto const bytes = m_commandSocket->write (m_responseBuffer);
+	if (bytes <= 0)
 	{
-		m_responseBuffer.markFree (bytes);
-		m_responseBuffer.coalesce ();
+		if (bytes == 0 || errno != EWOULDBLOCK)
+			closeCommand ();
 	}
+	else
+		m_responseBuffer.coalesce ();
 }
 
 void FtpSession::sendResponse (std::string_view const response_)
@@ -1686,7 +1686,7 @@ bool FtpSession::listTransfer ()
 	}
 
 	// send any pending data
-	auto const rc = m_dataSocket->write (m_xferBuffer.usedArea (), m_xferBuffer.usedSize ());
+	auto const rc = m_dataSocket->write (m_xferBuffer);
 	if (rc <= 0)
 	{
 		// error sending data
@@ -1699,7 +1699,6 @@ bool FtpSession::listTransfer ()
 	}
 
 	// we can try to send more data
-	m_xferBuffer.markFree (rc);
 	return true;
 }
 
@@ -1735,7 +1734,7 @@ bool FtpSession::retrieveTransfer ()
 	}
 
 	// send any pending data
-	auto const rc = m_dataSocket->write (m_xferBuffer.usedArea (), m_xferBuffer.usedSize ());
+	auto const rc = m_dataSocket->write (m_xferBuffer);
 	if (rc <= 0)
 	{
 		// error sending data
@@ -1749,7 +1748,6 @@ bool FtpSession::retrieveTransfer ()
 
 	// we can try to read/send more data
 	LOCKED (m_filePosition += rc);
-	m_xferBuffer.markFree (rc);
 	return true;
 }
 
@@ -1759,11 +1757,8 @@ bool FtpSession::storeTransfer ()
 	{
 		m_xferBuffer.clear ();
 
-		auto const buffer = m_xferBuffer.freeArea ();
-		auto const size   = m_xferBuffer.freeSize ();
-
 		// we have written all the received data, so try to get some more
-		auto const rc = m_dataSocket->read (buffer, size);
+		auto const rc = m_dataSocket->read (m_xferBuffer);
 		if (rc < 0)
 		{
 			// failed to read data
@@ -1782,9 +1777,6 @@ bool FtpSession::storeTransfer ()
 			setState (State::COMMAND, true, true);
 			return false;
 		}
-
-		// we received some data
-		m_xferBuffer.markUsed (rc);
 	}
 
 	// write any pending data
@@ -1928,8 +1920,8 @@ void FtpSession::HELP (char const *args_)
 	sendResponse ("214-\r\n"
 	              "The following commands are recognized\r\n"
 	              " ABOR ALLO APPE CDUP CWD DELE FEAT HELP LIST MDTM MKD MLSD MLST MODE\r\n"
-	              " NLST NOOP OPTS PASS PASV PORT PWD QUIT REST RETR RMD RNFR RNTO STAT\r\n"
-	              " STOR STOU STRU SYST TYPE USER XCUP XCWD XMKD XPWD XRMD\r\n"
+	              " NLST NOOP OPTS PASS PASV PORT PWD QUIT REST RETR RMD RNFR RNTO SITE\r\n"
+	              " SIZE STAT STOR STOU STRU SYST TYPE USER XCUP XCWD XMKD XPWD XRMD\r\n"
 	              "214 End\r\n");
 }
 

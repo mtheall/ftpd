@@ -299,6 +299,13 @@ void FtpServer::handleNetworkFound ()
 void FtpServer::handleNetworkLost ()
 {
 	{
+		// destroy sessions
+		std::vector<UniqueFtpSession> sessions;
+		LOCKED (sessions = std::move (m_sessions));
+	}
+
+	{
+		// destroy command socket
 		UniqueSocket sock;
 		LOCKED (sock = std::move (m_socket));
 	}
@@ -427,7 +434,14 @@ void FtpServer::loop ()
 	if (m_socket)
 	{
 		Socket::PollInfo info{*m_socket, POLLIN, 0};
-		if (Socket::poll (&info, 1, 0ms) > 0)
+		auto const rc = Socket::poll (&info, 1, 0ms);
+		if (rc < 0)
+		{
+			handleNetworkLost ();
+			return;
+		}
+
+		if (rc > 0 && (info.revents & POLLIN))
 		{
 			auto socket = m_socket->accept ();
 			if (socket)
@@ -436,7 +450,10 @@ void FtpServer::loop ()
 				LOCKED (m_sessions.emplace_back (std::move (session)));
 			}
 			else
+			{
 				handleNetworkLost ();
+				return;
+			}
 		}
 	}
 

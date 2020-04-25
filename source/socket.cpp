@@ -171,7 +171,7 @@ bool Socket::shutdown (int const how_)
 {
 	if (::shutdown (m_fd, how_) != 0)
 	{
-		info ("shutdown: %s\n", std::strerror (errno));
+		error ("shutdown: %s\n", std::strerror (errno));
 		return false;
 	}
 

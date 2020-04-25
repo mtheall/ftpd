@@ -484,10 +484,13 @@ public:
 	/// \param func_ Thread entry point
 	privateData_t (std::function<void ()> &&func_) : thread (nullptr), func (std::move (func_))
 	{
+		// use next-lower priority
 		s32 priority = 0x30;
 		svcGetThreadPriority (&priority, CUR_THREAD_HANDLE);
+		priority = std::clamp<s32> (priority, 0x18, 0x3F - 1) + 1;
 
-		thread = threadCreate (&privateData_t::threadFunc, this, STACK_SIZE, priority, -1, false);
+		// use appcore
+		thread = threadCreate (&privateData_t::threadFunc, this, STACK_SIZE, priority, 0, false);
 		assert (thread);
 	}
 

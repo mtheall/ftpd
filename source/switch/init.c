@@ -58,12 +58,10 @@ void userAppInit ()
 	plInitialize ();
 	psmInitialize ();
 	nifmInitialize (NifmServiceType_User);
-
-	if (R_FAILED (socketInitialize (&s_socketInitConfig)))
-		return;
+	socketInitialize (&s_socketInitConfig);
 
 #ifndef NDEBUG
-		// s_fd = nxlinkStdioForDebug ();
+	// s_fd = nxlinkStdioForDebug ();
 #endif
 }
 
