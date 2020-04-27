@@ -1424,7 +1424,10 @@ void FtpSession::readCommand (int const events_)
 
 		*delim = '\0';
 		decodePath (buffer, delim - buffer);
-		command ("%s\n", buffer);
+		if (::strncasecmp ("USER ", buffer, 5) == 0 || ::strncasecmp ("PASS ", buffer, 5) == 0)
+			command ("%.*s ******\n", 5, buffer);
+		else
+			command ("%s\n", buffer);
 
 		char const *const command = buffer;
 
