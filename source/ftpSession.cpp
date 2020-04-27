@@ -508,7 +508,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 				if (i.revents & ~(POLLIN | POLLPRI | POLLOUT))
 					debug ("Command revents 0x%X\n", i.revents);
 
-				if (i.revents & POLLOUT)
+				if (!session->m_dataSocket && (i.revents & POLLOUT))
 					session->writeResponse ();
 
 				if (i.revents & (POLLIN | POLLPRI))
