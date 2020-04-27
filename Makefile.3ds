@@ -42,6 +42,7 @@ ICON            := meta/icon.png
 BNR_IMAGE       := meta/banner.png
 BNR_AUDIO       := meta/audio.wav
 RSF_FILE        := meta/ftpd-cia.rsf
+LOGO			:= meta/logo.bin
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -183,7 +184,8 @@ $(OUTPUT).cia:  $(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr $(TOPDIR)/$(RSF_FILE)
 	  -elf $(OUTPUT).elf -rsf $(TOPDIR)/$(RSF_FILE) \
 	  -ver "$$(($(VERSION_MAJOR)*1024+$(VERSION_MINOR)*16+$(VERSION_MICRO)))" \
 	  -banner $(TARGET).bnr \
-	  -icon $(OUTPUT).smdh
+	  -icon $(OUTPUT).smdh \
+	  -logo $(TOPDIR)/$(LOGO)
 	@echo "built ... $(notdir $@)"
 
 $(TARGET).bnr:  $(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
