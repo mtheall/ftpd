@@ -140,21 +140,13 @@ export INCLUDE  := $(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir))\
                    -I$(CURDIR)/$(BUILD)
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-ifeq ($(strip $(ICON)),)
-  icons := $(wildcard *.bmp)
+icons := $(wildcard $(dir $(TARGET))*.bmp)
 
-  ifneq (,$(findstring $(TARGET).bmp,$(icons)))
-    export GAME_ICON := $(CURDIR)/$(TARGET).bmp
-  else
-    ifneq (,$(findstring icon.bmp,$(icons)))
-      export GAME_ICON := $(CURDIR)/icon.bmp
-    endif
-  endif
+ifneq (,$(findstring $(TARGET).bmp,$(icons)))
+  export GAME_ICON := $(CURDIR)/$(TARGET).bmp
 else
-  ifeq ($(suffix $(ICON)), .grf)
-    export GAME_ICON := $(CURDIR)/$(ICON)
-  else
-    export GAME_ICON := $(CURDIR)/$(BUILD)/$(notdir $(basename $(ICON))).grf
+  ifneq (,$(findstring $(dir $(TARGET))icon.bmp,$(icons)))
+    export GAME_ICON := $(CURDIR)/$(dir $(TARGET))icon.bmp
   endif
 endif
 
@@ -179,7 +171,7 @@ else
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-$(OUTPUT).nds: $(OUTPUT).elf $(GAME_ICON)
+$(OUTPUT).nds: $(OUTPUT).elf
 $(OUTPUT).elf: $(OFILES)
 
 # need to build soundbank first
@@ -207,14 +199,6 @@ $(SOUNDBANK) : $(MODFILES)
 %.s %.h: %.png %.grit
 #---------------------------------------------------------------------------------
 	grit $< -fts -o$*
-
-#---------------------------------------------------------------------------------
-# Convert non-GRF game icon to GRF if needed
-#---------------------------------------------------------------------------------
-$(GAME_ICON): $(notdir $(ICON))
-#---------------------------------------------------------------------------------
-	@echo convert $(notdir $<)
-	@grit $< -g -gt -gB4 -gT FF00FF -m! -p -pe 16 -fh! -ftr
 
 -include $(DEPSDIR)/*.d
 
