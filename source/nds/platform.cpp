@@ -40,6 +40,8 @@ PrintConsole g_sessionConsole;
 namespace
 {
 struct in_addr s_addr = {0};
+/// \brief Whether to power backlight
+bool s_backlight = true;
 }
 
 bool platform::networkVisible ()
@@ -99,8 +101,17 @@ bool platform::loop ()
 {
 	scanKeys ();
 
-	if (keysDown () & KEY_START)
+	// check if the user wants to exit
+	auto const kDown = keysDown ();
+	if (kDown & KEY_START)
 		return false;
+
+	// check if the user wants to toggle the backlight
+	if (kDown & KEY_SELECT)
+	{
+		s_backlight = !s_backlight;
+		(s_backlight ? powerOn : powerOff) (POWER_LCD);
+	}
 
 	return true;
 }
@@ -112,12 +123,5 @@ void platform::render ()
 
 void platform::exit ()
 {
-	info ("Press any key to exit\n");
-	render ();
-
-	do
-	{
-		swiWaitForVBlank ();
-		scanKeys ();
-	} while (!keysDown ());
+	powerOn (POWER_LCD);
 }

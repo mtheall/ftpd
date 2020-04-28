@@ -8,6 +8,9 @@ FTP Server for 3DS/Switch/Linux.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
 - Cutting-edge graphics.
 
+- Toggle backlight on 3DS with SELECT button
+- Toggle backlight on Switch with MINUS button
+
 ## Latest Builds
 NDS: https://mtheall.com/~mtheall/ftpd.nds
 

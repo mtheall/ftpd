@@ -50,6 +50,12 @@ PrintConsole g_sessionConsole;
 
 namespace
 {
+/// \brief Whether to power backlight
+bool s_backlight = true;
+
+/// \brief Applet hook cookie
+AppletHookCookie s_appletHookCookie;
+
 #ifdef CLASSIC
 in_addr_t s_addr = 0;
 #else
@@ -397,6 +403,24 @@ void deko3dExit ()
 }
 #endif
 
+/// \brief Handle applet hook
+/// \param hook_ Callback reason
+/// \param param_ User param
+void handleAppletHook (AppletHookType const hook_, void *const param_)
+{
+	(void)param_;
+	switch (hook_)
+	{
+	case AppletHookType_OnFocusState:
+		if (appletGetFocusState () == AppletFocusState_Focused)
+			appletSetLcdBacklightOffEnabled (!s_backlight);
+		break;
+
+	default:
+		break;
+	}
+}
+
 /// \brief Draw status
 void drawStatus ()
 {
@@ -503,6 +527,8 @@ void drawStatus ()
 }
 }
 
+
+
 bool platform::init ()
 {
 #ifdef CLASSIC
@@ -534,6 +560,8 @@ bool platform::init ()
 	    FB_NUM);
 #endif
 
+	appletHook (&s_appletHookCookie, handleAppletHook, nullptr);
+
 	return true;
 }
 
@@ -561,8 +589,17 @@ bool platform::loop ()
 	hidScanInput ();
 
 	auto const keysDown = hidKeysDown (CONTROLLER_P1_AUTO);
+
+	// check if the user wants to exit
 	if (keysDown & KEY_PLUS)
 		return false;
+
+	// check if the user wants to toggle the backlight
+	if (keysDown & KEY_MINUS)
+	{
+		s_backlight = !s_backlight;
+		appletSetLcdBacklightOffEnabled (!s_backlight);
+	}
 
 #ifndef CLASSIC
 	imgui::nx::newFrame ();
@@ -647,6 +684,11 @@ void platform::exit ()
 	imgui::deko3d::exit ();
 	deko3dExit ();
 #endif
+
+	appletUnhook (&s_appletHookCookie);
+
+	if (!s_backlight)
+		appletSetLcdBacklightOffEnabled (false);
 }
 
 ///////////////////////////////////////////////////////////////////////////

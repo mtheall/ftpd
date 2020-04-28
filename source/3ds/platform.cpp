@@ -70,6 +70,12 @@ u32 *s_socuBuffer = nullptr;
 /// \brief ac:u fence
 platform::Mutex s_acuFence;
 
+/// \brief Whether to power backlight
+bool s_backlight = true;
+
+/// \brief APT hook cookie
+aptHookCookie s_aptHookCookie;
+
 #ifdef CLASSIC
 in_addr_t s_addr = 0;
 #else
@@ -117,6 +123,43 @@ C3D_Tex s_gfxTexture;
 /// \brief Texture atlas metadata
 Tex3DS_Texture s_gfxT3x;
 #endif
+
+/// \brief Enable backlight
+/// \param enable_ Whether to enable backligh
+void enableBacklight (bool const enable_)
+{
+	if (R_FAILED (gspLcdInit ()))
+		return;
+
+	(enable_ ? GSPLCD_PowerOnBacklight : GSPLCD_PowerOffBacklight) (GSPLCD_SCREEN_BOTH);
+
+	gspLcdExit ();
+}
+
+/// \brief Handle APT cookie
+/// \param type_ Hook type
+/// \param param_ User param
+void handleAPTHook (APT_HookType const type_, void *const param_)
+{
+	switch (type_)
+	{
+	case APTHOOK_ONSUSPEND:
+	case APTHOOK_ONSLEEP:
+		// turn on backlight, or you can't see the home menu!
+		if (!s_backlight)
+			enableBacklight (true);
+		break;
+
+	case APTHOOK_ONRESTORE:
+	case APTHOOK_ONWAKEUP:
+		// restore backlight setting
+		enableBacklight (s_backlight);
+		break;
+
+	default:
+		break;
+	}
+}
 
 /// \brief Get network visibility
 bool getNetworkVisibility ()
@@ -328,6 +371,8 @@ bool platform::init ()
 	std::setvbuf (stderr, nullptr, _IOLBF, 0);
 #endif
 
+	aptHook (&s_aptHookCookie, handleAPTHook, nullptr);
+
 #ifndef CLASSIC
 	// initialize citro3d
 	C3D_Init (2 * C3D_DEFAULT_CMDBUF_SIZE);
@@ -392,8 +437,18 @@ bool platform::loop ()
 
 	hidScanInput ();
 
-	if (hidKeysDown () & KEY_START)
+	auto const kDown = hidKeysDown ();
+
+	// check if the user wants to exit
+	if (kDown & KEY_START)
 		return false;
+
+	// check if the user wants to toggle the backlight
+	if (kDown & KEY_SELECT)
+	{
+		s_backlight = !s_backlight;
+		enableBacklight (s_backlight);
+	}
 
 #ifndef CLASSIC
 	auto &io = ImGui::GetIO ();
@@ -454,6 +509,12 @@ void platform::exit ()
 		socExit ();
 	s_socuActive = false;
 	std::free (s_socuBuffer);
+
+	aptUnhook (&s_aptHookCookie);
+
+	// turn backlight back on
+	if (!s_backlight)
+		enableBacklight (true);
 
 	gfxExit ();
 #ifndef CLASSIC
