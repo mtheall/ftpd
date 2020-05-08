@@ -28,6 +28,7 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <vector>

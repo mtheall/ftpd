@@ -57,6 +57,7 @@ bool s_backlight = true;
 AppletHookCookie s_appletHookCookie;
 
 #ifdef CLASSIC
+/// \brief Host address
 in_addr_t s_addr = 0;
 #else
 /// \brief Texture index
@@ -526,8 +527,6 @@ void drawStatus ()
 #endif
 }
 }
-
-
 
 bool platform::init ()
 {

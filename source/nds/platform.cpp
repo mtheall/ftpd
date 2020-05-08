@@ -39,6 +39,7 @@ PrintConsole g_sessionConsole;
 
 namespace
 {
+/// \brief Host address
 struct in_addr s_addr = {0};
 /// \brief Whether to power backlight
 bool s_backlight = true;

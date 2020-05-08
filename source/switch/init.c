@@ -55,7 +55,7 @@ void userAppInit ()
 	appletLockExit ();
 
 	romfsInit ();
-	plInitialize ();
+	plInitialize (PlServiceType_User);
 	psmInitialize ();
 	nifmInitialize (NifmServiceType_User);
 	socketInitialize (&s_socketInitConfig);

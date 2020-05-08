@@ -22,6 +22,7 @@
 
 #include <cinttypes>
 #include <cstdio>
+#include <string>
 
 #if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
 #define getline __getline

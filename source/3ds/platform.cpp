@@ -77,6 +77,7 @@ bool s_backlight = true;
 aptHookCookie s_aptHookCookie;
 
 #ifdef CLASSIC
+/// \brief Host address
 in_addr_t s_addr = 0;
 #else
 /// \brief Clear color
