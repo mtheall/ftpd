@@ -75,6 +75,13 @@ bool platform::init ()
 {
 	sassert (fatInitDefault (), "Failed to initialize fat");
 
+	// turn off unused arm7 hardware
+	powerOff (PM_SOUND_AMP);
+	powerOn (PM_SOUND_MUTE);
+
+	// turn off unused arm9 hardware
+	powerOff (POWER_MATRIX | POWER_3D_CORE);
+
 	videoSetMode (MODE_0_2D);
 	videoSetModeSub (MODE_0_2D);
 
