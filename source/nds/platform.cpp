@@ -41,6 +41,8 @@ namespace
 {
 /// \brief Host address
 struct in_addr s_addr = {0};
+/// \brief Which side of double-buffer we're on
+bool s_backBuffer = false;
 /// \brief Whether to power backlight
 bool s_backlight = true;
 }
@@ -126,7 +128,26 @@ bool platform::loop ()
 
 void platform::render ()
 {
+	// make consoles point to maps being drawn
+	g_statusConsole.fontBgMap  = bgGetMapPtr (g_statusConsole.bgId);
+	g_logConsole.fontBgMap     = g_statusConsole.fontBgMap;
+	g_sessionConsole.fontBgMap = bgGetMapPtr (g_sessionConsole.bgId);
+
 	swiWaitForVBlank ();
+
+	// point maps to back buffer to draw on next frame
+	bgInit (0, BgType_Text4bpp, BgSize_T_256x256, 4 + s_backBuffer, 0);
+	bgInitSub (0, BgType_Text4bpp, BgSize_T_256x256, 4 + s_backBuffer, 0);
+
+	// initialize back buffer with previous contents
+	dmaCopyWordsAsynch (0, bgGetMapPtr (g_statusConsole.bgId), g_statusConsole.fontBgMap, 0x800);
+	dmaCopyWordsAsynch (1, bgGetMapPtr (g_sessionConsole.bgId), g_sessionConsole.fontBgMap, 0x800);
+	while ((DMA_CR (0) & DMA_BUSY) || (DMA_CR (1) & DMA_BUSY))
+	{
+	}
+
+	// flip buffers
+	s_backBuffer = !s_backBuffer;
 }
 
 void platform::exit ()
