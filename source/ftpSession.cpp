@@ -1153,8 +1153,6 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 		m_transfer = &FtpSession::storeTransfer;
 	}
 
-	m_xferBuffer.clear ();
-
 	LOCKED (m_workItem = path);
 }
 
