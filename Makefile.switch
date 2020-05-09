@@ -92,7 +92,7 @@ LIBS	:= `$(PREFIX)pkg-config --libs libzstd` -ldeko3dd -lnx
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(LIBNX)
+LIBDIRS	:= $(LIBNX)
 
 
 #---------------------------------------------------------------------------------
@@ -292,7 +292,9 @@ endif
 
 $(OUTPUT).elf	:	$(OFILES)
 
-$(OFILES_SRC)	: $(HFILES_BIN)
+$(OFILES)		:	$(TOPDIR)/Makefile $(TOPDIR)/Makefile.switch
+
+$(OFILES_SRC)	:	$(HFILES_BIN)
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data

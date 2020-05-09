@@ -73,7 +73,7 @@ endif
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS := $(LIBNDS) $(PORTLIBS)
+LIBDIRS := $(LIBNDS)
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
@@ -175,7 +175,7 @@ $(OUTPUT).nds: $(OUTPUT).elf
 $(OUTPUT).elf: $(OFILES)
 
 # need to build soundbank first
-$(OFILES): $(SOUNDBANK)
+$(OFILES): $(SOUNDBANK) $(TOPDIR)/Makefile $(TOPDIR)/Makefile.nds
 
 #---------------------------------------------------------------------------------
 # rule to build solution from music files
