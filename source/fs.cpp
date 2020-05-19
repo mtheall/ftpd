@@ -20,6 +20,7 @@
 
 #include "fs.h"
 
+#include <cassert>
 #include <cinttypes>
 #include <cstdio>
 #include <string>
@@ -134,14 +135,28 @@ void fs::File::close ()
 	m_fp.reset ();
 }
 
-ssize_t fs::File::seek (std::size_t const pos_, int const origin_)
+std::make_signed_t<std::size_t> fs::File::seek (std::size_t const pos_, int const origin_)
 {
 	return std::fseek (m_fp.get (), pos_, origin_);
 }
 
-ssize_t fs::File::read (void *const data_, std::size_t const size_)
+std::make_signed_t<std::size_t> fs::File::read (void *const buffer_, std::size_t const size_)
 {
-	return std::fread (data_, 1, size_, m_fp.get ());
+	assert (buffer_);
+	assert (size_ > 0);
+
+	return std::fread (buffer_, 1, size_, m_fp.get ());
+}
+
+std::make_signed_t<std::size_t> fs::File::read (IOBuffer &buffer_)
+{
+	assert (buffer_.freeSize () > 0);
+
+	auto const rc = read (buffer_.freeArea (), buffer_.freeSize ());
+	if (rc > 0)
+		buffer_.markUsed (rc);
+
+	return rc;
 }
 
 std::string_view fs::File::readLine ()
@@ -165,11 +180,14 @@ std::string_view fs::File::readLine ()
 	}
 }
 
-bool fs::File::readAll (void *const data_, std::size_t const size_)
+bool fs::File::readAll (void *const buffer_, std::size_t const size_)
 {
-	auto p            = static_cast<char *> (data_);
-	std::size_t bytes = 0;
+	assert (buffer_);
+	assert (size_ > 0);
 
+	auto p = static_cast<char *> (buffer_);
+
+	std::size_t bytes = 0;
 	while (bytes < size_)
 	{
 		auto const rc = read (p, size_ - bytes);
@@ -183,16 +201,19 @@ bool fs::File::readAll (void *const data_, std::size_t const size_)
 	return true;
 }
 
-ssize_t fs::File::write (void const *const data_, std::size_t const size_)
+std::make_signed_t<std::size_t> fs::File::write (void const *const buffer_, std::size_t const size_)
 {
-	return std::fwrite (data_, 1, size_, m_fp.get ());
+	return std::fwrite (buffer_, 1, size_, m_fp.get ());
 }
 
-bool fs::File::writeAll (void const *const data_, std::size_t const size_)
+bool fs::File::writeAll (void const *const buffer_, std::size_t const size_)
 {
-	auto p            = static_cast<char const *> (data_);
-	std::size_t bytes = 0;
+	assert (buffer_);
+	assert (size_ > 0);
 
+	auto p = static_cast<char const *> (buffer_);
+
+	std::size_t bytes = 0;
 	while (bytes < size_)
 	{
 		auto const rc = write (p, size_ - bytes);

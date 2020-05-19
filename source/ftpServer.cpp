@@ -355,6 +355,7 @@ void FtpServer::showMenu ()
 			m_getMTimeSetting = m_config->getMTime ();
 #endif
 
+			info ("Open \"Settings\" popup\n");
 			ImGui::OpenPopup ("Settings");
 		}
 

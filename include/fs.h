@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "ioBuffer.h"
+
 #include <dirent.h>
 
 #include <cstdint>
@@ -75,34 +77,44 @@ public:
 	/// \brief Seek to file position
 	/// \param pos_ File position
 	/// \param origin_ Reference position (\sa std::fseek)
-	ssize_t seek (std::size_t pos_, int origin_);
+	std::make_signed_t<std::size_t> seek (std::size_t pos_, int origin_);
 
 	/// \brief Read data
-	/// \param data_ Output buffer
+	/// \param buffer_ Output buffer
 	/// \param size_ Size to read
 	/// \note Can return partial reads
-	ssize_t read (void *data_, std::size_t size_);
+	std::make_signed_t<std::size_t> read (void *buffer_, std::size_t size_);
+
+	/// \brief Read data
+	/// \param buffer_ Output buffer
+	/// \note Can return partial reads
+	std::make_signed_t<std::size_t> read (IOBuffer &buffer_);
 
 	/// \brief Read line
 	std::string_view readLine ();
 
 	/// \brief Read data
-	/// \param data_ Output buffer
+	/// \param buffer_ Output buffer
 	/// \param size_ Size to read
 	/// \note Fails on partial reads and errors
-	bool readAll (void *data_, std::size_t size_);
+	bool readAll (void *buffer_, std::size_t size_);
 
 	/// \brief Write data
-	/// \param data_ Input data
+	/// \param buffer_ Input data
 	/// \param size_ Size to write
 	/// \note Can return partial writes
-	ssize_t write (void const *data_, std::size_t size_);
+	std::make_signed_t<std::size_t> write (void const *buffer_, std::size_t size_);
 
 	/// \brief Write data
-	/// \param data_ Input data
+	/// \param buffer_ Input data
+	/// \note Can return partial writes
+	std::make_signed_t<std::size_t> write (IOBuffer &buffer_);
+
+	/// \brief Write data
+	/// \param buffer_ Input data
 	/// \param size_ Size to write
 	/// \note Fails on partials writes and errors
-	bool writeAll (void const *data_, std::size_t size_);
+	bool writeAll (void const *buffer_, std::size_t size_);
 
 private:
 	/// \brief Underlying std::FILE*

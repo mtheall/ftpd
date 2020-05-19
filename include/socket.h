@@ -118,23 +118,22 @@ public:
 	/// \param buffer_ Output buffer
 	/// \param size_ Size to read
 	/// \param oob_ Whether to read from out-of-band
-	ssize_t read (void *buffer_, std::size_t size_, bool oob_ = false);
+	std::make_signed_t<std::size_t> read (void *buffer_, std::size_t size_, bool oob_ = false);
 
 	/// \brief Read data
 	/// \param buffer_ Output buffer
-	/// \param size_ Size to read
 	/// \param oob_ Whether to read from out-of-band
-	ssize_t read (IOBuffer &buffer_, bool oob_ = false);
+	std::make_signed_t<std::size_t> read (IOBuffer &buffer_, bool oob_ = false);
 
 	/// \brief Write data
 	/// \param buffer_ Input buffer
 	/// \param size_ Size to write
-	ssize_t write (void const *buffer_, std::size_t size_);
+	std::make_signed_t<std::size_t> write (void const *buffer_, std::size_t size_);
 
 	/// \brief Write data
 	/// \param buffer_ Input buffer
 	/// \param size_ Size to write
-	ssize_t write (IOBuffer &buffer_);
+	std::make_signed_t<std::size_t> write (IOBuffer &buffer_);
 
 	/// \brief Local name
 	SockAddr const &sockName () const;

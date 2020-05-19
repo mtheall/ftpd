@@ -238,7 +238,7 @@ bool Socket::setNonBlocking (bool const nonBlocking_)
 
 bool Socket::setReuseAddress (bool const reuse_)
 {
-	int reuse = reuse_;
+	int const reuse = reuse_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof (reuse)) != 0)
 	{
 		error ("setsockopt(SO_REUSEADDR, %s): %s\n", reuse_ ? "yes" : "no", std::strerror (errno));
@@ -250,7 +250,7 @@ bool Socket::setReuseAddress (bool const reuse_)
 
 bool Socket::setRecvBufferSize (std::size_t const size_)
 {
-	int size = size_;
+	int const size = size_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof (size)) != 0)
 	{
 		error ("setsockopt(SO_RCVBUF, %zu): %s\n", size_, std::strerror (errno));
@@ -262,7 +262,7 @@ bool Socket::setRecvBufferSize (std::size_t const size_)
 
 bool Socket::setSendBufferSize (std::size_t const size_)
 {
-	int size = size_;
+	int const size = size_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof (size)) != 0)
 	{
 		error ("setsockopt(SO_SNDBUF, %zu): %s\n", size_, std::strerror (errno));
@@ -272,10 +272,12 @@ bool Socket::setSendBufferSize (std::size_t const size_)
 	return true;
 }
 
-ssize_t Socket::read (void *const buffer_, std::size_t const size_, bool const oob_)
+std::make_signed_t<std::size_t>
+    Socket::read (void *const buffer_, std::size_t const size_, bool const oob_)
 {
 	assert (buffer_);
 	assert (size_);
+
 	auto const rc = ::recv (m_fd, buffer_, size_, oob_ ? MSG_OOB : 0);
 	if (rc < 0 && errno != EWOULDBLOCK)
 		error ("recv: %s\n", std::strerror (errno));
@@ -283,8 +285,10 @@ ssize_t Socket::read (void *const buffer_, std::size_t const size_, bool const o
 	return rc;
 }
 
-ssize_t Socket::read (IOBuffer &buffer_, bool const oob_)
+std::make_signed_t<std::size_t> Socket::read (IOBuffer &buffer_, bool const oob_)
 {
+	assert (buffer_.freeSize () > 0);
+
 	auto const rc = read (buffer_.freeArea (), buffer_.freeSize (), oob_);
 	if (rc > 0)
 		buffer_.markUsed (rc);
@@ -292,10 +296,11 @@ ssize_t Socket::read (IOBuffer &buffer_, bool const oob_)
 	return rc;
 }
 
-ssize_t Socket::write (void const *const buffer_, std::size_t const size_)
+std::make_signed_t<std::size_t> Socket::write (void const *const buffer_, std::size_t const size_)
 {
 	assert (buffer_);
-	assert (size_);
+	assert (size_ > 0);
+
 	auto const rc = ::send (m_fd, buffer_, size_, 0);
 	if (rc < 0 && errno != EWOULDBLOCK)
 		error ("send: %s\n", std::strerror (errno));
@@ -303,8 +308,10 @@ ssize_t Socket::write (void const *const buffer_, std::size_t const size_)
 	return rc;
 }
 
-ssize_t Socket::write (IOBuffer &buffer_)
+std::make_signed_t<std::size_t> Socket::write (IOBuffer &buffer_)
 {
+	assert (buffer_.usedSize () > 0);
+
 	auto const rc = write (buffer_.usedArea (), buffer_.usedSize ());
 	if (rc > 0)
 		buffer_.markFree (rc);
