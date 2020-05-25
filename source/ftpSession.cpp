@@ -279,7 +279,8 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_mlstSize (true),
       m_mlstModify (true),
       m_mlstPerm (true),
-      m_mlstUnixMode (false)
+      m_mlstUnixMode (false),
+      m_devZero (false)
 {
 	if (m_config.user ().empty ())
 		m_authorizedUser = true;
@@ -612,6 +613,7 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 			m_workItem.clear ();
 		}
 
+		m_devZero = false;
 		m_file.close ();
 		m_dir.close ();
 	}
@@ -1055,7 +1057,11 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 		return;
 	}
 
-	if (mode_ == XferFileMode::RETR)
+	if (path == "/devZero")
+	{
+		m_devZero = true;
+	}
+	else if (mode_ == XferFileMode::RETR)
 	{
 		// stat the file
 		struct stat st;
@@ -1709,29 +1715,34 @@ bool FtpSession::retrieveTransfer ()
 	{
 		m_xferBuffer.clear ();
 
-		auto const buffer = m_xferBuffer.freeArea ();
-		auto const size   = m_xferBuffer.freeSize ();
-
-		// we have sent all the data, so read some more
-		auto const rc = m_file.read (buffer, size);
-		if (rc < 0)
+		if (!m_devZero)
 		{
-			// failed to read data
-			sendResponse ("451 %s\r\n", std::strerror (errno));
-			setState (State::COMMAND, true, true);
-			return false;
-		}
+			// we have sent all the data, so read some more
+			auto const rc = m_file.read (m_xferBuffer);
+			if (rc < 0)
+			{
+				// failed to read data
+				sendResponse ("451 %s\r\n", std::strerror (errno));
+				setState (State::COMMAND, true, true);
+				return false;
+			}
 
-		if (rc == 0)
+			if (rc == 0)
+			{
+				// reached end of file
+				sendResponse ("226 OK\r\n");
+				setState (State::COMMAND, true, true);
+				return false;
+			}
+		}
+		else
 		{
-			// reached end of file
-			sendResponse ("226 OK\r\n");
-			setState (State::COMMAND, true, true);
-			return false;
-		}
+			auto const buffer = m_xferBuffer.freeArea ();
+			auto const size   = m_xferBuffer.freeSize ();
 
-		// we read some data
-		m_xferBuffer.markUsed (rc);
+			std::memset (buffer, 0, size);
+			m_xferBuffer.markUsed (size);
+		}
 	}
 
 	// send any pending data
@@ -1780,19 +1791,27 @@ bool FtpSession::storeTransfer ()
 		}
 	}
 
-	// write any pending data
-	auto const rc = m_file.write (m_xferBuffer.usedArea (), m_xferBuffer.usedSize ());
-	if (rc <= 0)
+	if (!m_devZero)
 	{
-		// error writing data
-		sendResponse ("426 %s\r\n", rc < 0 ? std::strerror (errno) : "Failed to write data");
-		setState (State::COMMAND, true, true);
-		return false;
+		// write any pending data
+		auto const rc = m_file.write (m_xferBuffer);
+		if (rc <= 0)
+		{
+			// error writing data
+			sendResponse ("426 %s\r\n", rc < 0 ? std::strerror (errno) : "Failed to write data");
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
+		// we can try to recv/write more data
+		LOCKED (m_filePosition += rc);
+	}
+	else
+	{
+		LOCKED (m_filePosition += m_xferBuffer.usedSize ());
+		m_xferBuffer.clear ();
 	}
 
-	// we can try to recv/write more data
-	LOCKED (m_filePosition += rc);
-	m_xferBuffer.markFree (rc);
 	return true;
 }
 

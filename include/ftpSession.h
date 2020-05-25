@@ -316,6 +316,9 @@ private:
 	/// \brief Whether MLST unix.mode fact is enabled
 	bool m_mlstUnixMode : 1;
 
+	/// \brief Whether emulating /dev/zero
+	bool m_devZero : 1;
+
 	/// \brief Abort a transfer
 	/// \param args_ Command arguments
 	void ABOR (char const *args_);

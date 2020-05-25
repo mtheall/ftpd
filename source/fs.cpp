@@ -203,7 +203,21 @@ bool fs::File::readAll (void *const buffer_, std::size_t const size_)
 
 std::make_signed_t<std::size_t> fs::File::write (void const *const buffer_, std::size_t const size_)
 {
+	assert (buffer_);
+	assert (size_ > 0);
+
 	return std::fwrite (buffer_, 1, size_, m_fp.get ());
+}
+
+std::make_signed_t<std::size_t> fs::File::write (IOBuffer &buffer_)
+{
+	assert (buffer_.usedSize () > 0);
+
+	auto const rc = write (buffer_.usedArea (), buffer_.usedSize ());
+	if (rc > 0)
+		buffer_.markFree (rc);
+
+	return rc;
 }
 
 bool fs::File::writeAll (void const *const buffer_, std::size_t const size_)
