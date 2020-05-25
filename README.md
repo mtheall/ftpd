@@ -6,12 +6,44 @@ FTP Server for 3DS/Switch/Linux.
 
 - Appears to work well with a variety of clients.
 - Supports multiple simultaneous clients. The 3DS itself only appears to support enough sockets to perform 4-5 simultaneous data transfers, so it will help if you limit your FTP client to this many parallel requests.
-- Cutting-edge graphics.
+- Cutting-edge [graphics](#dear-imgui).
 
-- Toggle backlight on 3DS with SELECT button
+- Exit on NDS/3DS with START button
+- Exit on Switch with PLUS button
+
+- Toggle backlight on NDS/3DS with SELECT button
 - Toggle backlight on Switch with MINUS button
 
+- Emulation of a /dev/zero (/devZero) device for network performance testing
+  - Example retrieve `curl ftp://192.168.1.115:5000/devZero -o /dev/zero`
+  - Example send `curl -T /dev/zero ftp://192.168.1.115:5000/devZero`
+
+## Dear ImGui
+
+ftpd uses [Dear ImGui](https://github.com/ocornut/imgui) as its graphical backend.
+
+Standard Dear ImGui controller inputs are supported.
+
+- A
+  - Activate/Open/Toggle
+  - Tweak value with D-Pad (+ L/R to tweak slower/faster)
+- B
+  - Cancel/Close/Exit
+- X
+  - Edit text / on-screen keyboard
+- Y
+  - Tap: Toggle menu
+  - Hold + L/R: Focus windows
+- Left Stick
+  - Scroll
+  - Move window (when holding Y)
+- D-Pad
+  - Move
+  - Tweak values (when activated with A)
+  - Resize window (when holding Y)
+
 ## Latest Builds
+
 NDS: https://mtheall.com/~mtheall/ftpd.nds
 
 CIA: https://mtheall.com/~mtheall/ftpd.cia
@@ -25,6 +57,8 @@ CIA QR Code
 ![ftpd.cia](https://github.com/mtheall/ftpd/raw/feature/v3.0.0/ftpd-qr.png)
 
 ## Classic Builds
+
+Classic builds use a console instead of Dear ImGui.
 
 CIA: https://mtheall.com/~mtheall/ftpd-classic.cia
 
@@ -132,5 +166,7 @@ Build `switch/ftpd.nro`:
 - Set username: SITE USER <NAME>
 - Set password: SITE PASS <PASS>
 - Set port:     SITE PORT <PORT>
-- Set getMTime: SITE MTIME [0|1]
+- Set getMTime*: SITE MTIME [0|1]
 - Save config:  SITE SAVE
+
+*getMTime only on 3DS. Enabling will give timestamps at the expense of slow listings.
