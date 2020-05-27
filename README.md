@@ -54,7 +54,7 @@ NRO: https://mtheall.com/~mtheall/ftpd.nro
 
 CIA QR Code
 
-![ftpd.cia](https://github.com/mtheall/ftpd/raw/feature/v3.0.0/ftpd-qr.png)
+![ftpd.cia](https://github.com/mtheall/ftpd/raw/master/ftpd-qr.png)
 
 ## Classic Builds
 
@@ -68,7 +68,7 @@ NRO: https://mtheall.com/~mtheall/ftpd-classic.nro
 
 CIA QR Code
 
-![ftpd-classic.cia](https://github.com/mtheall/ftpd/raw/feature/v3.0.0/ftpd-classic-qr.png)
+![ftpd-classic.cia](https://github.com/mtheall/ftpd/raw/master/ftpd-classic-qr.png)
 
 ## Build and install
 
