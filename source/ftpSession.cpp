@@ -2,6 +2,8 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
+// - Deflate transmission mode for FTP
+//   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
 // Copyright (C) 2024 Michael Theall
 //
@@ -378,6 +380,8 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_commandBuffer (COMMAND_BUFFERSIZE),
       m_responseBuffer (RESPONSE_BUFFERSIZE),
       m_xferBuffer (XFER_BUFFERSIZE),
+      m_zStreamBuffer (XFER_BUFFERSIZE),
+      m_zStream (nullptr, nullptr),
       m_authorizedUser (false),
       m_authorizedPass (false),
       m_pasv (false),
@@ -385,6 +389,9 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_recv (false),
       m_send (false),
       m_urgent (false),
+      m_deflate (false),
+      m_zFlushed (false),
+      m_eof (false),
       m_mlstType (true),
       m_mlstSize (true),
       m_mlstModify (true),
@@ -795,6 +802,7 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 		m_devZero = false;
 		m_file.close ();
 		m_dir.close ();
+		m_zStream.reset ();
 	}
 }
 
@@ -974,8 +982,10 @@ int FtpSession::tzLStat (char const *const path_, stat_t *st_)
 
 int FtpSession::fillDirent (stat_t const &st_, std::string_view const path_, char const *type_)
 {
-	auto const buffer = m_xferBuffer.freeArea ();
-	auto const size   = m_xferBuffer.freeSize ();
+	auto &ioBuffer = m_deflate ? m_zStreamBuffer : m_xferBuffer;
+
+	auto const buffer = ioBuffer.freeArea ();
+	auto const size   = ioBuffer.freeSize ();
 
 	std::size_t pos = 0;
 
@@ -1250,7 +1260,7 @@ int FtpSession::fillDirent (stat_t const &st_, std::string_view const path_, cha
 	buffer[pos++] = '\r';
 	buffer[pos++] = '\n';
 
-	m_xferBuffer.markUsed (pos);
+	ioBuffer.markUsed (pos);
 	LOCKED (m_filePosition += pos);
 
 	return 0;
@@ -1267,7 +1277,46 @@ int FtpSession::fillDirent (std::string const &path_, char const *type_)
 
 void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 {
+	m_zFlushed = false;
+	m_eof      = false;
+
 	m_xferBuffer.clear ();
+	m_zStreamBuffer.clear ();
+
+	if (m_deflate)
+	{
+		if (mode_ == XferFileMode::RETR)
+			m_zStream = std::unique_ptr<z_stream, int (*) (z_streamp)> (new z_stream, &deflateEnd);
+		else
+			m_zStream = std::unique_ptr<z_stream, int (*) (z_streamp)> (new z_stream, &inflateEnd);
+
+		m_zStream->zalloc    = Z_NULL;
+		m_zStream->zfree     = Z_NULL;
+		m_zStream->opaque    = Z_NULL;
+		m_zStream->next_in   = Z_NULL;
+		m_zStream->avail_in  = 0;
+		m_zStream->next_out  = Z_NULL;
+		m_zStream->avail_out = 0;
+
+		if (mode_ == XferFileMode::RETR)
+		{
+			if (deflateInit (m_zStream.get (), m_config.deflateLevel ()) != Z_OK)
+			{
+				sendResponse ("550 %s\r\n", m_zStream->msg ? m_zStream->msg : "zlib error");
+				setState (State::COMMAND, true, true);
+				return;
+			}
+		}
+		else
+		{
+			if (inflateInit (m_zStream.get ()) != Z_OK)
+			{
+				sendResponse ("550 %s\r\n", m_zStream->msg ? m_zStream->msg : "zlib error");
+				setState (State::COMMAND, true, true);
+				return;
+			}
+		}
+	}
 
 	// build the path of the file to transfer
 	auto const path = buildResolvedPath (m_cwd, args_);
@@ -1389,9 +1438,32 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 	m_xferDirMode = mode_;
 	m_recv        = false;
 	m_send        = true;
+	m_zFlushed    = false;
+	m_eof         = false;
 
-	m_filePosition = 0;
+	m_filePosition    = 0;
+	m_zStreamPosition = 0;
 	m_xferBuffer.clear ();
+	m_zStreamBuffer.clear ();
+
+	if (m_deflate)
+	{
+		m_zStream = std::unique_ptr<z_stream, int (*) (z_streamp)> (new z_stream, &deflateEnd);
+		m_zStream->zalloc    = Z_NULL;
+		m_zStream->zfree     = Z_NULL;
+		m_zStream->opaque    = Z_NULL;
+		m_zStream->next_in   = Z_NULL;
+		m_zStream->avail_in  = 0;
+		m_zStream->next_out  = Z_NULL;
+		m_zStream->avail_out = 0;
+
+		if (deflateInit (m_zStream.get (), m_config.deflateLevel ()) != Z_OK)
+		{
+			sendResponse ("550 %s\r\n", m_zStream->msg ? m_zStream->msg : "zlib error");
+			setState (State::COMMAND, true, true);
+			return;
+		}
+	}
 
 	m_transfer = &FtpSession::listTransfer;
 
@@ -1830,6 +1902,98 @@ void FtpSession::sendResponse (std::string_view const response_)
 	m_responseBuffer.markUsed (response_.size ());
 }
 
+bool FtpSession::deflateBuffer (bool const flush_)
+{
+	auto const inSize  = m_zStreamBuffer.usedSize ();
+	auto const outSize = m_xferBuffer.freeSize ();
+
+	if (!m_zStream->avail_in)
+	{
+		m_zStream->avail_in = inSize;
+		m_zStream->next_in  = reinterpret_cast<Bytef *> (m_zStreamBuffer.usedArea ());
+	}
+
+	m_zStream->avail_out = outSize;
+	m_zStream->next_out  = reinterpret_cast<Bytef *> (m_xferBuffer.freeArea ());
+
+	auto const rc = deflate (m_zStream.get (), flush_ ? Z_FINISH : Z_NO_FLUSH);
+
+	if (flush_)
+	{
+		if (rc == Z_OK || rc == Z_BUF_ERROR)
+		{
+			m_zStreamBuffer.markFree (inSize - m_zStream->avail_in);
+			m_xferBuffer.markUsed (outSize - m_zStream->avail_out);
+			m_zStreamPosition += outSize - m_zStream->avail_out;
+			return true;
+		}
+
+		if (rc == Z_STREAM_END)
+		{
+			m_zFlushed = true;
+			m_zStreamBuffer.markFree (inSize - m_zStream->avail_in);
+			m_xferBuffer.markUsed (outSize - m_zStream->avail_out);
+			m_zStreamPosition += outSize - m_zStream->avail_out;
+			return true;
+		}
+
+		sendResponse ("501 %s\r\n", m_zStream->msg ? m_zStream->msg : "zlib error");
+		setState (State::COMMAND, true, true);
+		return false;
+	}
+
+	// !flush_
+	if (rc != Z_OK)
+	{
+		sendResponse ("501 %s\r\n", m_zStream->msg ? m_zStream->msg : "zlib error");
+		setState (State::COMMAND, true, true);
+		return false;
+	}
+
+	m_zStreamBuffer.markFree (inSize - m_zStream->avail_in);
+	m_xferBuffer.markUsed (outSize - m_zStream->avail_out);
+	m_zStreamPosition += outSize - m_zStream->avail_out;
+	return true;
+}
+
+bool FtpSession::inflateBuffer ()
+{
+	auto const inSize  = m_zStreamBuffer.usedSize ();
+	auto const outSize = m_xferBuffer.freeSize ();
+
+	if (!m_zStream->avail_in)
+	{
+		m_zStream->avail_in = inSize;
+		m_zStream->next_in  = reinterpret_cast<Bytef *> (m_zStreamBuffer.usedArea ());
+	}
+
+	m_zStream->avail_out = outSize;
+	m_zStream->next_out  = reinterpret_cast<Bytef *> (m_xferBuffer.freeArea ());
+
+	auto const rc = inflate (m_zStream.get (), Z_NO_FLUSH);
+
+	if (rc == Z_STREAM_END)
+	{
+		m_zFlushed = true;
+		m_zStreamBuffer.markFree (inSize - m_zStream->avail_in);
+		m_xferBuffer.markUsed (outSize - m_zStream->avail_out);
+		m_zStreamPosition += inSize - m_zStream->avail_in;
+		return true;
+	}
+
+	if (rc != Z_OK)
+	{
+		sendResponse ("501 %s\r\n", m_zStream->msg ? m_zStream->msg : "zlib error");
+		setState (State::COMMAND, true, true);
+		return false;
+	}
+
+	m_zStreamBuffer.markFree (inSize - m_zStream->avail_in);
+	m_xferBuffer.markUsed (outSize - m_zStream->avail_out);
+	m_zStreamPosition += inSize - m_zStream->avail_in;
+	return true;
+}
+
 bool FtpSession::listTransfer ()
 {
 	// check if we sent all available data
@@ -1837,18 +2001,32 @@ bool FtpSession::listTransfer ()
 	{
 		m_xferBuffer.clear ();
 
+		if (!m_zStreamBuffer.empty ())
+			return deflateBuffer (false);
+
+		if (m_deflate && !m_zFlushed && m_eof)
+			return deflateBuffer (true);
+
+		m_zStreamBuffer.clear ();
+
 		// check xfer dir type
 		int rc = 226;
 		if (m_xferDirMode == XferDirMode::MLST || m_xferDirMode == XferDirMode::STAT)
 			rc = 250;
 
+		if (m_eof && (m_deflate == m_zFlushed))
+		{
+			sendResponse ("%d OK\r\n", rc);
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
 		// check if this was for a file/MLST
 		if (!m_dir)
 		{
 			// we already sent the file's listing
-			sendResponse ("%d OK\r\n", rc);
-			setState (State::COMMAND, true, true);
-			return false;
+			m_eof = true;
+			return true;
 		}
 
 		// get the next directory entry
@@ -1856,9 +2034,8 @@ bool FtpSession::listTransfer ()
 		if (!dent)
 		{
 			// we have exhausted the directory listing
-			sendResponse ("%d OK\r\n", rc);
-			setState (State::COMMAND, true, true);
-			return false;
+			m_eof = true;
+			return true;
 		}
 
 		// I think we are supposed to return entries for . and ..
@@ -1868,17 +2045,18 @@ bool FtpSession::listTransfer ()
 		// check if this was NLST
 		if (m_xferDirMode == XferDirMode::NLST)
 		{
+			auto &ioBuffer = m_deflate ? m_zStreamBuffer : m_xferBuffer;
 			// NLST gives the whole path name
 			auto const path = encodePath (buildPath (m_lwd, dent->d_name)) + "\r\n";
-			if (m_xferBuffer.freeSize () < path.size ())
+			if (ioBuffer.freeSize () < path.size ())
 			{
 				sendResponse ("501 %s\r\n", std::strerror (ENOMEM));
 				setState (State::COMMAND, true, true);
 				return false;
 			}
 
-			std::memcpy (m_xferBuffer.freeArea (), path.data (), path.size ());
-			m_xferBuffer.markUsed (path.size ());
+			std::memcpy (ioBuffer.freeArea (), path.data (), path.size ());
+			ioBuffer.markUsed (path.size ());
 			LOCKED (m_filePosition += path.size ());
 		}
 		else
@@ -1955,6 +2133,9 @@ bool FtpSession::listTransfer ()
 				return false;
 			}
 		}
+
+		if (m_deflate)
+			return true;
 	}
 
 	// send any pending data
@@ -2038,10 +2219,27 @@ bool FtpSession::retrieveTransfer ()
 	{
 		m_xferBuffer.clear ();
 
+		auto &ioBuffer = m_deflate ? m_zStreamBuffer : m_xferBuffer;
+
 		if (!m_devZero)
 		{
+			if (!m_zStreamBuffer.empty ())
+				return deflateBuffer (false);
+
+			if (m_deflate && !m_zFlushed && m_eof)
+				return deflateBuffer (true);
+
+			m_zStreamBuffer.clear ();
+
+			if (m_eof && (m_deflate == m_zFlushed))
+			{
+				sendResponse ("226 OK\r\n");
+				setState (State::COMMAND, true, true);
+				return false;
+			}
+
 			// we have sent all the data, so read some more
-			auto const rc = m_file.read (m_xferBuffer);
+			auto const rc = m_file.read (ioBuffer);
 			if (rc < 0)
 			{
 				// failed to read data
@@ -2053,19 +2251,33 @@ bool FtpSession::retrieveTransfer ()
 			if (rc == 0)
 			{
 				// reached end of file
-				sendResponse ("226 OK\r\n");
-				setState (State::COMMAND, true, true);
-				return false;
+				m_eof = true;
+				return true;
 			}
+
+			LOCKED (m_filePosition += rc);
 		}
 		else
 		{
-			auto const buffer = m_xferBuffer.freeArea ();
-			auto const size   = m_xferBuffer.freeSize ();
+			if (!m_zStreamBuffer.empty ())
+				return deflateBuffer (false);
+
+			if (m_deflate && !m_zFlushed && m_eof)
+				return deflateBuffer (true);
+
+			m_zStreamBuffer.clear ();
+
+			auto const buffer = ioBuffer.freeArea ();
+			auto const size   = ioBuffer.freeSize ();
 
 			std::memset (buffer, 0, size);
-			m_xferBuffer.markUsed (size);
+			ioBuffer.markUsed (size);
+
+			LOCKED (m_filePosition += size);
 		}
+
+		if (m_deflate)
+			return true;
 	}
 
 	// send any pending data
@@ -2084,7 +2296,6 @@ bool FtpSession::retrieveTransfer ()
 	m_timestamp = std::time (nullptr);
 
 	// we can try to read/send more data
-	LOCKED (m_filePosition += rc);
 	return true;
 }
 
@@ -2094,8 +2305,23 @@ bool FtpSession::storeTransfer ()
 	{
 		m_xferBuffer.clear ();
 
+		auto &ioBuffer = m_deflate ? m_zStreamBuffer : m_xferBuffer;
+
+		if (!m_zStreamBuffer.empty ())
+			return inflateBuffer ();
+
+		if (m_deflate && !m_zFlushed && m_eof)
+			return inflateBuffer ();
+
+		if (m_eof && (m_deflate == m_zFlushed))
+		{
+			sendResponse ("226 OK\r\n");
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
 		// we have written all the received data, so try to get some more
-		auto const rc = m_dataSocket->read (m_xferBuffer);
+		auto const rc = m_dataSocket->read (ioBuffer);
 		if (rc < 0)
 		{
 			// failed to read data
@@ -2110,12 +2336,14 @@ bool FtpSession::storeTransfer ()
 		if (rc == 0)
 		{
 			// reached end of file
-			sendResponse ("226 OK\r\n");
-			setState (State::COMMAND, true, true);
-			return false;
+			m_eof = true;
+			return true;
 		}
 
 		m_timestamp = std::time (nullptr);
+
+		if (m_deflate)
+			return true;
 	}
 
 	if (!m_devZero)
@@ -2256,6 +2484,7 @@ void FtpSession::FEAT (char const *args_)
 	sendResponse ("211-\r\n"
 	              " MDTM\r\n"
 	              " MLST Type%s;Size%s;Modify%s;Perm%s;UNIX.mode%s;\r\n"
+	              " MODE Z\r\n"
 	              " PASV\r\n"
 	              " SIZE\r\n"
 	              " TVFS\r\n"
@@ -2369,9 +2598,17 @@ void FtpSession::MODE (char const *args_)
 {
 	setState (State::COMMAND, false, false);
 
-	// we only accept S (stream) mode
+	// S (stream) mode
 	if (compare (args_, "S") == 0)
 	{
+		m_deflate = false;
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+	// Z (deflate) mode
+	else if (compare (args_, "Z") == 0)
+	{
+		m_deflate = true;
 		sendResponse ("200 OK\r\n");
 		return;
 	}
@@ -2485,6 +2722,59 @@ void FtpSession::OPTS (char const *args_)
 		    m_mlstModify ? "Modify;" : "",
 		    m_mlstPerm ? "Perm;" : "",
 		    m_mlstUnixMode ? "UNIX.mode;" : "");
+		return;
+	}
+
+	if (::strncasecmp (args_, "MODE Z ", 7) == 0)
+	{
+		auto p = args_ + 7;
+
+		auto const nextWord = [] (char const *&p_) {
+			while (*p_ && std::isspace (*p_))
+				++p_;
+
+			auto const start = p_;
+			while (*p_ && !std::isspace (*p_))
+				++p_;
+
+			auto const end = p_;
+
+			return std::string_view (start, end - start);
+		};
+
+		int level = -1;
+		while (*p)
+		{
+			auto const opt = nextWord (p);
+			if (opt.empty ())
+				break;
+
+			if (opt.size () == 5 && ::strncasecmp (opt.data (), "LEVEL", 5) == 0)
+			{
+				auto const val = nextWord (p);
+				if (val.size () != 1 || !std::isdigit (val[0]))
+				{
+					sendResponse ("501 %s\r\n", std::strerror (EINVAL));
+					return;
+				}
+
+				level = val[0] - '0';
+				m_config.setDeflateLevel (level);
+			}
+			else
+			{
+				sendResponse ("501 %s\r\n", std::strerror (EINVAL));
+				return;
+			}
+		}
+
+		if (level < 0)
+		{
+			sendResponse ("501 %s\r\n", std::strerror (EINVAL));
+			return;
+		}
+
+		sendResponse ("200 MODE Z LEVEL set to %u\r\n", level);
 		return;
 	}
 
@@ -2883,6 +3173,7 @@ void FtpSession::SITE (char const *args_)
 		              " Set username: SITE USER <NAME>\r\n"
 		              " Set password: SITE PASS <PASS>\r\n"
 		              " Set port: SITE PORT <PORT>\r\n"
+		              " Set deflate level: SITE DEFLATE <LEVEL>\r\n"
 #ifndef __NDS__
 		              " Set hostname: SITE HOST <HOSTNAME>\r\n"
 #endif
@@ -2944,6 +3235,17 @@ void FtpSession::SITE (char const *args_)
 		sendResponse ("200 OK\r\n");
 		return;
 	}
+	else if (compare (command, "DEFLATE") == 0)
+	{
+		if (!m_config.setDeflateLevel (arg))
+		{
+			sendResponse ("550 %s\r\n", std::strerror (errno));
+			return;
+		}
+
+		sendResponse ("200 OK\r\n");
+		return;
+	}
 #ifndef __NDS__
 	else if (compare (command, "HOST") == 0)
 	{
@@ -2953,6 +3255,7 @@ void FtpSession::SITE (char const *args_)
 			mdns::setHostname (std::string (arg));
 		}
 	}
+
 #endif
 #ifdef __3DS__
 	else if (compare (command, "MTIME") == 0)

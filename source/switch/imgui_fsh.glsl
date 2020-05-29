@@ -2,6 +2,8 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
+// - Deflate transmission mode for FTP
+//   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 // 
 // The MIT License (MIT)
 //

@@ -2,6 +2,8 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
+// - Deflate transmission mode for FTP
+//   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
 // Copyright (C) 2024 Michael Theall
 //
@@ -602,6 +604,8 @@ void FtpServer::showMenu ()
 
 			m_portSetting = m_config->port ();
 
+			m_deflateLevelSetting = m_config->deflateLevel ();
+
 #ifdef __3DS__
 			m_getMTimeSetting = m_config->getMTime ();
 #endif
@@ -670,6 +674,9 @@ void FtpServer::showSettings ()
 		    "%u",
 		    ImGuiInputTextFlags_AutoSelectAll);
 
+		ImGui::SliderInt (
+		    "Deflate Level", &m_deflateLevelSetting, Z_NO_COMPRESSION, Z_BEST_COMPRESSION);
+
 #ifdef __3DS__
 		ImGui::Checkbox ("Get mtime", &m_getMTimeSetting);
 #endif
@@ -736,6 +743,7 @@ void FtpServer::showSettings ()
 			m_config->setPass (m_passSetting);
 			m_config->setHostname (m_hostnameSetting);
 			m_config->setPort (m_portSetting);
+			m_config->setDeflateLevel (m_deflateLevelSetting);
 
 #ifdef __3DS__
 			m_config->setGetMTime (m_getMTimeSetting);

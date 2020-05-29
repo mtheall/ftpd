@@ -25,6 +25,8 @@ FetchContent_Declare(imgui
 )
 FetchContent_Populate(imgui)
 
+find_package(ZLIB REQUIRED)
+
 option(FTPD_CLASSIC "Build ${PROJECT_NAME} classic" OFF)
 
 if(FTPD_CLASSIC AND (NINTENDO_SWITCH OR NINTENDO_3DS))
@@ -36,6 +38,8 @@ endif()
 add_executable(${FTPD_TARGET})
 
 target_include_directories(${FTPD_TARGET} PRIVATE ${gsl_SOURCE_DIR}/include)
+
+target_link_libraries(${FTPD_TARGET} PRIVATE ZLIB::ZLIB)
 
 if(NINTENDO_SWITCH OR NINTENDO_3DS OR NINTENDO_DS)
 	dkp_target_generate_symbol_list(${FTPD_TARGET})

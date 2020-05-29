@@ -2,6 +2,8 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
+// - Deflate transmission mode for FTP
+//   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
 // Copyright (C) 2024 Michael Theall
 //
@@ -26,6 +28,8 @@
 
 #include <gsl/pointers>
 
+#include <zlib.h>
+
 #include <sys/stat.h>
 using stat_t = struct stat;
 
@@ -43,6 +47,7 @@ using stat_t = struct stat;
 namespace
 {
 constexpr std::uint16_t DEFAULT_PORT = 5000;
+constexpr int DEFAULT_DEFLATE_LEVEL  = 6;
 
 bool mkdirParent (std::string_view const path_)
 {
@@ -105,7 +110,7 @@ bool parseInt (T &out_, std::string_view const val_)
 ///////////////////////////////////////////////////////////////////////////
 FtpConfig::~FtpConfig () = default;
 
-FtpConfig::FtpConfig () : m_port (DEFAULT_PORT)
+FtpConfig::FtpConfig () : m_port (DEFAULT_PORT), m_deflateLevel (DEFAULT_DEFLATE_LEVEL)
 {
 }
 
@@ -123,6 +128,7 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 		return config;
 
 	std::uint16_t port = DEFAULT_PORT;
+	int deflateLevel   = DEFAULT_DEFLATE_LEVEL;
 
 	std::string line;
 	while (!(line = fp.readLine ()).empty ())
@@ -148,6 +154,8 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 			config->m_pass = val;
 		else if (key == "port")
 			parseInt (port, val);
+		else if (key == "deflateLevel")
+			parseInt (deflateLevel, val);
 #ifdef __3DS__
 		else if (key == "mtime")
 		{
@@ -181,6 +189,7 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 	}
 
 	config->setPort (port);
+	config->setDeflateLevel (deflateLevel);
 
 	return config;
 }
@@ -206,6 +215,7 @@ bool FtpConfig::save (gsl::not_null<gsl::czstring> const path_)
 	if (!m_pass.empty ())
 		(void)std::fprintf (fp, "pass=%s\n", m_pass.c_str ());
 	(void)std::fprintf (fp, "port=%u\n", m_port);
+	(void)std::fprintf (fp, "deflateLevel=%u", m_deflateLevel);
 
 #ifdef __3DS__
 	(void)std::fprintf (fp, "mtime=%u\n", m_getMTime);
@@ -240,6 +250,11 @@ std::string const &FtpConfig::hostname () const
 std::uint16_t FtpConfig::port () const
 {
 	return m_port;
+}
+
+int FtpConfig::deflateLevel () const
+{
+	return m_deflateLevel;
 }
 
 #ifdef __3DS__
@@ -310,6 +325,24 @@ bool FtpConfig::setPort (std::uint16_t const port_)
 #endif
 
 	m_port = port_;
+	return true;
+}
+
+bool FtpConfig::setDeflateLevel (std::string_view const level_)
+{
+	int parsed;
+	if (!parseInt (parsed, level_))
+		return false;
+
+	return setDeflateLevel (parsed);
+}
+
+bool FtpConfig::setDeflateLevel (int const level_)
+{
+	if (level_ < Z_NO_COMPRESSION || level_ > Z_BEST_COMPRESSION)
+		return false;
+
+	m_deflateLevel = level_;
 	return true;
 }
 

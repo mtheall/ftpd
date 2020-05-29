@@ -2,6 +2,8 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
+// - Deflate transmission mode for FTP
+//   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
 // Copyright (C) 2024 Michael Theall
 //
@@ -32,6 +34,8 @@
 #else
 #define FTPD_HAS_GLOB 0
 #endif
+
+#include <zlib.h>
 
 #include <sys/stat.h>
 using stat_t = struct stat;
@@ -218,6 +222,13 @@ private:
 	/// \param response_ Response message
 	void sendResponse (std::string_view response_);
 
+	/// \brief Deflate buffer
+	/// \param flush_ Whether to flush
+	bool deflateBuffer (bool flush_);
+
+	/// \brief Inflate buffer
+	bool inflateBuffer ();
+
 	/// \brief Transfer function
 	bool (FtpSession::*m_transfer) () = nullptr;
 
@@ -263,6 +274,8 @@ private:
 
 	/// \brief Transfer buffer
 	IOBuffer m_xferBuffer;
+	/// \brief z-stream buffer
+	IOBuffer m_zStreamBuffer;
 
 	/// \brief Address from last PORT command
 	SockAddr m_portAddr;
@@ -290,6 +303,8 @@ private:
 
 	/// \brief Current file position
 	std::uint64_t m_filePosition = 0;
+	/// \brief Current z-stream position
+	std::uint64_t m_zStreamPosition = 0;
 
 	/// \brief File size of current transfer
 	std::uint64_t m_fileSize = 0;
@@ -349,6 +364,9 @@ private:
 	/// \brief Directory transfer mode
 	XferDirMode m_xferDirMode;
 
+	/// \brief z-stream
+	std::unique_ptr<z_stream, int (*) (z_streamp)> m_zStream;
+
 	/// \brief Last activity timestamp
 	time_t m_timestamp;
 
@@ -366,6 +384,12 @@ private:
 	bool m_send : 1;
 	/// \brief Whether urgent (out-of-band) data is on the way
 	bool m_urgent : 1;
+	/// \brief Whether using Z (deflate) mode
+	bool m_deflate : 1;
+	/// \brief Whether we finished processing z-stream
+	bool m_zFlushed : 1;
+	/// \brief Whether we finished reading data
+	bool m_eof : 1;
 
 	/// \brief Whether MLST type fact is enabled
 	bool m_mlstType : 1;

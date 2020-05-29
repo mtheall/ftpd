@@ -2,6 +2,8 @@
 // - RFC  959 (https://tools.ietf.org/html/rfc959)
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
+// - Deflate transmission mode for FTP
+//   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
 // Copyright (C) 2024 Michael Theall
 //
@@ -161,6 +163,9 @@ private:
 
 	/// \brief Port setting
 	std::uint16_t m_portSetting = 0;
+
+	/// \brief Deflate level setting
+	int m_deflateLevelSetting = Z_NO_COMPRESSION;
 
 #ifdef __3DS__
 	/// \brief getMTime setting
