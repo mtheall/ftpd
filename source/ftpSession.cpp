@@ -234,15 +234,26 @@ std::string resolvePath (std::string_view const path_)
 /// \param args_ Child component
 std::string buildPath (std::string_view const cwd_, std::string_view const args_)
 {
+	std::string path;
+
 	// absolute path
 	if (args_[0] == '/')
-		return std::string (args_);
+		path = std::string (args_);
+	// relative path
+	else
+		path = std::string (cwd_) + '/' + std::string (args_);
 
-	// root directory
-	if (cwd_.size () == 1)
-		return std::string (cwd_) + std::string (args_);
+	// coalesce consecutive slashes
+	auto it = std::begin (path);
+	while (it != std::end (path))
+	{
+		if (it != std::begin (path) && *it == '/' && *std::prev (it) == '/')
+			it = path.erase (it);
+		else
+			++it;
+	}
 
-	return std::string (cwd_) + '/' + std::string (args_);
+	return path;
 }
 
 /// \brief Build resolved path from a parent and child
