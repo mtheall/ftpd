@@ -119,15 +119,14 @@ private:
 	/// \brief Whether to show about window
 	bool m_showAbout = false;
 
+	/// \brief Language setting
+	unsigned m_languageSetting;
 	/// \brief User name setting
 	std::string m_userSetting;
-
 	/// \brief Password setting
 	std::string m_passSetting;
-
 	/// \brief Port setting
 	std::uint16_t m_portSetting;
-
 #ifdef _3DS
 	/// \brief getMTime setting
 	bool m_getMTimeSetting;

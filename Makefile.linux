@@ -7,11 +7,12 @@ CXXFILES  := $(wildcard source/*.cpp source/imgui/*.cpp source/linux/*.cpp)
 OFILES    := $(patsubst source/%,$(BUILD)/%,$(CFILES:.c=.c.o))
 OXXFILES  := $(patsubst source/%,$(BUILD)/%,$(CXXFILES:.cpp=.cpp.o))
 
-CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/linux \
+CPPFLAGS  := -g -O0 -Wall -pthread -Iinclude -Isource/linux \
              `pkg-config --cflags gl glfw3` \
              -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
              -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
              -DIMGUI_IMPL_OPENGL_LOADER_GLAD=1 \
+             -D"_(x)=getText(x)" \
              -DFTPDCONFIG="\"ftpd.cfg\""
 CFLAGS    := $(CPPFLAGS)
 CXXFLAGS  := $(CPPFLAGS) -std=gnu++17

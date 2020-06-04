@@ -21,6 +21,7 @@
 #include "ftpSession.h"
 
 #include "ftpServer.h"
+#include "gettext.h"
 #include "log.h"
 #include "platform.h"
 
@@ -563,7 +564,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 					{
 						// PORT connection completed
 						auto const &sockName = session->m_dataSocket->peerName ();
-						info ("Connected to [%s]:%u\n", sockName.name (), sockName.port ());
+						info (_ ("Connected to [%s]:%u\n"), sockName.name (), sockName.port ());
 
 						session->sendResponse ("150 Ready\r\n");
 						session->setState (State::DATA_TRANSFER, true, false);
@@ -1100,7 +1101,8 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 
 		if (m_restartPosition != 0)
 		{
-			if (m_file.seek (m_restartPosition, SEEK_SET) != 0)
+			// seek to the REST offset
+			if (m_file.seek (m_restartPosition) != 0)
 			{
 				sendResponse ("450 %s\r\n", std::strerror (errno));
 				return;
@@ -1134,7 +1136,7 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 		if (m_restartPosition != 0 && !append)
 		{
 			// seek to the REST offset
-			if (m_file.seek (m_restartPosition, SEEK_SET) != 0)
+			if (m_file.seek (m_restartPosition) != 0)
 			{
 				sendResponse ("450 %s\r\n", std::strerror (errno));
 				return;
@@ -1393,7 +1395,7 @@ void FtpSession::readCommand (int const events_)
 		// prepare to receive data
 		if (m_commandBuffer.freeSize () == 0)
 		{
-			error ("Exceeded command buffer size\n");
+			error (_ ("Exceeded command buffer size\n"));
 			closeCommand ();
 			return;
 		}
@@ -1408,7 +1410,7 @@ void FtpSession::readCommand (int const events_)
 		if (rc == 0)
 		{
 			// peer closed connection
-			info ("Peer closed connection\n");
+			info (_ ("Peer closed connection\n"));
 			closeCommand ();
 			return;
 		}
@@ -1551,7 +1553,7 @@ void FtpSession::sendResponse (char const *fmt_, ...)
 
 	if (static_cast<std::size_t> (rc) > size)
 	{
-		error ("Not enough space for response\n");
+		error (_ ("Not enough space for response\n"));
 		closeCommand ();
 		return;
 	}
@@ -1582,7 +1584,7 @@ void FtpSession::sendResponse (std::string_view const response_)
 
 	if (response_.size () > size)
 	{
-		error ("Not enough space for response\n");
+		error (_ ("Not enough space for response\n"));
 		closeCommand ();
 		return;
 	}
@@ -1689,7 +1691,7 @@ bool FtpSession::listTransfer ()
 					std::uint64_t mtime = 0;
 					auto const rc       = archive_getmtime (fullPath.c_str (), &mtime);
 					if (rc != 0)
-						error ("sdmc_getmtime %s 0x%lx\n", fullPath.c_str (), rc);
+						error ("archive_getmtime %s 0x%lx\n", fullPath.c_str (), rc);
 					else
 						st.st_mtime = mtime;
 				}
@@ -2255,7 +2257,7 @@ void FtpSession::PASV (char const *args_)
 	auto const &sockName = m_pasvSocket->sockName ();
 	std::string name     = sockName.name ();
 	auto const port      = sockName.port ();
-	info ("Listening on [%s]:%u\n", name.c_str (), port);
+	info (_ ("Listening on [%s]:%u\n"), name.c_str (), port);
 
 	// send the address in the ftp format
 	for (auto &c : name)

@@ -47,6 +47,7 @@ CFLAGS   := -g -Wall $(OPTIMIZE) \
             $(ARCH) $(INCLUDE) -DARM9 -DNDS \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+            -D"_(x)=getText(x)" \
             -DNO_IPV6 -DCLASSIC -DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\""
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 ASFLAGS  := -g $(ARCH)

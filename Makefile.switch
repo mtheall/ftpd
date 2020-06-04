@@ -44,6 +44,7 @@ APP_VERSION	:=	$(VERSION)
 SOURCES		:=	source source/switch
 DATA		:=	data
 INCLUDES	:=	include
+ROMFS		:=	switch/romfs
 
 ifeq ($(strip $(CLASSIC)),)
 APP_TITLE	:=	ftpd pro $(VERSION)
@@ -51,7 +52,6 @@ TARGET		:=	switch/ftpd
 BUILD		:=	switch/build
 SOURCES		+=	source/imgui
 GRAPHICS	:=	switch/gfx
-ROMFS		:=	switch/romfs
 else
 APP_TITLE	:=	ftpd classic $(VERSION)
 TARGET		:=	switch-classic/ftpd-classic
@@ -74,6 +74,7 @@ CFLAGS	:=	-g -Wall -Wno-narrowing $(OPTIMIZE) \
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ \
 			-DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
 			-DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+            -D"_(x)=getText(x)" \
 			-DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
 			`$(PREFIX)pkg-config --cflags libzstd`
 
@@ -315,3 +316,5 @@ $(OFILES_SRC)	:	$(HFILES_BIN)
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
+
+include $(TOPDIR)/Makefile.i18n

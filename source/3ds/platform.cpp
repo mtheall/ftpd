@@ -22,6 +22,7 @@
 
 #include "fs.h"
 #include "ftpServer.h"
+#include "gettext.h"
 #include "log.h"
 
 #include "imgui_citro3d.h"
@@ -210,7 +211,7 @@ void startNetwork ()
 		return;
 
 	s_socuActive = true;
-	info ("Wifi connected\n");
+	info (_ ("WiFi connected\n"));
 }
 
 /// \brief Draw citro3d logo

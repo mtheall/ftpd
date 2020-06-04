@@ -34,6 +34,7 @@ include $(DEVKITARM)/3ds_rules
 SOURCES  := source source/3ds
 DATA     := data
 INCLUDES := include
+ROMFS    := 3ds/romfs
 
 ifeq ($(strip $(CLASSIC)),)
 APP_TITLE := ftpd pro
@@ -41,7 +42,6 @@ TARGET    := 3ds/ftpd
 BUILD     := 3ds/build
 SOURCES   += source/imgui
 GRAPHICS  := 3ds/gfx
-ROMFS     := 3ds/romfs
 GFXBUILD  := $(ROMFS)
 RSF_FILE  := meta/ftpd-cia.rsf
 else
@@ -71,6 +71,7 @@ CFLAGS   := -g -Wall $(OPTIMIZE) -mword-relocations \
 CFLAGS   +=  $(INCLUDE) -DARM11 -D_3DS \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+            -D"_(x)=getText(x)" \
             -DNO_IPV6 -DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
             -DANTI_ALIAS=1
 
@@ -107,8 +108,8 @@ export VPATH   :=  $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 
 export DEPSDIR :=  $(CURDIR)/$(BUILD)
 
-CFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES    := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+export CFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+export CPPFILES    := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 SHLISTFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.shlist)))
 GFXFILES    := $(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.t3s)))
@@ -308,9 +309,10 @@ $(TARGET).bnr:  $(TOPDIR)/$(BNR_IMAGE) $(TOPDIR)/$(BNR_AUDIO)
 	@bannertool makebanner -o $@ -i $(TOPDIR)/$(BNR_IMAGE) -a $(TOPDIR)/$(BNR_AUDIO)
 	@echo "built ... $@"
 
-
 -include $(DEPSDIR)/*.d
 
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
+
+include $(TOPDIR)/Makefile.i18n

@@ -77,7 +77,7 @@ public:
 	/// \brief Seek to file position
 	/// \param pos_ File position
 	/// \param origin_ Reference position (\sa std::fseek)
-	std::make_signed_t<std::size_t> seek (std::size_t pos_, int origin_);
+	std::make_signed_t<std::size_t> seek (std::size_t pos_, int origin_ = SEEK_SET);
 
 	/// \brief Read data
 	/// \param buffer_ Output buffer

@@ -1,0 +1,201 @@
+# Italian translations for ftpd pro package.
+# Copyright (C) 2020 Michael Theall
+# This file is distributed under the same license as the ftpd pro package.
+# Michael Theall <pigman46@gmail.com>, 2020.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ftpd pro v3.0.0\n"
+"Report-Msgid-Bugs-To: pigman46@gmail.com\n"
+"POT-Creation-Date: 2021-06-13 11:14-0500\n"
+"PO-Revision-Date: 2020-06-03 21:21-0500\n"
+"Last-Translator: Michael Theall <pigman46@gmail.com>\n"
+"Language-Team: Italian <tp@lists.linux.it>\n"
+"Language: it_IT/ftpd\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:359
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:422
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:607
+msgid "About"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:78
+#, c-format
+msgid "Accepted connection from [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:500
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:520
+msgid "Apply"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:503
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:526
+msgid "Cancel"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:42
+#, c-format
+msgid "Closing connection to [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpSession.cpp:567
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:155
+#, c-format
+msgid "Connected to [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:148
+#, c-format
+msgid "Connecting to [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:480
+msgid "Enable Access Point"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpSession.cpp:1398
+msgid "Exceeded command buffer size\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:563
+msgid "Failed to save config\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:476
+msgid "Get mtime"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:444
+msgid "Language"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpSession.cpp:2260
+#, c-format
+msgid "Listening on [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:208
+msgid "Logs"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:353
+msgid "Menu"
+msgstr ""
+
+#. TRANSLATORS: \xee\x80\x83 (Y button)
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:351
+msgid "Menu "
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpSession.cpp:1556
+#: /home/mtheall/workspace/ftpd/source/ftpSession.cpp:1587
+msgid "Not enough space for response\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:617
+msgid "OK"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:490
+msgid "Passphrase"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:462
+msgid "Password"
+msgstr ""
+
+#. peer closed connection
+#: /home/mtheall/workspace/ftpd/source/ftpSession.cpp:1413
+msgid "Peer closed connection\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:614
+#, c-format
+msgid "Platform: %s"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:467
+msgid "Port"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:615
+#, c-format
+msgid "Renderer: %s"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:502
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:524
+msgid "Reset"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:482
+msgid "SSID"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:501
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:522
+msgid "Save"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:221
+msgid "Sessions"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:356
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:413
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:437
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:441
+msgid "Settings"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:319
+#, c-format
+msgid "Started server at %s\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:39
+#, c-format
+msgid "Stop listening on [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:338
+#, c-format
+msgid "Stopped server at %s\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:457
+msgid "User"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:125
+msgid "Waiting on WiFi"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/ftpServer.cpp:190
+msgid "Waiting on WiFi..."
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/3ds/platform.cpp:214
+msgid "WiFi connected\n"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:246
+msgid "no"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:196
+msgid "off"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:196
+msgid "on"
+msgstr ""
+
+#: /home/mtheall/workspace/ftpd/source/socket.cpp:246
+msgid "yes"
+msgstr ""

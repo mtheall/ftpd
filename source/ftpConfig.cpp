@@ -21,6 +21,7 @@
 #include "ftpConfig.h"
 
 #include "fs.h"
+#include "gettext.h"
 #include "log.h"
 
 #include <sys/stat.h>
@@ -147,7 +148,9 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 			continue;
 		}
 
-		if (key == "user")
+		if (key == "language")
+			config->m_language = val;
+		else if (key == "user")
 			config->m_user = val;
 		else if (key == "pass")
 			config->m_pass = val;
@@ -202,6 +205,8 @@ bool FtpConfig::save (char const *const path_)
 	if (!fp.open (path_, "wb"))
 		return false;
 
+	if (!m_language.empty ())
+		std::fprintf (fp, "language=%s\n", m_language.c_str ());
 	if (!m_user.empty ())
 		std::fprintf (fp, "user=%s\n", m_user.c_str ());
 	if (!m_pass.empty ())
@@ -221,6 +226,11 @@ bool FtpConfig::save (char const *const path_)
 #endif
 
 	return true;
+}
+
+std::string const &FtpConfig::language () const
+{
+	return m_language;
 }
 
 std::string const &FtpConfig::user () const
@@ -261,6 +271,12 @@ std::string const &FtpConfig::passphrase () const
 	return m_passphrase;
 }
 #endif
+
+void FtpConfig::setLanguage (std::string const &language_)
+{
+	m_language = language_;
+	::setLanguage (language_.c_str ());
+}
 
 void FtpConfig::setUser (std::string const &user_)
 {
