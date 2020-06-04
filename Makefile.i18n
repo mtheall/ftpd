@@ -1,0 +1,48 @@
+ifeq ($(strip $(ROMFS)),)
+$(error "Please include from a Makefile that defines ROMFS")
+endif
+
+ifeq ($(strip $(TARGET)),)
+$(error "Please include from a Makefile that defines TARGET")
+endif
+
+# Note: Have your main target, e.g. $(OUTPUT).nro, depend on ROMFS_DEPS
+
+.PHONY: clean-mo
+
+MO_FILES := $(foreach lang,de_DE en_GB en_US es_ES fr_FR it_IT ja_JP nl_NL pt_PT ru_RU,$(TOPDIR)/$(ROMFS)/locale/$(lang)/ftpd.mo)
+
+$(OUTPUT).nds:  $(MO_FILES)
+$(OUTPUT).3dsx: $(MO_FILES)
+$(OUTPUT).cia:  $(MO_FILES)
+$(OUTPUT).nro:  $(MO_FILES)
+
+$(MO_FILES): $(TOPDIR)/$(ROMFS)/locale/%/ftpd.mo: $(TOPDIR)/po/%/ftpd.po
+	@echo "Building $@"
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	msgfmt -c --output-file=$@ $<
+
+$(TOPDIR)/po/%.po: $(TOPDIR)/po/$(notdir $(TARGET)).pot
+	@echo "Building $@"
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	@if [ -f $@ ]; \
+	then \
+		msgmerge --backup=off -qU $@ $< && touch $@; \
+	else \
+		msginit -i $< -l $*.UTF-8 -o $@; \
+	fi
+
+$(TOPDIR)/po/$(notdir $(TARGET)).pot: $(CFILES) $(CPPFILES) $(CXXFILES)
+	@echo "Building $@"
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	xgettext -o $@ $^ -k_ -c -s \
+		--from-code="UTF-8" \
+		--copyright-holder="Michael Theall" \
+		--package-name="$(APP_TITLE)" \
+		--package-version="$(APP_DESCRIPTION)" \
+		--msgid-bugs-address="pigman46@gmail.com"
+
+clean: clean-mo
+
+clean-mo:
+	@$(RM) $(MO_FILES)

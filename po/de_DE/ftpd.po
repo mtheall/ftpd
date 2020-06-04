@@ -1,0 +1,181 @@
+# German translations for ftpd pro package.
+# Copyright (C) 2020 Michael Theall
+# This file is distributed under the same license as the ftpd pro package.
+# Michael Theall <pigman46@gmail.com>, 2020.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ftpd pro v3.0.0\n"
+"Report-Msgid-Bugs-To: pigman46@gmail.com\n"
+"POT-Creation-Date: 2020-06-03 22:57-0500\n"
+"PO-Revision-Date: 2020-06-03 21:21-0500\n"
+"Last-Translator: Michael Theall <pigman46@gmail.com>\n"
+"Language-Team: German <translation-team-de@lists.sourceforge.net>\n"
+"Language: de_DE/ftpd\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:352
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:402
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:511
+msgid "About"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:78
+#, c-format
+msgid "Accepted connection from [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:458
+msgid "Apply"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:462
+msgid "Cancel"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:42
+#, c-format
+msgid "Closing connection to [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:155
+#: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:562
+#, c-format
+msgid "Connected to [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:148
+#, c-format
+msgid "Connecting to [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1393
+msgid "Exceeded command buffer size\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:483
+msgid "Failed to save config\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:455
+msgid "Get mtime"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:425
+msgid "Language"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:2237
+#, c-format
+msgid "Listening on [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:205
+msgid "Logs"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:346
+msgid "Menu"
+msgstr ""
+
+#. TRANSLATORS: \xee\x80\x83 (Y button)
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:344
+msgid "Menu "
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1550
+#: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1581
+msgid "Not enough space for response\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:521
+msgid "OK"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:441
+msgid "Password"
+msgstr ""
+
+#. peer closed connection
+#: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1408
+msgid "Peer closed connection\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:518
+#, c-format
+msgid "Platform: %s"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:446
+msgid "Port"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:519
+#, c-format
+msgid "Renderer: %s"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:460
+msgid "Save"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:218
+msgid "Sessions"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:349
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:393
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:418
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:422
+msgid "Settings"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:312
+#, c-format
+msgid "Started server at %s\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:39
+#, c-format
+msgid "Stop listening on [%s]:%u\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:331
+#, c-format
+msgid "Stopped server at %s\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:439
+msgid "User"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:122
+msgid "Waiting on WiFi"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:187
+msgid "Waiting on WiFi..."
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/3ds/platform.cpp:215
+msgid "WiFi connected\n"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:246
+msgid "no"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:196
+msgid "off"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:196
+msgid "on"
+msgstr ""
+
+#: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:246
+msgid "yes"
+msgstr ""

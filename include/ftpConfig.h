@@ -44,6 +44,9 @@ public:
 	/// \param path_ Path to config file
 	bool save (char const *path_);
 
+	/// \brief Get language
+	std::string const &language () const;
+
 	/// \brief Get user
 	std::string const &user () const;
 
@@ -58,6 +61,10 @@ public:
 	/// \note only effective on 3DS
 	bool getMTime () const;
 #endif
+
+	/// \brief Set language
+	/// \param language_ Language to set
+	void setLanguage (std::string const &language_);
 
 	/// \brief Set user
 	/// \param user_ User
@@ -83,6 +90,9 @@ public:
 
 private:
 	FtpConfig ();
+
+	/// \brief Language
+	std::string m_language;
 
 	/// \brief Username
 	std::string m_user;

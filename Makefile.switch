@@ -74,6 +74,7 @@ CFLAGS	:=	-g -Wall -Wno-narrowing $(OPTIMIZE) \
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ \
 			-DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
 			-DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
+            -D"_(x)=getText(x)" \
 			-DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
 			`$(PREFIX)pkg-config --cflags libzstd`
 
@@ -309,3 +310,5 @@ $(OFILES_SRC)	:	$(HFILES_BIN)
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
+
+include $(TOPDIR)/Makefile.i18n

@@ -20,6 +20,7 @@
 
 #include "socket.h"
 
+#include "gettext.h"
 #include "log.h"
 
 #include <fcntl.h>
@@ -35,10 +36,10 @@
 Socket::~Socket ()
 {
 	if (m_listening)
-		info ("Stop listening on [%s]:%u\n", m_sockName.name (), m_sockName.port ());
+		info (_ ("Stop listening on [%s]:%u\n"), m_sockName.name (), m_sockName.port ());
 
 	if (m_connected)
-		info ("Closing connection to [%s]:%u\n", m_peerName.name (), m_peerName.port ());
+		info (_ ("Closing connection to [%s]:%u\n"), m_peerName.name (), m_peerName.port ());
 
 #ifdef NDS
 	if (::closesocket (m_fd) != 0)
@@ -74,7 +75,7 @@ UniqueSocket Socket::accept ()
 		return nullptr;
 	}
 
-	info ("Accepted connection from [%s]:%u\n", addr.name (), addr.port ());
+	info (_ ("Accepted connection from [%s]:%u\n"), addr.name (), addr.port ());
 	return UniqueSocket (new Socket (fd, m_sockName, addr));
 }
 
@@ -144,14 +145,14 @@ bool Socket::connect (SockAddr const &addr_)
 		{
 			m_peerName  = addr_;
 			m_connected = true;
-			info ("Connecting to [%s]:%u\n", addr_.name (), addr_.port ());
+			info (_ ("Connecting to [%s]:%u\n"), addr_.name (), addr_.port ());
 		}
 		return false;
 	}
 
 	m_peerName  = addr_;
 	m_connected = true;
-	info ("Connected to [%s]:%u\n", addr_.name (), addr_.port ());
+	info (_ ("Connected to [%s]:%u\n"), addr_.name (), addr_.port ());
 	return true;
 }
 
@@ -192,7 +193,7 @@ bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 	if (rc != 0)
 	{
 		error ("setsockopt(SO_LINGER, %s, %lus): %s\n",
-		    enable_ ? "on" : "off",
+		    enable_ ? _ ("on") : _ ("off"),
 		    static_cast<unsigned long> (time_.count ()),
 		    std::strerror (errno));
 		return false;
@@ -241,7 +242,9 @@ bool Socket::setReuseAddress (bool const reuse_)
 	int const reuse = reuse_;
 	if (::setsockopt (m_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof (reuse)) != 0)
 	{
-		error ("setsockopt(SO_REUSEADDR, %s): %s\n", reuse_ ? "yes" : "no", std::strerror (errno));
+		error ("setsockopt(SO_REUSEADDR, %s): %s\n",
+		    reuse_ ? _ ("yes") : _ ("no"),
+		    std::strerror (errno));
 		return false;
 	}
 
