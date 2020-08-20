@@ -73,6 +73,8 @@ platform::Mutex s_acuFence;
 
 /// \brief Whether to power backlight
 bool s_backlight = true;
+/// \brief Button state for toggling backlight
+unsigned s_buttons = 0;
 
 /// \brief APT hook cookie
 aptHookCookie s_aptHookCookie;
@@ -440,16 +442,34 @@ bool platform::loop ()
 	hidScanInput ();
 
 	auto const kDown = hidKeysDown ();
+	auto const kHeld = hidKeysHeld ();
+	auto const kUp   = hidKeysUp ();
 
 	// check if the user wants to exit
 	if (kDown & KEY_START)
 		return false;
 
 	// check if the user wants to toggle the backlight
-	if (kDown & KEY_SELECT)
+	// avoid toggling during the Rosalina menu default combo
+	if (kDown == KEY_SELECT && kHeld == KEY_SELECT)
 	{
-		s_backlight = !s_backlight;
-		enableBacklight (s_backlight);
+		// SELECT was pressed and no other keys are held, so reset state
+		s_buttons = KEY_SELECT;
+	}
+	else if (kUp & KEY_SELECT)
+	{
+		// SELECT was released
+		if (s_buttons == KEY_SELECT)
+		{
+			// no other button was held at the same time as SELECT, so toggle
+			s_backlight = !s_backlight;
+			enableBacklight (s_backlight);
+		}
+	}
+	else
+	{
+		// add any held buttons
+		s_buttons |= kHeld;
 	}
 
 #ifndef CLASSIC
