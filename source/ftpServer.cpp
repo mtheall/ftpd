@@ -81,6 +81,8 @@ std::pair<std::string, std::string> const s_languageMap[] = {
     {"Português (Portugal)", "pt_PT"},
     {"Русский",              "ru_RU"},
     {"简体中文",              "zh_CN"},
+    {"繁體中文",              "zh_TW"},
+    {"繁體中文(日文漢字)",     "zh_JP"},
     // clang-format on
 };
 }
