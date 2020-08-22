@@ -1,172 +1,173 @@
-# Japanese translations for ftpd pro package.
-# Copyright (C) 2020 Michael Theall
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Michael Theall
 # This file is distributed under the same license as the ftpd pro package.
-# Michael Theall <pigman46@gmail.com>, 2020.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: ftpd pro v3.0.0\n"
 "Report-Msgid-Bugs-To: pigman46@gmail.com\n"
 "POT-Creation-Date: 2020-06-03 22:57-0500\n"
-"PO-Revision-Date: 2020-06-03 21:22-0500\n"
-"Last-Translator: Michael Theall <pigman46@gmail.com>\n"
-"Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
-"Language: ja_JP/ftpd\n"
+"PO-Revision-Date: 2020-08-20 13:18+0800\n"
+"Language-Team: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.4.1\n"
+"Last-Translator: qianxu <qianxu2001@foxmail.com>\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"Language: zh_jp\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:352
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:402
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:511
 msgid "About"
-msgstr "約"
+msgstr "関於"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:78
 #, c-format
 msgid "Accepted connection from [%s]:%u\n"
-msgstr "[%s]:%uからの接続を受け入れる\n"
+msgstr "已接受 [%s]:%u 的連接\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:458
 msgid "Apply"
-msgstr "申し込む"
+msgstr "應用"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:462
 msgid "Cancel"
-msgstr "キャンセル"
+msgstr "取消"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:42
 #, c-format
 msgid "Closing connection to [%s]:%u\n"
-msgstr "[%s]:%uの接続を閉じる\n"
+msgstr "正在関閉 [%s]:%u 的連接\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:155
 #: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:562
 #, c-format
 msgid "Connected to [%s]:%u\n"
-msgstr "[%s]:%uを接続します\n"
+msgstr "已連接 [%s]:%u\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:148
 #, c-format
 msgid "Connecting to [%s]:%u\n"
-msgstr "[%s]:%uを接続します\n"
+msgstr "正在連接 [%s]:%u\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1393
 msgid "Exceeded command buffer size\n"
-msgstr "コマンドバッファサイズを超えています\n"
+msgstr "超過命令緩沖区大小\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:483
 msgid "Failed to save config\n"
-msgstr "設定を保存できませんでした\n"
+msgstr "无法保存配置\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:455
 msgid "Get mtime"
-msgstr "時間をもらう"
+msgstr "獲取時間"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:425
 msgid "Language"
-msgstr "言語"
+msgstr "語言"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:2237
 #, c-format
 msgid "Listening on [%s]:%u\n"
-msgstr "[%s]:%uで聴いています\n"
+msgstr "正在監聽 [%s]:%u\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:205
 msgid "Logs"
-msgstr "ログ"
+msgstr "日志"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:346
 msgid "Menu"
-msgstr "メニュー"
+msgstr "菜単"
 
 #. TRANSLATORS: \xee\x80\x83 (Y button)
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:344
 msgid "Menu "
-msgstr "メニュー "
+msgstr "菜単 "
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1550
 #: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1581
 msgid "Not enough space for response\n"
-msgstr "応答のための十分なスペースがありません\n"
+msgstr "沒有充足的響應空間\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:521
 msgid "OK"
-msgstr "OK"
+msgstr "好"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:441
 msgid "Password"
-msgstr "パスワード"
+msgstr "密碼"
 
 #. peer closed connection
 #: /home/mtheall/workspace/switch/ftpd/source/ftpSession.cpp:1408
 msgid "Peer closed connection\n"
-msgstr "ユーザーが接続を停止しました\n"
+msgstr "用戸已停止連接\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:518
 #, c-format
 msgid "Platform: %s"
-msgstr "プラットホーム: %s"
+msgstr "平台: %s"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:446
 msgid "Port"
-msgstr "ポート"
+msgstr "端口"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:519
 #, c-format
 msgid "Renderer: %s"
-msgstr "レンダラー: %s"
+msgstr "絵染器: %s"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:460
 msgid "Save"
-msgstr "保存する"
+msgstr "保存"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:218
 msgid "Sessions"
-msgstr "会期"
+msgstr "会話"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:349
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:393
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:418
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:422
 msgid "Settings"
-msgstr "設定"
+msgstr "設置"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:312
 #, c-format
 msgid "Started server at %s\n"
-msgstr "%sにサーバーを起動しました\n"
+msgstr "已啓動服務 %s\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:39
 #, c-format
 msgid "Stop listening on [%s]:%u\n"
-msgstr "[%s]:%uでのリスニングを停止ます\n"
+msgstr "停止監聽 [%s]:%u\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:331
 #, c-format
 msgid "Stopped server at %s\n"
-msgstr "%sにサーバーを停止しました\n"
+msgstr "已停止服務 %s\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:439
 msgid "User"
-msgstr "ユーザー"
+msgstr "用戸名"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:122
 msgid "Waiting on WiFi"
-msgstr "インターネットを待っています"
+msgstr "正在等待 WiFi"
 
 #: /home/mtheall/workspace/switch/ftpd/source/ftpServer.cpp:187
 msgid "Waiting on WiFi..."
-msgstr "インターネットを待っています..."
+msgstr "正在等待 WiFi..."
 
 #: /home/mtheall/workspace/switch/ftpd/source/3ds/platform.cpp:215
 msgid "WiFi connected\n"
-msgstr "インターネットを接続します\n"
+msgstr "已連接 WiFi\n"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:246
 msgid "no"
-msgstr "いいえ"
+msgstr "否"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:196
 msgid "off"
@@ -178,4 +179,4 @@ msgstr "ON"
 
 #: /home/mtheall/workspace/switch/ftpd/source/socket.cpp:246
 msgid "yes"
-msgstr "はい"
+msgstr "是"
