@@ -2743,7 +2743,7 @@ void FtpSession::USER (char const *args_)
 		return;
 	}
 
-	sendResponse ("502 Invalid user\r\n");
+	sendResponse ("430 Invalid user\r\n");
 }
 
 // clang-format off
