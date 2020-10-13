@@ -1,3 +1,16 @@
+# 注意
+
+**如需使用中文, 请确保系统已安装中文字库.**
+
+**如需使用中文, 请确保系统已安装中文字库.**
+
+**如需使用中文, 请确保系统已安装中文字库.**
+
+你可以使用 [SharedFontTool](https://github.com/dnasdw/SharedFontTool) 来临时安装中文字库, 也可以使用 [3DS 系统简体中文化补丁](https://tieba.baidu.com/p/6802255931) 直接将简体中文字库写入并汉化系统. 如果你的机器为神游版或港台版, 可直接使用.
+
+最新版安装包二维码
+![qr_code_ftpd.png](https://i.loli.net/2020/08/21/yd8NVg3Qm1pM9GD.png)
+
 # ftpd
 
 FTP Server for 3DS/Switch/Linux.
