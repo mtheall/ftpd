@@ -106,8 +106,9 @@ The following pacman packages are required to build `switch/ftpd.nro`:
     devkitA64
     libnx
     switch-tools
+    switch-libzstd
 
-They are available as part of the `switch-dev` meta-package.
+The first three are available as part of the `switch-dev` meta-package. Additionally, ImageMagick is required for converting assets.
 
 Build `switch/ftpd.nro`:
 
