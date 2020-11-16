@@ -90,9 +90,6 @@ constexpr auto SCREEN_WIDTH = 400.0f;
 /// \brief Screen height
 constexpr auto SCREEN_HEIGHT = 480.0f;
 
-/// \brief Whether to use anti-aliasing
-#define ANTI_ALIAS 1
-
 #if ANTI_ALIAS
 /// \brief Display transfer scaling
 constexpr auto TRANSFER_SCALING = GX_TRANSFER_SCALE_XY;

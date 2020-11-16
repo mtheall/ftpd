@@ -331,7 +331,7 @@ void imgui::citro3d::init ()
 	config.OversampleV          = 1;
 	config.PixelSnapH           = false;
 	config.GlyphExtraSpacing    = ImVec2 (0.0f, 0.0f);
-	config.GlyphOffset          = ImVec2 (0.0f, 0.0f);
+	config.GlyphOffset          = ImVec2 (0.0f, fontInfo->ascent);
 	config.GlyphRanges          = s_fontRanges.data ();
 	config.GlyphMinAdvanceX     = 0.0f;
 	config.GlyphMaxAdvanceX     = std::numeric_limits<float>::max ();
@@ -353,8 +353,6 @@ void imgui::citro3d::init ()
 	// initialize font
 	imFont->FallbackAdvanceX = fontInfo->defaultWidth.charWidth;
 	imFont->FontSize         = fontInfo->lineFeed;
-	imFont->DisplayOffset.x  = 0.0f;
-	imFont->DisplayOffset.y  = fontInfo->ascent * 0.5f;
 	imFont->ContainerAtlas   = atlas;
 	imFont->ConfigData       = &atlas->ConfigData[0];
 	imFont->ConfigDataCount  = 1;
@@ -384,11 +382,12 @@ void imgui::citro3d::init ()
 		assert (static_cast<std::size_t> (glyphPos.sheetIndex) < s_fontTextures.size ());
 
 		// add glyph to font
-		imFont->AddGlyph (code,
+		imFont->AddGlyph (&config,
+		    code,
 		    glyphPos.vtxcoord.left,
-		    glyphPos.vtxcoord.top,
+		    glyphPos.vtxcoord.top + fontInfo->ascent,
 		    glyphPos.vtxcoord.right,
-		    glyphPos.vtxcoord.bottom,
+		    glyphPos.vtxcoord.bottom + fontInfo->ascent,
 		    glyphPos.texcoord.left,
 		    glyphPos.sheetIndex + glyphPos.texcoord.top,
 		    glyphPos.texcoord.right,

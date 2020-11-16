@@ -2242,7 +2242,8 @@ void FtpSession::PASV (char const *args_)
 	}
 
 	m_pasv = true;
-	sendResponse ("227 Entering Passive Mode (%s,%u,%u).\r\n", name.c_str (), port >> 8, port & 0xFF);
+	sendResponse (
+	    "227 Entering Passive Mode (%s,%u,%u).\r\n", name.c_str (), port >> 8, port & 0xFF);
 }
 
 void FtpSession::PORT (char const *args_)

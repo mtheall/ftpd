@@ -31,7 +31,7 @@
 #endif
 
 char const *const g_dearImGuiVersion   = "Dear ImGui " IMGUI_VERSION;
-char const *const g_dearImGuiCopyright = "Copyright (c) 2014-2020 Omar Cornut";
+char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2020 Omar Cornut";
 
 char const *const g_mitLicense =
     "The MIT License (MIT)\n"
@@ -56,7 +56,7 @@ char const *const g_mitLicense =
 char const *const g_libctruVersion = "libctru";
 char const *const g_citro3dVersion = "citro3d";
 
-char const *const g_citro3dCopyright = "Copyright (C) 2014-2018 fincs";
+char const *const g_citro3dCopyright = "Copyright (C) 2014-2020 fincs";
 #endif
 
 #ifdef __SWITCH__
@@ -64,10 +64,10 @@ char const *const g_libnxVersion  = "libnx";
 char const *const g_deko3dVersion = "deko3d";
 char const *const g_zstdVersion   = "zStandard " ZSTD_VERSION_STRING;
 
-char const *const g_libnxCopyright  = "Copyright 2017-2018 libnx Authors";
+char const *const g_libnxCopyright  = "Copyright (C) 2017-2020 libnx Authors";
 char const *const g_deko3dCopyright = "Copyright (C) 2018-2020 fincs\n";
 char const *const g_zstdCopyright =
-    "Copyright (c) 2016-present, Facebook, Inc. All rights reserved.";
+    "Copyright (C) 2016-present, Facebook, Inc. All rights reserved.";
 
 char const *const g_libnxLicense =
     "Permission to use, copy, modify, and/or distribute this software for any purpose with or "
@@ -132,6 +132,6 @@ char const *const g_zlibLicense =
 	XSTR (GLFW_VERSION_MAJOR) "." XSTR (GLFW_VERSION_MINOR) "." XSTR (GLFW_VERSION_REVISION)
 
 char const *const g_glfwVersion   = "glfw " GLFW_VERSION_STRING;
-char const *const g_glfwCopyright = "Copyright (c) 2002-2006 Marcus Geelnard\n"
-                                    "Copyright (c) 2006-2019 Camilla Löwy";
+char const *const g_glfwCopyright = "Copyright (C) 2002-2006 Marcus Geelnard\n"
+                                    "Copyright (C) 2006-2019 Camilla Löwy";
 #endif
