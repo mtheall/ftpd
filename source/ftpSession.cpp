@@ -1478,8 +1478,9 @@ void FtpSession::readCommand (int const events_)
 		else if (m_state != State::COMMAND)
 		{
 			// only some commands are available during data transfer
-			if (::strcasecmp (command, "ABOR") != 0 && ::strcasecmp (command, "STAT") != 0 &&
-			    ::strcasecmp (command, "QUIT") != 0)
+			if (::strcasecmp (command, "ABOR") != 0 && ::strcasecmp (command, "NOOP") != 0 &&
+			    ::strcasecmp (command, "PWD") != 0 && ::strcasecmp (command, "QUIT") != 0 &&
+			    ::strcasecmp (command, "STAT") != 0 && ::strcasecmp (command, "XPWD") != 0)
 			{
 				sendResponse ("503 Invalid command during transfer\r\n");
 				setState (State::COMMAND, true, true);
@@ -2339,12 +2340,16 @@ void FtpSession::PORT (char const *args_)
 
 void FtpSession::PWD (char const *args_)
 {
-	setState (State::COMMAND, false, false);
-
-	if (!authorized ())
+	// handle keep-alive
+	if (m_state == State::COMMAND)
 	{
-		sendResponse ("530 Not logged in\r\n");
-		return;
+		setState (State::COMMAND, false, false);
+
+		if (!authorized ())
+		{
+			sendResponse ("530 Not logged in\r\n");
+			return;
+		}
 	}
 
 	auto const path = encodePath (m_cwd);
