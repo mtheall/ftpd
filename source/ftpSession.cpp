@@ -2340,16 +2340,10 @@ void FtpSession::PORT (char const *args_)
 
 void FtpSession::PWD (char const *args_)
 {
-	// handle keep-alive
-	if (m_state == State::COMMAND)
+	if (!authorized ())
 	{
-		setState (State::COMMAND, false, false);
-
-		if (!authorized ())
-		{
-			sendResponse ("530 Not logged in\r\n");
-			return;
-		}
+		sendResponse ("530 Not logged in\r\n");
+		return;
 	}
 
 	auto const path = encodePath (m_cwd);
