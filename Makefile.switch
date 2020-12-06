@@ -114,7 +114,8 @@ CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 GLSLFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.glsl)))
-GFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.png)))
+PNGFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.png)))
+ASTCFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.astc)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 #---------------------------------------------------------------------------------
@@ -145,7 +146,9 @@ ifneq ($(strip $(ROMFS)),)
 		ROMFS_FOLDERS += $(ROMFS_SHADERS)
 	endif
 
-	ROMFS_GFX     := $(addprefix $(ROMFS)/,$(GFXFILES:.png=.rgba.zst))
+	ROMFS_PNG     := $(addprefix $(ROMFS)/,$(PNGFILES:.png=.rgba.zst))
+	ROMFS_ASTC    := $(addprefix $(ROMFS)/,$(ASTCFILES:.astc=.astc.zst))
+	ROMFS_GFX     := $(ROMFS_PNG) $(ROMFS_ASTC)
 	ROMFS_TARGETS += $(ROMFS_GFX)
 	ROMFS_FOLDERS += $(ROMFS)
 
@@ -222,7 +225,10 @@ $(ROMFS_FOLDERS):
 $(BUILD)/%.rgba: $(GRAPHICS)/%.png | $(BUILD)
 	@convert $< $@
 	
-$(ROMFS_GFX): $(ROMFS)/%.rgba.zst: $(BUILD)/%.rgba
+$(ROMFS_PNG): $(ROMFS)/%.rgba.zst: $(BUILD)/%.rgba
+	@zstd -f $< -o $@ --ultra -22
+
+$(ROMFS_ASTC): $(ROMFS)/%.astc.zst: $(GRAPHICS)/%.astc
 	@zstd -f $< -o $@ --ultra -22
 
 $(ROMFS_SHADERS)/%_vsh.dksh: %_vsh.glsl

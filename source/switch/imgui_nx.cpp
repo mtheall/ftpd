@@ -1238,15 +1238,14 @@ void moveMouse (ImGuiIO &io_, ImVec2 const &pos_, bool const force_ = false)
 }
 
 /// \brief Update mouse buttons
+/// \param mouseState_ Mouse state
 /// \param io_ ImGui IO
-void updateMouseButtons (ImGuiIO &io_)
+void updateMouseButtons (HidMouseState const &mouseState_, ImGuiIO &io_)
 {
 	// read mouse buttons
-	auto const buttons = hidMouseButtonsHeld ();
-
 	for (std::size_t i = 0; i < IM_ARRAYSIZE (io_.MouseDown); ++i)
 	{
-		io_.MouseDown[i] = buttons & BIT (i);
+		io_.MouseDown[i] = mouseState_.buttons & BIT (i);
 
 		// force mouse cursor to show on click
 		if (io_.MouseDown[i])
@@ -1255,48 +1254,43 @@ void updateMouseButtons (ImGuiIO &io_)
 }
 
 /// \brief Update mouse position
+/// \param mouseState_ Mouse state
 /// \param io_ ImGui IO
-void updateMousePos (ImGuiIO &io_)
+void updateMousePos (HidMouseState const &mouseState_, ImGuiIO &io_)
 {
-	MousePosition pos;
-	hidMouseRead (&pos);
-
-	if (pos.scrollVelocityX > 0)
+	if (mouseState_.wheel_delta_x > 0)
 		io_.MouseWheel += 1;
-	else if (pos.scrollVelocityX < 0)
+	else if (mouseState_.wheel_delta_x < 0)
 		io_.MouseWheel -= 1;
 
-	if (pos.scrollVelocityY > 0)
+	if (mouseState_.wheel_delta_y > 0)
 		io_.MouseWheelH += 1;
-	else if (pos.scrollVelocityY < 0)
+	else if (mouseState_.wheel_delta_y < 0)
 		io_.MouseWheelH -= 1;
 
-	moveMouse (
-	    io_, ImVec2 (s_mousePos.x + 2.0f * pos.velocityX, s_mousePos.y + 2.0f * pos.velocityY));
+	moveMouse (io_,
+	    ImVec2 (
+	        s_mousePos.x + 2.0f * mouseState_.delta_x, s_mousePos.y + 2.0f * mouseState_.delta_y));
 }
 
 /// \brief Update touch position
+/// \param touchState_ Touch screen state
 /// \param io_ ImGui IO
-void updateTouch (ImGuiIO &io_)
+void updateTouch (HidTouchScreenState const &touchState_, ImGuiIO &io_)
 {
-	// read touch positions
-	auto const touchCount = hidTouchCount ();
-	if (touchCount < 1)
+	if (touchState_.count < 1)
 		return;
 
-	// use first touch position
-	touchPosition pos;
-	hidTouchRead (&pos, 0);
-
 	// set mouse position to touch point; force hide mouse cursor
-	moveMouse (io_, ImVec2 (pos.px, pos.py));
+	moveMouse (io_, ImVec2 (touchState_.touches[0].x, touchState_.touches[0].y));
 	io_.MouseDown[0] = true;
 	s_showMouse      = false;
 }
 
 /// \brief Update gamepad inputs
+/// \param padState_ Gamepad state
 /// \param io_ ImGui IO
-void updateGamepads (ImGuiIO &io_)
+void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 {
 	// clear navigation inputs
 	std::memset (io_.NavInputs, 0, sizeof (io_.NavInputs));
@@ -1317,7 +1311,7 @@ void updateGamepads (ImGuiIO &io_)
 	};
 
 	// read buttons from primary controller
-	auto const keys = hidKeysHeld (CONTROLLER_P1_AUTO);
+	auto const keys = padGetButtons (&padState_);
 	for (auto const &[in, out] : buttonMapping)
 	{
 		if (keys & in)
@@ -1337,16 +1331,15 @@ void updateGamepads (ImGuiIO &io_)
 	}
 
 	// update joystick
-	JoystickPosition js;
+	auto const jsLeft        = padGetStickPos (&padState_, 0);
 	auto const analogMapping = {
-	    std::make_tuple (std::ref (js.dx), ImGuiNavInput_LStickLeft, -0.3f, -0.9f),
-	    std::make_tuple (std::ref (js.dx), ImGuiNavInput_LStickRight, +0.3f, +0.9f),
-	    std::make_tuple (std::ref (js.dy), ImGuiNavInput_LStickUp, +0.3f, +0.9f),
-	    std::make_tuple (std::ref (js.dy), ImGuiNavInput_LStickDown, -0.3f, -0.9f),
+	    std::make_tuple (std::ref (jsLeft.x), ImGuiNavInput_LStickLeft, -0.3f, -0.9f),
+	    std::make_tuple (std::ref (jsLeft.x), ImGuiNavInput_LStickRight, +0.3f, +0.9f),
+	    std::make_tuple (std::ref (jsLeft.y), ImGuiNavInput_LStickUp, +0.3f, +0.9f),
+	    std::make_tuple (std::ref (jsLeft.y), ImGuiNavInput_LStickDown, -0.3f, -0.9f),
 	};
 
 	// read left joystick from primary controller
-	hidJoystickRead (&js, CONTROLLER_P1_AUTO, JOYSTICK_LEFT);
 	for (auto const &[in, out, min, max] : analogMapping)
 	{
 		auto const value   = in / static_cast<float> (JOYSTICK_MAX);
@@ -1359,32 +1352,27 @@ void updateGamepads (ImGuiIO &io_)
 		scale = 1.0f;
 	if (keys & KEY_R)
 		scale = 20.0f;
-	hidJoystickRead (&js, CONTROLLER_P1_AUTO, JOYSTICK_RIGHT);
+
+	auto const jsRight = padGetStickPos (&padState_, 1);
 
 	// move mouse
 	moveMouse (io_,
-	    ImVec2 (s_mousePos.x + js.dx / static_cast<float> (JOYSTICK_MAX) * scale,
-	        s_mousePos.y - js.dy / static_cast<float> (JOYSTICK_MAX) * scale));
+	    ImVec2 (s_mousePos.x + jsRight.x / static_cast<float> (JOYSTICK_MAX) * scale,
+	        s_mousePos.y - jsRight.y / static_cast<float> (JOYSTICK_MAX) * scale));
 }
 
 /// \brief Update keyboard inputs
+/// \param kbState_ Keyboard state
 /// \param io_ ImGui IO
-void updateKeyboard (ImGuiIO &io_)
+void updateKeyboard (HidKeyboardState const &kbState_, ImGuiIO &io_)
 {
-	io_.KeyCtrl =
-	    hidKeyboardModifierHeld (static_cast<HidKeyboardModifier> (KBD_MOD_LCTRL | KBD_MOD_RCTRL));
-
-	io_.KeyShift = hidKeyboardModifierHeld (
-	    static_cast<HidKeyboardModifier> (KBD_MOD_LSHIFT | KBD_MOD_RSHIFT));
-
-	io_.KeyAlt =
-	    hidKeyboardModifierHeld (static_cast<HidKeyboardModifier> (KBD_MOD_LALT | KBD_MOD_RALT));
-
-	io_.KeySuper =
-	    hidKeyboardModifierHeld (static_cast<HidKeyboardModifier> (KBD_MOD_LMETA | KBD_MOD_RMETA));
+	io_.KeyCtrl  = kbState_.modifiers & HidKeyboardModifier_Control;
+	io_.KeyShift = kbState_.modifiers & HidKeyboardModifier_Shift;
+	io_.KeyAlt = kbState_.modifiers & (HidKeyboardModifier_LeftAlt | HidKeyboardModifier_RightAlt);
+	io_.KeySuper = kbState_.modifiers & HidKeyboardModifier_Gui;
 
 	for (int i = 0; i < 256; ++i)
-		io_.KeysDown[i] = hidKeyboardHeld (static_cast<HidKeyboardScancode> (i));
+		io_.KeysDown[i] = kbState_.keys[i / 64] & (1 << (i % 64));
 
 	static enum {
 		INACTIVE,
@@ -1521,7 +1509,10 @@ bool imgui::nx::init ()
 	return true;
 }
 
-void imgui::nx::newFrame ()
+void imgui::nx::newFrame (PadState const *const padState_,
+    HidTouchScreenState const *const touchState_,
+    HidMouseState const *const mouseState_,
+    HidKeyboardState const *const kbState_)
 {
 	auto &io = ImGui::GetIO ();
 
@@ -1545,11 +1536,20 @@ void imgui::nx::newFrame ()
 	if (s_focused)
 	{
 		// update inputs
-		updateMouseButtons (io);
-		updateMousePos (io);
-		updateTouch (io);
-		updateGamepads (io);
-		updateKeyboard (io);
+		if (mouseState_)
+		{
+			updateMouseButtons (*mouseState_, io);
+			updateMousePos (*mouseState_, io);
+		}
+
+		if (touchState_)
+			updateTouch (*touchState_, io);
+
+		if (padState_)
+			updateGamepads (*padState_, io);
+
+		if (kbState_)
+			updateKeyboard (*kbState_, io);
 	}
 
 	// whether to draw mouse cursor

@@ -28,6 +28,8 @@
 #pragma once
 
 #ifndef CLASSIC
+#include <switch.h>
+
 namespace imgui
 {
 namespace nx
@@ -38,7 +40,14 @@ bool init ();
 void exit ();
 
 /// \brief Prepare switch for a new frame
-void newFrame ();
+/// \param padState_ Gamepad state
+/// \param touchState_ Touch screen state
+/// \param mouseState_ Mouse state
+/// \param kbState_ Keyboard state
+void newFrame (PadState const *padState_,
+    HidTouchScreenState const *touchState_ = nullptr,
+    HidMouseState const *mouseState_       = nullptr,
+    HidKeyboardState const *kbState_       = nullptr);
 }
 }
 #endif

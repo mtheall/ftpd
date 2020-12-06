@@ -78,9 +78,9 @@ enum TextureIndex
 };
 
 /// \brief deko3d logo width
-constexpr auto LOGO_WIDTH = 500;
+constexpr auto LOGO_WIDTH = 504;
 /// \brief deko3d logo height
-constexpr auto LOGO_HEIGHT = 493;
+constexpr auto LOGO_HEIGHT = 504;
 
 /// \brief icon width
 constexpr auto ICON_WIDTH = 24;
@@ -102,6 +102,15 @@ constexpr auto CMDBUF_SIZE = 1024 * 1024;
 unsigned s_width = 1920;
 /// \brief Framebuffer height
 unsigned s_height = 1080;
+
+/// \brief Gamepad state
+PadState s_padState;
+/// \brief Touch screen state
+HidTouchScreenState s_touchState;
+/// \brief Mouse state
+HidMouseState s_mouseState;
+/// \brief Keyboard state
+HidKeyboardState s_kbState;
 
 /// \brief deko3d device
 dk::UniqueDevice s_device;
@@ -206,6 +215,13 @@ void rebuildSwapchain (unsigned const width_, unsigned const height_)
 /// \brief Initialize deko3d
 void deko3dInit ()
 {
+	padConfigureInput (1, HidNpadStyleSet_NpadStandard);
+	padInitializeDefault (&s_padState);
+
+	hidInitializeTouchScreen ();
+	hidInitializeMouse ();
+	hidInitializeKeyboard ();
+
 	// create deko3d device
 	s_device = dk::DeviceMaker{}.create ();
 
@@ -263,26 +279,44 @@ void loadTextures ()
 {
 	struct TextureInfo
 	{
-		TextureInfo (char const *const path_, unsigned const width_, unsigned const height_)
-		    : path (path_), width (width_), height (height_)
+		TextureInfo (char const *const path_,
+		    DkImageFormat const format_,
+		    unsigned const width_,
+		    unsigned const height_)
+		    : path (path_), format (format_), width (width_), height (height_)
 		{
 		}
 
 		char const *const path;
-		unsigned width;
-		unsigned height;
+		DkImageFormat const format;
+		unsigned const width;
+		unsigned const height;
 	};
 
-	TextureInfo textureInfos[] = {TextureInfo ("romfs:/deko3d.rgba.zst", LOGO_WIDTH, LOGO_HEIGHT),
-	    TextureInfo ("romfs:/battery_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/charging_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/eth_none_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/eth_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/airplane_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/wifi_none_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/wifi1_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/wifi2_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo ("romfs:/wifi3_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT)};
+	TextureInfo textureInfos[] = {
+	// clang-format off
+	    TextureInfo (
+	        "romfs:/deko3d.12x12.astc.zst", DkImageFormat_RGBA_ASTC_12x12, LOGO_WIDTH, LOGO_HEIGHT),
+	    TextureInfo (
+	        "romfs:/battery_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/charging_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/eth_none_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/eth_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/airplane_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/wifi_none_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/wifi1_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/wifi2_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo (
+	        "romfs:/wifi3_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT)
+		// clang-format on
+	};
 
 	// create memblock for transfer (large enough for the largest source file)
 	dk::UniqueMemBlock memBlock =
@@ -349,7 +383,7 @@ void loadTextures ()
 		dk::ImageLayout layout;
 		dk::ImageLayoutMaker{s_device}
 		    .setFlags (0)
-		    .setFormat (DkImageFormat_RGBA8_Unorm)
+		    .setFormat (textureInfo.format)
 		    .setDimensions (textureInfo.width, textureInfo.height)
 		    .initialize (layout);
 
@@ -585,23 +619,27 @@ bool platform::loop ()
 	if (!appletMainLoop ())
 		return false;
 
-	hidScanInput ();
+	padUpdate (&s_padState);
 
-	auto const keysDown = hidKeysDown (CONTROLLER_P1_AUTO);
+	auto const keys = padGetButtons (&s_padState);
 
 	// check if the user wants to exit
-	if (keysDown & KEY_PLUS)
+	if (keys & HidNpadButton_Plus)
 		return false;
 
 	// check if the user wants to toggle the backlight
-	if (keysDown & KEY_MINUS)
+	if (keys & HidNpadButton_Minus)
 	{
 		s_backlight = !s_backlight;
 		appletSetLcdBacklightOffEnabled (!s_backlight);
 	}
 
 #ifndef CLASSIC
-	imgui::nx::newFrame ();
+	auto const touchState = hidGetTouchScreenStates (&s_touchState, 1) ? &s_touchState : nullptr;
+	auto const mouseState = hidGetMouseStates (&s_mouseState, 1) ? &s_mouseState : nullptr;
+	auto const kbState    = hidGetKeyboardStates (&s_kbState, 1) ? &s_kbState : nullptr;
+
+	imgui::nx::newFrame (&s_padState, touchState, mouseState, kbState);
 	ImGui::NewFrame ();
 
 	auto const &io = ImGui::GetIO ();
