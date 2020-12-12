@@ -1372,7 +1372,7 @@ void updateKeyboard (HidKeyboardState const &kbState_, ImGuiIO &io_)
 	io_.KeySuper = kbState_.modifiers & HidKeyboardModifier_Gui;
 
 	for (int i = 0; i < 256; ++i)
-		io_.KeysDown[i] = kbState_.keys[i / 64] & (1 << (i % 64));
+		io_.KeysDown[i] = kbState_.keys[i / 64] & (1ul << (i % 64));
 
 	static enum {
 		INACTIVE,

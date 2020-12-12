@@ -165,7 +165,7 @@ void handleAPTHook (APT_HookType const type_, void *const param_)
 bool getNetworkVisibility ()
 {
 	// serialize ac:u access from multiple threads
-	auto lock = std::scoped_lock (s_acuFence);
+	auto lock = std::lock_guard (s_acuFence);
 
 	// get wifi status
 	std::uint32_t wifi = 0;
@@ -426,6 +426,16 @@ bool platform::networkVisible ()
 		return false;
 
 	return getNetworkVisibility ();
+}
+
+bool platform::networkAddress (SockAddr &addr_)
+{
+	struct sockaddr_in addr;
+	addr.sin_family      = AF_INET;
+	addr.sin_addr.s_addr = gethostid ();
+
+	addr_ = addr;
+	return true;
 }
 
 bool platform::loop ()

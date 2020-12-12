@@ -79,7 +79,7 @@ platform::Mutex s_lock;
 void drawLog ()
 {
 #ifndef NDS
-	auto const lock = std::scoped_lock (s_lock);
+	auto const lock = std::lock_guard (s_lock);
 #endif
 
 #ifdef CLASSIC
@@ -211,7 +211,7 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
 
 #ifndef NDS
-	auto const lock = std::scoped_lock (s_lock);
+	auto const lock = std::lock_guard (s_lock);
 #endif
 #ifndef NDEBUG
 	// std::fprintf (stderr, "%s", s_prefix[level_]);
@@ -239,7 +239,7 @@ void addLog (LogLevel const level_, std::string_view const message_)
 	}
 
 #ifndef NDS
-	auto const lock = std::scoped_lock (s_lock);
+	auto const lock = std::lock_guard (s_lock);
 #endif
 #ifndef NDEBUG
 	// std::fprintf (stderr, "%s", s_prefix[level_]);

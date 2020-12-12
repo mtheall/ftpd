@@ -86,7 +86,7 @@ LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) \
 CC  := `which ccache 2>/dev/null` $(CC)
 CXX := `which ccache 2>/dev/null` $(CXX)
 
-LIBS	:= `$(PREFIX)pkg-config --libs libzstd` -ldeko3dd -lnx
+LIBS	:= `$(PREFIX)pkg-config --libs libzstd` -ldeko3d -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

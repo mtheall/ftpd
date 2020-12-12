@@ -67,6 +67,7 @@ private:
 	/// \brief Handle when network is lost
 	void handleNetworkLost ();
 
+#ifndef CLASSIC
 	/// \brief Show menu in the current window
 	void showMenu ();
 
@@ -75,6 +76,7 @@ private:
 
 	/// \brief Show about window
 	void showAbout ();
+#endif
 
 	/// \brief Server loop
 	void loop ();
@@ -108,6 +110,12 @@ private:
 #ifndef CLASSIC
 	/// \brief Whether to show settings menu
 	bool m_showSettings = false;
+
+#ifdef __SWITCH__
+	/// \brief Whether to show access point menu
+	bool m_showAP = false;
+#endif
+
 	/// \brief Whether to show about window
 	bool m_showAbout = false;
 
@@ -123,6 +131,20 @@ private:
 #ifdef _3DS
 	/// \brief getMTime setting
 	bool m_getMTimeSetting;
+#endif
+
+#ifdef __SWITCH__
+	/// \brief Whether an error occurred enabling access point
+	std::atomic<bool> m_apError = false;
+
+	/// \brief Enable access point setting
+	bool m_enableAPSetting;
+
+	/// \brief Access point SSID setting
+	std::string m_ssidSetting;
+
+	/// \brief Access point passphrase setting
+	std::string m_passphraseSetting;
 #endif
 #endif
 };

@@ -50,7 +50,7 @@ using namespace std::chrono_literals;
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
-		auto const lock = std::scoped_lock (m_lock);                                               \
+		auto const lock = std::lock_guard (m_lock);                                                \
 		x;                                                                                         \
 	} while (0)
 #endif
@@ -293,10 +293,15 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_mlstUnixMode (false),
       m_devZero (false)
 {
-	if (m_config.user ().empty ())
-		m_authorizedUser = true;
-	if (m_config.pass ().empty ())
-		m_authorizedPass = true;
+	{
+#ifndef NDS
+		auto const lock = m_config.lockGuard ();
+#endif
+		if (m_config.user ().empty ())
+			m_authorizedUser = true;
+		if (m_config.pass ().empty ())
+			m_authorizedPass = true;
+	}
 
 	char buffer[32];
 	std::sprintf (buffer, "Session#%p", this);
@@ -313,7 +318,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
 bool FtpSession::dead ()
 {
 #ifndef NDS
-	auto const lock = std::scoped_lock (m_lock);
+	auto const lock = std::lock_guard (m_lock);
 #endif
 	if (m_commandSocket || m_pasvSocket || m_dataSocket)
 		return false;
@@ -324,7 +329,7 @@ bool FtpSession::dead ()
 void FtpSession::draw ()
 {
 #ifndef NDS
-	auto const lock = std::scoped_lock (m_lock);
+	auto const lock = std::lock_guard (m_lock);
 #endif
 
 #ifdef CLASSIC
@@ -610,7 +615,7 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 	{
 		{
 #ifndef NDS
-			auto lock = std::scoped_lock (m_lock);
+			auto lock = std::lock_guard (m_lock);
 #endif
 
 			m_restartPosition = 0;
@@ -1673,7 +1678,13 @@ bool FtpSession::listTransfer ()
 				else if (m_xferDirMode == XferDirMode::NLST)
 					getmtime = false;
 
-				if (getmtime && m_config.getMTime ())
+				{
+					auto const lock = m_config.lockGuard ();
+					if (!m_config.getMTime ())
+						getmtime = false;
+				}
+
+				if (getmtime)
 				{
 					std::uint64_t mtime = 0;
 					auto const rc       = archive_getmtime (fullPath.c_str (), &mtime);
@@ -2159,13 +2170,24 @@ void FtpSession::PASS (char const *args_)
 
 	m_authorizedPass = false;
 
-	if (!m_config.user ().empty () && !m_authorizedUser)
+	std::string user;
+	std::string pass;
+
+	{
+#ifndef NDS
+		auto const lock = m_config.lockGuard ();
+#endif
+		user = m_config.user ();
+		pass = m_config.pass ();
+	}
+
+	if (!user.empty () && !m_authorizedUser)
 	{
 		sendResponse ("430 User not authorized\r\n");
 		return;
 	}
 
-	if (m_config.pass ().empty () || m_config.pass () == args_)
+	if (pass.empty () || pass == args_)
 	{
 		m_authorizedPass = true;
 		sendResponse ("230 OK\r\n");
@@ -2544,19 +2566,40 @@ void FtpSession::SITE (char const *args_)
 
 	if (::strcasecmp (command.c_str (), "USER") == 0)
 	{
-		m_config.setUser (arg);
+		{
+#ifndef NDS
+			auto const lock = m_config.lockGuard ();
+#endif
+			m_config.setUser (arg);
+		}
+
 		sendResponse ("200 OK\r\n");
 		return;
 	}
 	else if (::strcasecmp (command.c_str (), "PASS") == 0)
 	{
-		m_config.setPass (arg);
+		{
+#ifndef NDS
+			auto const lock = m_config.lockGuard ();
+#endif
+			m_config.setPass (arg);
+		}
+
 		sendResponse ("200 OK\r\n");
 		return;
 	}
 	else if (::strcasecmp (command.c_str (), "PORT") == 0)
 	{
-		if (!m_config.setPort (arg))
+		bool error = false;
+
+		{
+#ifndef NDS
+			auto const lock = m_config.lockGuard ();
+#endif
+			error = !m_config.setPort (arg);
+		}
+
+		if (error)
 		{
 			sendResponse ("550 %s\r\n", std::strerror (errno));
 			return;
@@ -2569,9 +2612,19 @@ void FtpSession::SITE (char const *args_)
 	else if (::strcasecmp (command.c_str (), "MTIME") == 0)
 	{
 		if (arg == "0")
+		{
+#ifndef NDS
+			auto const lock = m_config.lockGuard ();
+#endif
 			m_config.setGetMTime (false);
+		}
 		else if (arg == "1")
+		{
+#ifndef NDS
+			auto const lock = m_config.lockGuard ();
+#endif
 			m_config.setGetMTime (true);
+		}
 		else
 		{
 			sendResponse ("550 %s\r\n", std::strerror (EINVAL));
@@ -2581,7 +2634,16 @@ void FtpSession::SITE (char const *args_)
 #endif
 	else if (::strcasecmp (command.c_str (), "SAVE") == 0)
 	{
-		if (!m_config.save (FTPDCONFIG))
+		bool error;
+
+		{
+#ifndef NDS
+			auto const lock = m_config.lockGuard ();
+#endif
+			error = !m_config.save (FTPDCONFIG);
+		}
+
+		if (error)
 		{
 			sendResponse ("550 %s\r\n", std::strerror (errno));
 			return;
@@ -2730,10 +2792,21 @@ void FtpSession::USER (char const *args_)
 
 	m_authorizedUser = false;
 
-	if (m_config.user ().empty () || m_config.user () == args_)
+	std::string user;
+	std::string pass;
+
+	{
+#ifndef NDS
+		auto const lock = m_config.lockGuard ();
+#endif
+		user = m_config.user ();
+		pass = m_config.pass ();
+	}
+
+	if (user.empty () || user == args_)
 	{
 		m_authorizedUser = true;
-		if (m_config.pass ().empty ())
+		if (pass.empty ())
 		{
 			sendResponse ("230 OK\r\n");
 			return;

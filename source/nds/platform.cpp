@@ -73,6 +73,16 @@ bool platform::networkVisible ()
 	return false;
 }
 
+bool platform::networkAddress (SockAddr &addr_)
+{
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_addr   = Wifi_GetIPInfo (nullptr, nullptr, nullptr, nullptr);
+
+	addr_ = addr;
+	return true;
+}
+
 bool platform::init ()
 {
 	sassert (fatInitDefault (), "Failed to initialize fat");

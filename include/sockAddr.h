@@ -94,8 +94,12 @@ public:
 	/// \brief Address port
 	std::uint16_t port () const;
 
+	/// \brief Set address port
+	/// \param port_ Port to set
+	bool setPort (std::uint16_t port_);
+
 	/// \brief Address name
-	/// \param buffer_
+	/// \param buffer_ Buffer to hold name
 	/// \param size_ Size of buffer_
 	/// \retval buffer_ success
 	/// \retval nullptr failure

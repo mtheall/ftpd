@@ -107,6 +107,26 @@ SockAddr::operator struct sockaddr const * () const
 	return reinterpret_cast<struct sockaddr const *> (&m_addr);
 }
 
+bool SockAddr::setPort (std::uint16_t const port_)
+{
+	switch (m_addr.ss_family)
+	{
+	case AF_INET:
+		reinterpret_cast<struct sockaddr_in *> (&m_addr)->sin_port = htons (port_);
+		return true;
+
+#ifndef NO_IPV6
+	case AF_INET6:
+		reinterpret_cast<struct sockaddr_in6 *> (&m_addr)->sin6_port = htons (port_);
+		return true;
+#endif
+
+	default:
+		std::abort ();
+		break;
+	}
+}
+
 std::uint16_t SockAddr::port () const
 {
 	switch (m_addr.ss_family)

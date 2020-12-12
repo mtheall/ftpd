@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "sockAddr.h"
+
 #if defined(NDS)
 #include <nds.h>
 #elif defined(_3DS)
@@ -44,8 +46,30 @@ namespace platform
 /// \brief Initialize platform
 bool init ();
 
+#ifdef __SWITCH__
+/// \brief Enable access point
+/// \param enable_ Whether to enable access point
+/// \param ssid_ SSID
+/// \param passphrase_ Passphrase
+bool enableAP (bool enable_, std::string const &ssid_, std::string const &passphrase_);
+
+/// \brief Check if SSID is valid
+/// \param ssid_ SSID to check
+/// \returns empty string on success, error message on failure
+char const *validateSSID (std::string const &ssid_);
+
+/// \brief Check if passphrase is valid
+/// \param passphrase_ Passphrase to check
+/// \returns empty string on success, error message on failure
+char const *validatePassphrase (std::string const &passphrase_);
+#endif
+
 /// \brief Whether network is visible
 bool networkVisible ();
+
+/// \brief Get network address
+/// \param[out] addr_ Network address
+bool networkAddress (SockAddr &addr_);
 
 /// \brief Platform loop
 bool loop ();

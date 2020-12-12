@@ -20,8 +20,11 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 class FtpConfig;
@@ -40,6 +43,10 @@ public:
 	/// \param path_ Path to config file
 	static UniqueFtpConfig load (char const *path_);
 
+#ifndef NDS
+	std::lock_guard<platform::Mutex> lockGuard ();
+#endif
+
 	/// \brief Save config
 	/// \param path_ Path to config file
 	bool save (char const *path_);
@@ -57,6 +64,17 @@ public:
 	/// \brief Whether to get mtime
 	/// \note only effective on 3DS
 	bool getMTime () const;
+#endif
+
+#ifdef __SWITCH__
+	/// \brief Whether to enable access point
+	bool enableAP () const;
+
+	/// \brief Access point SSID
+	std::string const &ssid () const;
+
+	/// \brief Access point passphrase
+	std::string const &passphrase () const;
 #endif
 
 	/// \brief Set user
@@ -81,8 +99,27 @@ public:
 	void setGetMTime (bool getMTime_);
 #endif
 
+#ifdef __SWITCH__
+	/// \brief Set whether to enable access point
+	/// \param enable_ Whether to enable access point
+	void setEnableAP (bool enable_);
+
+	/// \brief Set access point SSID
+	/// \param ssid_ SSID
+	void setSSID (std::string const &ssid_);
+
+	/// \brief Set access point passphrase
+	/// \param passphrase_ Passphrase
+	void setPassphrase (std::string const &passphrase_);
+#endif
+
 private:
 	FtpConfig ();
+
+#ifndef NDS
+	/// \brief Mutex
+	mutable platform::Mutex m_lock;
+#endif
 
 	/// \brief Username
 	std::string m_user;
@@ -96,5 +133,16 @@ private:
 #ifdef _3DS
 	/// \brief Whether to get mtime
 	bool m_getMTime = true;
+#endif
+
+#ifdef __SWITCH__
+	/// \brief Whether to enable access point
+	bool m_enableAP = false;
+
+	/// \brief Access point SSID
+	std::string m_ssid = "ftpd";
+
+	/// \brief Access point passphrase
+	std::string m_passphrase;
 #endif
 };

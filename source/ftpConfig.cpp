@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 
 #include <limits>
+#include <mutex>
 
 namespace
 {
@@ -163,12 +164,34 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 				error ("Invalid value for mtime: %s\n", val.c_str ());
 		}
 #endif
+#ifdef __SWITCH__
+		else if (key == "ap")
+		{
+			if (val == "0")
+				config->m_enableAP = false;
+			else if (val == "1")
+				config->m_enableAP = true;
+			else
+				error ("Invalid value for ap: %s\n", val.c_str ());
+		}
+		else if (key == "ssid")
+			config->m_ssid = val;
+		else if (key == "passphrase")
+			config->m_passphrase = val;
+#endif
 	}
 
 	config->setPort (port);
 
 	return config;
 }
+
+#ifndef NDS
+std::lock_guard<platform::Mutex> FtpConfig::lockGuard ()
+{
+	return std::lock_guard<platform::Mutex> (m_lock);
+}
+#endif
 
 bool FtpConfig::save (char const *const path_)
 {
@@ -187,6 +210,14 @@ bool FtpConfig::save (char const *const path_)
 
 #ifdef _3DS
 	std::fprintf (fp, "mtime=%u\n", m_getMTime);
+#endif
+
+#ifdef __SWITCH__
+	std::fprintf (fp, "ap=%u\n", m_enableAP);
+	if (!m_ssid.empty ())
+		std::fprintf (fp, "ssid=%s\n", m_ssid.c_str ());
+	if (!m_passphrase.empty ())
+		std::fprintf (fp, "passphrase=%s\n", m_passphrase.c_str ());
 #endif
 
 	return true;
@@ -211,6 +242,23 @@ std::uint16_t FtpConfig::port () const
 bool FtpConfig::getMTime () const
 {
 	return m_getMTime;
+}
+#endif
+
+#ifdef __SWITCH__
+bool FtpConfig::enableAP () const
+{
+	return m_enableAP;
+}
+
+std::string const &FtpConfig::ssid () const
+{
+	return m_ssid;
+}
+
+std::string const &FtpConfig::passphrase () const
+{
+	return m_passphrase;
 }
 #endif
 
@@ -253,5 +301,22 @@ bool FtpConfig::setPort (std::uint16_t const port_)
 void FtpConfig::setGetMTime (bool const getMTime_)
 {
 	m_getMTime = getMTime_;
+}
+#endif
+
+#ifdef __SWITCH__
+void FtpConfig::setEnableAP (bool const enable_)
+{
+	m_enableAP = enable_;
+}
+
+void FtpConfig::setSSID (std::string const &ssid_)
+{
+	m_ssid = ssid_.substr (0, ssid_.find_first_of ('\0'));
+}
+
+void FtpConfig::setPassphrase (std::string const &passphrase_)
+{
+	m_passphrase = passphrase_.substr (0, passphrase_.find_first_of ('\0'));
 }
 #endif

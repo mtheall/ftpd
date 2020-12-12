@@ -53,13 +53,16 @@ namespace
 /// \brief Whether to power backlight
 bool s_backlight = true;
 
+/// \brief Whether access point is active
+bool s_activeAP = false;
+
+/// \brief Access point SSID
+std::string s_ssid;
+
 /// \brief Applet hook cookie
 AppletHookCookie s_appletHookCookie;
 
-#ifdef CLASSIC
-/// \brief Host address
-in_addr_t s_addr = 0;
-#else
+#ifndef CLASSIC
 /// \brief Texture index
 enum TextureIndex
 {
@@ -294,7 +297,7 @@ void loadTextures ()
 	};
 
 	TextureInfo textureInfos[] = {
-	// clang-format off
+	    // clang-format off
 	    TextureInfo (
 	        "romfs:/deko3d.12x12.astc.zst", DkImageFormat_RGBA_ASTC_12x12, LOGO_WIDTH, LOGO_HEIGHT),
 	    TextureInfo (
@@ -315,7 +318,7 @@ void loadTextures ()
 	        "romfs:/wifi2_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
 	    TextureInfo (
 	        "romfs:/wifi3_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT)
-		// clang-format on
+	    // clang-format on
 	};
 
 	// create memblock for transfer (large enough for the largest source file)
@@ -503,28 +506,33 @@ void drawStatus ()
 	{
 		TextureIndex netIcon = AIRPLANE_ICON;
 
-		NifmInternetConnectionType type;
-		std::uint32_t wifiStrength;
-		NifmInternetConnectionStatus status;
-		if (R_SUCCEEDED (nifmGetInternetConnectionStatus (&type, &wifiStrength, &status)))
+		if (s_activeAP)
+			netIcon = WIFI3_ICON;
+		else
 		{
-			if (type == NifmInternetConnectionType_Ethernet)
+			NifmInternetConnectionType type;
+			std::uint32_t wifiStrength;
+			NifmInternetConnectionStatus status;
+			if (R_SUCCEEDED (nifmGetInternetConnectionStatus (&type, &wifiStrength, &status)))
 			{
-				if (status == NifmInternetConnectionStatus_Connected)
-					netIcon = ETH_ICON;
+				if (type == NifmInternetConnectionType_Ethernet)
+				{
+					if (status == NifmInternetConnectionStatus_Connected)
+						netIcon = ETH_ICON;
+					else
+						netIcon = ETH_NONE_ICON;
+				}
 				else
-					netIcon = ETH_NONE_ICON;
-			}
-			else
-			{
-				if (wifiStrength >= 3)
-					netIcon = WIFI3_ICON;
-				else if (wifiStrength == 2)
-					netIcon = WIFI3_ICON;
-				else if (wifiStrength == 1)
-					netIcon = WIFI3_ICON;
-				else if (wifiStrength == 0)
-					netIcon = WIFI_NONE_ICON;
+				{
+					if (wifiStrength >= 3)
+						netIcon = WIFI3_ICON;
+					else if (wifiStrength == 2)
+						netIcon = WIFI3_ICON;
+					else if (wifiStrength == 1)
+						netIcon = WIFI3_ICON;
+					else if (wifiStrength == 0)
+						netIcon = WIFI_NONE_ICON;
+				}
 			}
 		}
 
@@ -545,6 +553,15 @@ void drawStatus ()
 		pos.x -= ImGui::CalcTextSize (freeSpace.c_str ()).x + style.FramePadding.x;
 		ImGui::GetForegroundDrawList ()->AddText (
 		    pos, ImGui::GetColorU32 (ImGuiCol_Text), freeSpace.c_str ());
+	}
+
+	if (s_activeAP)
+	{
+		auto const size    = ImGui::CalcTextSize (s_ssid.c_str ());
+		auto const ssidPos = ImVec2 (
+		    io.DisplaySize.x - style.FramePadding.x - size.x, 3 * style.FramePadding.y + size.y);
+		ImGui::GetForegroundDrawList ()->AddText (
+		    ssidPos, ImGui::GetColorU32 (ImGuiCol_Text), s_ssid.c_str ());
 	}
 
 	{
@@ -598,20 +615,152 @@ bool platform::init ()
 	return true;
 }
 
+bool platform::enableAP (bool const enableAP_,
+    std::string const &ssid_,
+    std::string const &passphrase_)
+{
+	if (s_activeAP == enableAP_)
+		return true;
+
+	if (enableAP_)
+	{
+		auto const ssidError = validateSSID (ssid_);
+		if (ssidError)
+		{
+			error ("Access Point: %s\n", ssidError);
+			return false;
+		}
+
+		auto const passphraseError = validatePassphrase (passphrase_);
+		if (passphraseError)
+		{
+			error ("Access Point: %s\n", passphraseError);
+			return false;
+		}
+
+		auto rc = lp2pInitialize (Lp2pServiceType_App);
+		if (R_FAILED (rc))
+		{
+			error ("lp2pInitialize: 0x%x\n", rc);
+			return false;
+		}
+
+		Lp2pGroupInfo groupInfo;
+		lp2pCreateGroupInfo (&groupInfo);
+
+		// set SSID
+		lp2pGroupInfoSetServiceName (&groupInfo, ssid_.c_str ());
+
+		// enable WPA2-PSK
+		s8 flags = 0;
+		lp2pGroupInfoSetFlags (&groupInfo, &flags, 1);
+
+		// passphrase
+		rc = lp2pGroupInfoSetPassphrase (&groupInfo, passphrase_.c_str ());
+		if (R_FAILED (rc))
+		{
+			error ("lp2pGroupInfoSetPassphrase: 0x%x\n", rc);
+			lp2pExit ();
+			return false;
+		}
+
+		// create group
+		rc = lp2pCreateGroup (&groupInfo);
+		if (R_FAILED (rc))
+		{
+			error ("lp2pCreateGroup: 0x%x\n", rc);
+			lp2pExit ();
+			return false;
+		}
+
+		rc = lp2pGetGroupInfo (&groupInfo);
+		if (R_FAILED (rc))
+		{
+			error ("lp2pGetGroupInfo: 0x%x\n", rc);
+			lp2pDestroyGroup ();
+			lp2pExit ();
+			return false;
+		}
+
+		s_ssid = std::string ("SSID: ") + groupInfo.service_name;
+
+		s_activeAP = true;
+	}
+	else
+	{
+		lp2pDestroyGroup ();
+		lp2pExit ();
+		s_activeAP = false;
+	}
+
+	return true;
+}
+
+char const *platform::validateSSID (std::string const &ssid_)
+{
+	auto const ssid = std::string_view (ssid_).substr (0, ssid_.find_first_of ('\0'));
+
+	if (ssid.size () > 19)
+		return "SSID too long";
+
+	for (auto const &c : ssid)
+	{
+		if (!std::isalnum (c) && c != '-')
+			return "SSID can only contain alphanumeric and -";
+	}
+
+	return nullptr;
+}
+
+char const *platform::validatePassphrase (std::string const &passphrase_)
+{
+	auto const passphrase =
+	    std::string_view (passphrase_).substr (0, passphrase_.find_first_of ('\0'));
+
+	if (passphrase.size () < 8)
+		return "Passphrase too short";
+	else if (passphrase.size () > 63)
+		return "Passphrase too long";
+
+	return nullptr;
+}
+
 bool platform::networkVisible ()
 {
+	if (s_activeAP)
+		return true;
+
 	NifmInternetConnectionType type;
 	std::uint32_t wifi;
 	NifmInternetConnectionStatus status;
 	if (R_FAILED (nifmGetInternetConnectionStatus (&type, &wifi, &status)))
 		return false;
 
-#ifdef CLASSIC
-	if (!s_addr)
-		s_addr = gethostid ();
-#endif
-
 	return status == NifmInternetConnectionStatus_Connected;
+}
+
+bool platform::networkAddress (SockAddr &addr_)
+{
+	if (s_activeAP)
+	{
+		Lp2pIpConfig ipConfig;
+		auto const rc = lp2pGetIpConfig (&ipConfig);
+		if (R_FAILED (rc))
+		{
+			error ("lp2pGetIpConfig: 0x%x\n", rc);
+			return false;
+		}
+
+		addr_ = *reinterpret_cast<struct sockaddr_in *> (ipConfig.ip_addr);
+		return true;
+	}
+
+	struct sockaddr_in addr;
+	addr.sin_family      = AF_INET;
+	addr.sin_addr.s_addr = gethostid ();
+
+	addr_ = addr;
+	return true;
 }
 
 bool platform::loop ()
@@ -672,7 +821,7 @@ void platform::render ()
 #else
 	ImGui::Render ();
 
-	auto &io = ImGui::GetIO ();
+	auto const &io = ImGui::GetIO ();
 
 	if (s_width != io.DisplaySize.x || s_height != io.DisplaySize.y)
 	{
@@ -726,6 +875,13 @@ void platform::exit ()
 
 	if (!s_backlight)
 		appletSetLcdBacklightOffEnabled (false);
+
+	if (s_activeAP)
+	{
+		lp2pDestroyGroup ();
+		lp2pExit ();
+		s_activeAP = false;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////

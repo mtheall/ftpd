@@ -36,10 +36,12 @@
 #include <sys/statvfs.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <string_view>
 #include <thread>
 using namespace std::chrono_literals;
 
@@ -49,7 +51,7 @@ using namespace std::chrono_literals;
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
-		auto const lock = std::scoped_lock (m_lock);                                               \
+		auto const lock = std::lock_guard (m_lock);                                                \
 		x;                                                                                         \
 	} while (0)
 #endif
@@ -95,7 +97,7 @@ void FtpServer::draw ()
 	{
 		char port[7];
 #ifndef NDS
-		auto lock = std::scoped_lock (m_lock);
+		auto const lock = std::lock_guard (m_lock);
 #endif
 		if (m_socket)
 			std::sprintf (port, ":%u", m_socket->sockName ().port ());
@@ -120,7 +122,7 @@ void FtpServer::draw ()
 
 	{
 #ifndef NDS
-		auto const lock = std::scoped_lock (s_lock);
+		auto const lock = std::lock_guard (s_lock);
 #endif
 		if (!s_freeSpace.empty ())
 		{
@@ -134,7 +136,7 @@ void FtpServer::draw ()
 
 	{
 #ifndef NDS
-		auto lock = std::scoped_lock (m_lock);
+		auto const lock = std::lock_guard (m_lock);
 #endif
 		consoleSelect (&g_sessionConsole);
 		std::fputs ("\x1b[2J", stdout);
@@ -164,7 +166,7 @@ void FtpServer::draw ()
 		char title[64];
 
 		{
-			auto const serverLock = std::scoped_lock (m_lock);
+			auto const serverLock = std::lock_guard (m_lock);
 			std::snprintf (title,
 			    sizeof (title),
 			    STATUS_STRING " %s###ftpd",
@@ -210,7 +212,7 @@ void FtpServer::draw ()
 #endif
 
 	{
-		auto lock = std::scoped_lock (m_lock);
+		auto const lock = std::lock_guard (m_lock);
 		for (auto &session : m_sessions)
 			session->draw ();
 	}
@@ -231,7 +233,7 @@ UniqueFtpServer FtpServer::create ()
 std::string FtpServer::getFreeSpace ()
 {
 #ifndef NDS
-	auto const lock = std::scoped_lock (s_lock);
+	auto const lock = std::lock_guard (s_lock);
 #endif
 	return s_freeSpace;
 }
@@ -249,7 +251,7 @@ void FtpServer::updateFreeSpace ()
 	auto freeSpace = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
 
 #ifndef NDS
-	auto const lock = std::scoped_lock (s_lock);
+	auto const lock = std::lock_guard (s_lock);
 #endif
 	if (freeSpace != s_freeSpace)
 		s_freeSpace = std::move (freeSpace);
@@ -262,22 +264,26 @@ std::time_t FtpServer::startTime ()
 
 void FtpServer::handleNetworkFound ()
 {
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-#if defined(NDS)
-	addr.sin_addr = Wifi_GetIPInfo (nullptr, nullptr, nullptr, nullptr);
-#elif defined(_3DS) || defined(__SWITCH__)
-	addr.sin_addr.s_addr = gethostid ();
-#else
-	addr.sin_addr.s_addr = INADDR_ANY;
+	SockAddr addr;
+	if (!platform::networkAddress (addr))
+		return;
+
+	std::uint16_t port;
+
+	{
+#ifndef NDS
+		auto const lock = m_config->lockGuard ();
 #endif
-	addr.sin_port = htons (m_config->port ());
+		port = m_config->port ();
+	}
+
+	addr.setPort (port);
 
 	auto socket = Socket::create ();
 	if (!socket)
 		return;
 
-	if (m_config->port () != 0 && !socket->setReuseAddress (true))
+	if (port != 0 && !socket->setReuseAddress (true))
 		return;
 
 	if (!socket->bind (addr))
@@ -290,7 +296,7 @@ void FtpServer::handleNetworkFound ()
 	auto const name      = sockName.name ();
 
 	m_name.resize (std::strlen (name) + 3 + 5);
-	m_name.resize (std::sprintf (&m_name[0], "[%s]:%u", name, sockName.port ()));
+	m_name.resize (std::sprintf (m_name.data (), "[%s]:%u", name, sockName.port ()));
 
 	info ("Started server at %s\n", m_name.c_str ());
 
@@ -314,9 +320,9 @@ void FtpServer::handleNetworkLost ()
 	info ("Stopped server at %s\n", m_name.c_str ());
 }
 
+#ifndef CLASSIC
 void FtpServer::showMenu ()
 {
-#ifndef CLASSIC
 	auto const prevShowSettings = m_showSettings;
 	auto const prevShowAbout    = m_showAbout;
 
@@ -343,6 +349,10 @@ void FtpServer::showMenu ()
 	{
 		if (!prevShowSettings)
 		{
+#ifndef NDS
+			auto const lock = m_config->lockGuard ();
+#endif
+
 			m_userSetting = m_config->user ();
 			m_userSetting.resize (32);
 
@@ -355,7 +365,16 @@ void FtpServer::showMenu ()
 			m_getMTimeSetting = m_config->getMTime ();
 #endif
 
-			info ("Open \"Settings\" popup\n");
+#ifdef __SWITCH__
+			m_enableAPSetting = m_config->enableAP ();
+
+			m_ssidSetting = m_config->ssid ();
+			m_ssidSetting.resize (19);
+
+			m_passphraseSetting = m_config->passphrase ();
+			m_passphraseSetting.resize (63);
+#endif
+
 			ImGui::OpenPopup ("Settings");
 		}
 
@@ -373,7 +392,6 @@ void FtpServer::showMenu ()
 
 void FtpServer::showSettings ()
 {
-#ifndef CLASSIC
 #ifdef _3DS
 	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
@@ -388,11 +406,13 @@ void FtpServer::showSettings ()
 	if (ImGui::BeginPopupModal ("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 #endif
 	{
-		ImGui::InputText (
-		    "User", &m_userSetting[0], m_userSetting.size (), ImGuiInputTextFlags_AutoSelectAll);
+		ImGui::InputText ("User",
+		    m_userSetting.data (),
+		    m_userSetting.size (),
+		    ImGuiInputTextFlags_AutoSelectAll);
 
 		ImGui::InputText ("Pass",
-		    &m_passSetting[0],
+		    m_passSetting.data (),
 		    m_passSetting.size (),
 		    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_Password);
 
@@ -408,6 +428,26 @@ void FtpServer::showSettings ()
 		ImGui::Checkbox ("Get mtime", &m_getMTimeSetting);
 #endif
 
+#ifdef __SWITCH__
+		ImGui::Checkbox ("Enable Access Point", &m_enableAPSetting);
+
+		ImGui::InputText ("SSID",
+		    m_ssidSetting.data (),
+		    m_ssidSetting.size (),
+		    ImGuiInputTextFlags_AutoSelectAll);
+		auto const ssidError = platform::validateSSID (m_ssidSetting);
+		if (ssidError)
+			ImGui::TextColored (ImVec4 (1.0f, 0.4f, 0.4f, 1.0f), ssidError);
+
+		ImGui::InputText ("Passphrase",
+		    m_passphraseSetting.data (),
+		    m_passphraseSetting.size (),
+		    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_Password);
+		auto const passphraseError = platform::validatePassphrase (m_passphraseSetting);
+		if (passphraseError)
+			ImGui::TextColored (ImVec4 (1.0f, 0.4f, 0.4f, 1.0f), passphraseError);
+#endif
+
 		auto const apply = ImGui::Button ("Apply", ImVec2 (100, 0));
 		ImGui::SameLine ();
 		auto const save = ImGui::Button ("Save", ImVec2 (100, 0));
@@ -419,6 +459,10 @@ void FtpServer::showSettings ()
 			m_showSettings = false;
 			ImGui::CloseCurrentPopup ();
 
+#ifndef NDS
+			auto const lock = m_config->lockGuard ();
+#endif
+
 			m_config->setUser (m_userSetting);
 			m_config->setPass (m_passSetting);
 			m_config->setPort (m_portSetting);
@@ -427,12 +471,24 @@ void FtpServer::showSettings ()
 			m_config->setGetMTime (m_getMTimeSetting);
 #endif
 
+#ifdef __SWITCH__
+			m_config->setEnableAP (m_enableAPSetting);
+			m_config->setSSID (m_ssidSetting);
+			m_config->setPassphrase (m_passphraseSetting);
+			m_apError = false;
+#endif
+
 			UniqueSocket socket;
 			LOCKED (socket = std::move (m_socket));
 		}
 
-		if (save && !m_config->save (FTPDCONFIG))
-			error ("Failed to save config\n");
+		{
+#ifndef NDS
+			auto const lock = m_config->lockGuard ();
+#endif
+			if (save && !m_config->save (FTPDCONFIG))
+				error ("Failed to save config\n");
+		}
 
 		if (apply || save || cancel)
 		{
@@ -442,13 +498,10 @@ void FtpServer::showSettings ()
 
 		ImGui::EndPopup ();
 	}
-#endif
-#endif
 }
 
 void FtpServer::showAbout ()
 {
-#ifndef CLASSIC
 	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
 	auto const height = io.DisplaySize.y;
@@ -539,13 +592,31 @@ void FtpServer::showAbout ()
 
 		ImGui::EndPopup ();
 	}
-#endif
 }
+#endif
 
 void FtpServer::loop ()
 {
 	if (!m_socket)
 	{
+#ifdef __SWITCH__
+		if (!m_apError)
+		{
+			bool enable;
+			std::string ssid;
+			std::string passphrase;
+
+			{
+				auto const lock = m_config->lockGuard ();
+				enable          = m_config->enableAP ();
+				ssid            = m_config->ssid ();
+				passphrase      = m_config->passphrase ();
+			}
+
+			m_apError = !platform::enableAP (enable, ssid, passphrase);
+		}
+#endif
+
 		if (platform::networkVisible ())
 			handleNetworkFound ();
 	}
@@ -582,7 +653,7 @@ void FtpServer::loop ()
 		{
 			// remove dead sessions
 #ifndef NDS
-			auto lock = std::scoped_lock (m_lock);
+			auto const lock = std::lock_guard (m_lock);
 #endif
 			auto it = std::begin (m_sessions);
 			while (it != std::end (m_sessions))
