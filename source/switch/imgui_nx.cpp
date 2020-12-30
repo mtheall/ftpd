@@ -1169,7 +1169,7 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 	{
 	case AppletHookType_OnFocusState:
 		// grab focus state
-		s_focused = (appletGetFocusState () == AppletFocusState_Focused);
+		s_focused = (appletGetFocusState () == AppletFocusState_InFocus);
 		break;
 
 	case AppletHookType_OnOperationMode:
@@ -1182,7 +1182,7 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 			s_height = 720.0f;
 			break;
 
-		case AppletOperationMode_Docked:
+		case AppletOperationMode_Console:
 			// use docked mode resolution (1080p)
 			s_width  = 1920.0f;
 			s_height = 1080.0f;

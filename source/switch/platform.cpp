@@ -450,7 +450,7 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 	switch (hook_)
 	{
 	case AppletHookType_OnFocusState:
-		if (appletGetFocusState () == AppletFocusState_Focused)
+		if (appletGetFocusState () == AppletFocusState_InFocus)
 			appletSetLcdBacklightOffEnabled (!s_backlight);
 		break;
 
