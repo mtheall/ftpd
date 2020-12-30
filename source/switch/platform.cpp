@@ -218,7 +218,7 @@ void rebuildSwapchain (unsigned const width_, unsigned const height_)
 /// \brief Initialize deko3d
 void deko3dInit ()
 {
-	padConfigureInput (1, HidNpadStyleSet_NpadStandard);
+	padConfigureInput (1, HidNpadStyleSet_NpadFullCtrl);
 	padInitializeDefault (&s_padState);
 
 	hidInitializeTouchScreen ();
