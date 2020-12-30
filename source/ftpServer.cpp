@@ -448,11 +448,13 @@ void FtpServer::showSettings ()
 			ImGui::TextColored (ImVec4 (1.0f, 0.4f, 0.4f, 1.0f), passphraseError);
 #endif
 
-		auto const apply = ImGui::Button ("Apply", ImVec2 (100, 0));
+		auto const apply = ImGui::Button ("Apply", ImVec2 (75, 0));
 		ImGui::SameLine ();
-		auto const save = ImGui::Button ("Save", ImVec2 (100, 0));
+		auto const save = ImGui::Button ("Save", ImVec2 (75, 0));
 		ImGui::SameLine ();
-		auto const cancel = ImGui::Button ("Cancel", ImVec2 (100, 0));
+		auto const reset = ImGui::Button ("Reset", ImVec2 (75, 0));
+		ImGui::SameLine ();
+		auto const cancel = ImGui::Button ("Cancel", ImVec2 (75, 0));
 
 		if (apply || save)
 		{
@@ -482,12 +484,31 @@ void FtpServer::showSettings ()
 			LOCKED (socket = std::move (m_socket));
 		}
 
+		if (save)
 		{
 #ifndef NDS
 			auto const lock = m_config->lockGuard ();
 #endif
-			if (save && !m_config->save (FTPDCONFIG))
+			if (!m_config->save (FTPDCONFIG))
 				error ("Failed to save config\n");
+		}
+
+		if (reset)
+		{
+			static auto const defaults = FtpConfig::create ();
+
+			m_userSetting = defaults->user ();
+			m_passSetting = defaults->pass ();
+			m_portSetting = defaults->port ();
+#ifdef _3DS
+			m_getMTimeSetting = defaults->getMTime ();
+#endif
+
+#ifdef __SWITCH__
+			m_enableAPSetting   = defaults->enableAP ();
+			m_ssidSetting       = defaults->ssid ();
+			m_passphraseSetting = defaults->passphrase ();
+#endif
 		}
 
 		if (apply || save || cancel)
