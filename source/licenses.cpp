@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2021 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ char const *const g_libnxVersion  = "libnx";
 char const *const g_deko3dVersion = "deko3d";
 char const *const g_zstdVersion   = "zStandard " ZSTD_VERSION_STRING;
 
-char const *const g_libnxCopyright  = "Copyright (C) 2017-2020 libnx Authors";
+char const *const g_libnxCopyright  = "Copyright (C) 2017-2021 libnx Authors";
 char const *const g_deko3dCopyright = "Copyright (C) 2018-2020 fincs\n";
 char const *const g_zstdCopyright =
     "Copyright (C) 2016-present, Facebook, Inc. All rights reserved.";

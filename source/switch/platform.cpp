@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2021 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -62,6 +62,9 @@ std::string s_ssid;
 /// \brief Applet hook cookie
 AppletHookCookie s_appletHookCookie;
 
+/// \brief Gamepad state
+PadState s_padState;
+
 #ifndef CLASSIC
 /// \brief Texture index
 enum TextureIndex
@@ -106,8 +109,6 @@ unsigned s_width = 1920;
 /// \brief Framebuffer height
 unsigned s_height = 1080;
 
-/// \brief Gamepad state
-PadState s_padState;
 /// \brief Touch screen state
 HidTouchScreenState s_touchState;
 /// \brief Mouse state
@@ -218,9 +219,6 @@ void rebuildSwapchain (unsigned const width_, unsigned const height_)
 /// \brief Initialize deko3d
 void deko3dInit ()
 {
-	padConfigureInput (1, HidNpadStyleSet_NpadFullCtrl);
-	padInitializeDefault (&s_padState);
-
 	hidInitializeTouchScreen ();
 	hidInitializeMouse ();
 	hidInitializeKeyboard ();
@@ -472,11 +470,11 @@ void drawStatus ()
 		std::uint32_t batteryCharge = 0;
 		psmGetBatteryChargePercentage (&batteryCharge);
 
-		ChargerType charger = ChargerType_None;
+		PsmChargerType charger = PsmChargerType_Unconnected;
 		psmGetChargerType (&charger);
 
 		TextureIndex powerIcon = BATTERY_ICON;
-		if (charger != ChargerType_None)
+		if (charger != PsmChargerType_Unconnected)
 			powerIcon = CHARGING_ICON;
 
 		// draw battery/charging icon
@@ -594,6 +592,9 @@ bool platform::init ()
 #ifndef NDEBUG
 	std::setvbuf (stderr, nullptr, _IOLBF, 0);
 #endif
+
+	padConfigureInput (1, HidNpadStyleSet_NpadFullCtrl);
+	padInitializeDefault (&s_padState);
 
 #ifndef CLASSIC
 	if (!imgui::nx::init ())

@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2021 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -1296,18 +1296,18 @@ void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 	std::memset (io_.NavInputs, 0, sizeof (io_.NavInputs));
 
 	auto const buttonMapping = {
-	    std::make_pair (KEY_A, ImGuiNavInput_Activate),
-	    std::make_pair (KEY_B, ImGuiNavInput_Cancel),
-	    std::make_pair (KEY_X, ImGuiNavInput_Input),
-	    std::make_pair (KEY_Y, ImGuiNavInput_Menu),
-	    std::make_pair (KEY_L, ImGuiNavInput_FocusPrev),
-	    std::make_pair (KEY_L, ImGuiNavInput_TweakSlow),
-	    std::make_pair (KEY_R, ImGuiNavInput_FocusNext),
-	    std::make_pair (KEY_R, ImGuiNavInput_TweakFast),
-	    std::make_pair (KEY_DUP, ImGuiNavInput_DpadUp),
-	    std::make_pair (KEY_DRIGHT, ImGuiNavInput_DpadRight),
-	    std::make_pair (KEY_DDOWN, ImGuiNavInput_DpadDown),
-	    std::make_pair (KEY_DLEFT, ImGuiNavInput_DpadLeft),
+	    std::make_pair (HidNpadButton_A, ImGuiNavInput_Activate),
+	    std::make_pair (HidNpadButton_B, ImGuiNavInput_Cancel),
+	    std::make_pair (HidNpadButton_X, ImGuiNavInput_Input),
+	    std::make_pair (HidNpadButton_Y, ImGuiNavInput_Menu),
+	    std::make_pair (HidNpadButton_L, ImGuiNavInput_FocusPrev),
+	    std::make_pair (HidNpadButton_L, ImGuiNavInput_TweakSlow),
+	    std::make_pair (HidNpadButton_R, ImGuiNavInput_FocusNext),
+	    std::make_pair (HidNpadButton_R, ImGuiNavInput_TweakFast),
+	    std::make_pair (HidNpadButton_Up, ImGuiNavInput_DpadUp),
+	    std::make_pair (HidNpadButton_Right, ImGuiNavInput_DpadRight),
+	    std::make_pair (HidNpadButton_Down, ImGuiNavInput_DpadDown),
+	    std::make_pair (HidNpadButton_Left, ImGuiNavInput_DpadLeft),
 	};
 
 	// read buttons from primary controller
@@ -1319,12 +1319,12 @@ void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 	}
 
 	// use ZR/ZL as left-click/right-click, respectively
-	if (keys & KEY_ZR)
+	if (keys & HidNpadButton_ZR)
 	{
 		io_.MouseDown[0] = true;
 		moveMouse (io_, s_mousePos, true);
 	}
-	if (keys & KEY_ZL)
+	if (keys & HidNpadButton_ZL)
 	{
 		io_.MouseDown[1] = true;
 		moveMouse (io_, s_mousePos, true);
@@ -1348,9 +1348,9 @@ void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 
 	// use right stick as mouse
 	auto scale = 5.0f;
-	if (keys & KEY_L)
+	if (keys & HidNpadButton_L)
 		scale = 1.0f;
-	if (keys & KEY_R)
+	if (keys & HidNpadButton_R)
 		scale = 20.0f;
 
 	auto const jsRight = padGetStickPos (&padState_, 1);
@@ -1475,28 +1475,28 @@ bool imgui::nx::init ()
 	io.BackendPlatformName = "Switch";
 
 	// keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-	io.KeyMap[ImGuiKey_Tab]         = KBD_TAB;
-	io.KeyMap[ImGuiKey_LeftArrow]   = KBD_LEFT;
-	io.KeyMap[ImGuiKey_RightArrow]  = KBD_RIGHT;
-	io.KeyMap[ImGuiKey_UpArrow]     = KBD_UP;
-	io.KeyMap[ImGuiKey_DownArrow]   = KBD_DOWN;
-	io.KeyMap[ImGuiKey_PageUp]      = KBD_PAGEUP;
-	io.KeyMap[ImGuiKey_PageDown]    = KBD_PAGEDOWN;
-	io.KeyMap[ImGuiKey_Home]        = KBD_HOME;
-	io.KeyMap[ImGuiKey_End]         = KBD_END;
-	io.KeyMap[ImGuiKey_Insert]      = KBD_INSERT;
-	io.KeyMap[ImGuiKey_Delete]      = KBD_DELETE;
-	io.KeyMap[ImGuiKey_Backspace]   = KBD_BACKSPACE;
-	io.KeyMap[ImGuiKey_Space]       = KBD_SPACE;
-	io.KeyMap[ImGuiKey_Enter]       = KBD_ENTER;
-	io.KeyMap[ImGuiKey_Escape]      = KBD_ESC;
-	io.KeyMap[ImGuiKey_KeyPadEnter] = KBD_KPENTER;
-	io.KeyMap[ImGuiKey_A]           = KBD_A;
-	io.KeyMap[ImGuiKey_C]           = KBD_C;
-	io.KeyMap[ImGuiKey_V]           = KBD_V;
-	io.KeyMap[ImGuiKey_X]           = KBD_X;
-	io.KeyMap[ImGuiKey_Y]           = KBD_Y;
-	io.KeyMap[ImGuiKey_Z]           = KBD_Z;
+	io.KeyMap[ImGuiKey_Tab]         = HidKeyboardKey_Tab;
+	io.KeyMap[ImGuiKey_LeftArrow]   = HidKeyboardKey_LeftArrow;
+	io.KeyMap[ImGuiKey_RightArrow]  = HidKeyboardKey_RightArrow;
+	io.KeyMap[ImGuiKey_UpArrow]     = HidKeyboardKey_UpArrow;
+	io.KeyMap[ImGuiKey_DownArrow]   = HidKeyboardKey_DownArrow;
+	io.KeyMap[ImGuiKey_PageUp]      = HidKeyboardKey_PageUp;
+	io.KeyMap[ImGuiKey_PageDown]    = HidKeyboardKey_PageDown;
+	io.KeyMap[ImGuiKey_Home]        = HidKeyboardKey_Home;
+	io.KeyMap[ImGuiKey_End]         = HidKeyboardKey_End;
+	io.KeyMap[ImGuiKey_Insert]      = HidKeyboardKey_Insert;
+	io.KeyMap[ImGuiKey_Delete]      = HidKeyboardKey_Delete;
+	io.KeyMap[ImGuiKey_Backspace]   = HidKeyboardKey_Backspace;
+	io.KeyMap[ImGuiKey_Space]       = HidKeyboardKey_Space;
+	io.KeyMap[ImGuiKey_Enter]       = HidKeyboardKey_Return;
+	io.KeyMap[ImGuiKey_Escape]      = HidKeyboardKey_Escape;
+	io.KeyMap[ImGuiKey_KeyPadEnter] = HidKeyboardKey_NumPadEnter;
+	io.KeyMap[ImGuiKey_A]           = HidKeyboardKey_A;
+	io.KeyMap[ImGuiKey_C]           = HidKeyboardKey_C;
+	io.KeyMap[ImGuiKey_V]           = HidKeyboardKey_V;
+	io.KeyMap[ImGuiKey_X]           = HidKeyboardKey_X;
+	io.KeyMap[ImGuiKey_Y]           = HidKeyboardKey_Y;
+	io.KeyMap[ImGuiKey_Z]           = HidKeyboardKey_Z;
 
 	// initially disable mouse cursor
 	io.MouseDrawCursor = false;
