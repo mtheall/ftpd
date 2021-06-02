@@ -7,7 +7,7 @@
 
 export GITREV  := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-6)
 export VERSION_MAJOR := 3
-export VERSION_MINOR := 0
+export VERSION_MINOR := 1
 export VERSION_MICRO := 0
 export VERSION := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_MICRO)
 
@@ -93,13 +93,22 @@ release: release-nds \
 		release-3dsx release-3dsx-classic \
 		release-cia release-cia-classic \
 		release-nro release-nro-classic
-	@xz -c <nds/ftpd.nds >ftpd.nds.xz
-	@xz -c <3ds/ftpd.3dsx >ftpd.3dsx.xz
-	@xz -c <3ds-classic/ftpd-classic.3dsx >ftpd-classic.3dsx.xz
-	@xz -c <3ds/ftpd.cia >ftpd.cia.xz
-	@xz -c <3ds-classic/ftpd-classic.cia >ftpd-classic.cia.xz
-	@xz -c <switch/ftpd.nro >ftpd.nro.xz
-	@xz -c <switch-classic/ftpd-classic.nro >ftpd-classic.nro.xz
+	@$(RM) -r release
+	@mkdir release
+	@xz -c <nds/ftpd.nds >release/ftpd.nds.xz
+	@ln -s ../nds/ftpd.nds release/ftpd.nds
+	@xz -c <3ds/ftpd.3dsx >release/ftpd.3dsx.xz
+	@ln -s ../3ds/ftpd.3dsx release/ftpd.3dsx
+	@xz -c <3ds-classic/ftpd-classic.3dsx >release/ftpd-classic.3dsx.xz
+	@ln -s ../3ds-classic/ftpd-classic.3dsx release/ftpd-classic.3dsx
+	@xz -c <3ds/ftpd.cia >release/ftpd.cia.xz
+	@ln -s ../3ds/ftpd.cia release/ftpd.cia
+	@xz -c <3ds-classic/ftpd-classic.cia >release/ftpd-classic.cia.xz
+	@ln -s ../3ds-classic/ftpd-classic.cia release/ftpd-classic.cia
+	@xz -c <switch/ftpd.nro >release/ftpd.nro.xz
+	@ln -s ../switch/ftpd.nro release/ftpd.nro
+	@xz -c <switch-classic/ftpd-classic.nro >release/ftpd-classic.nro.xz
+	@ln -s ../switch-classic/ftpd-classic.nro release/ftpd-classic.nro
 
 release-nds:
 	@$(MAKE) -f Makefile.nds DEFINES=-DNDEBUG OPTIMIZE="-O3 -flto"
