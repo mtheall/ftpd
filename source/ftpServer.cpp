@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2021 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <sys/statvfs.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdio>
@@ -448,13 +449,34 @@ void FtpServer::showSettings ()
 			ImGui::TextColored (ImVec4 (1.0f, 0.4f, 0.4f, 1.0f), passphraseError);
 #endif
 
-		auto const apply = ImGui::Button ("Apply", ImVec2 (75, 0));
+		static ImVec2 const sizes[] = {
+		    ImGui::CalcTextSize ("Apply"),
+		    ImGui::CalcTextSize ("Save"),
+		    ImGui::CalcTextSize ("Reset"),
+		    ImGui::CalcTextSize ("Cancel"),
+		};
+
+		static auto const maxWidth = std::max_element (
+		    std::begin (sizes), std::end (sizes), [] (auto const &lhs_, auto const &rhs_) {
+			    return lhs_.x < rhs_.x;
+		    })->x;
+
+		static auto const maxHeight = std::max_element (
+		    std::begin (sizes), std::end (sizes), [] (auto const &lhs_, auto const &rhs_) {
+			    return lhs_.y < rhs_.y;
+		    })->y;
+
+		auto const &style = ImGui::GetStyle ();
+		auto const width  = maxWidth + 2 * style.FramePadding.x;
+		auto const height = maxHeight + 2 * style.FramePadding.y;
+
+		auto const apply = ImGui::Button ("Apply", ImVec2 (width, height));
 		ImGui::SameLine ();
-		auto const save = ImGui::Button ("Save", ImVec2 (75, 0));
+		auto const save = ImGui::Button ("Save", ImVec2 (width, height));
 		ImGui::SameLine ();
-		auto const reset = ImGui::Button ("Reset", ImVec2 (75, 0));
+		auto const reset = ImGui::Button ("Reset", ImVec2 (width, height));
 		ImGui::SameLine ();
-		auto const cancel = ImGui::Button ("Cancel", ImVec2 (75, 0));
+		auto const cancel = ImGui::Button ("Cancel", ImVec2 (width, height));
 
 		if (apply || save)
 		{
@@ -539,7 +561,7 @@ void FtpServer::showAbout ()
 	        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
 	{
 		ImGui::TextUnformatted (STATUS_STRING);
-		ImGui::TextWrapped ("Copyright © 2014-2020 Michael Theall, Dave Murphy, TuxSH");
+		ImGui::TextWrapped ("Copyright © 2021 Michael Theall, Dave Murphy, TuxSH");
 		ImGui::Separator ();
 		ImGui::Text ("Platform: %s", io.BackendPlatformName);
 		ImGui::Text ("Renderer: %s", io.BackendRendererName);
@@ -620,6 +642,7 @@ void FtpServer::loop ()
 {
 	if (!m_socket)
 	{
+#ifndef CLASSIC
 #ifdef __SWITCH__
 		if (!m_apError)
 		{
@@ -636,6 +659,7 @@ void FtpServer::loop ()
 
 			m_apError = !platform::enableAP (enable, ssid, passphrase);
 		}
+#endif
 #endif
 
 		if (platform::networkVisible ())
