@@ -19,21 +19,23 @@ all-classic: nds 3dsx-classic nro-classic linux
 format:
 	@clang-format -style=file -i $(filter-out \
 		include/imgui.h \
-		source/linux/imgui_impl_glfw.cpp \
-		source/linux/imgui_impl_glfw.h \
-		source/linux/imgui_impl_opengl3.cpp \
-		source/linux/imgui_impl_opengl3.h \
-		source/linux/KHR/khrplatform.h \
-		source/linux/glad.c \
-		source/linux/glad/glad.h \
 		source/imgui/imgui.cpp \
 		source/imgui/imgui_demo.cpp \
 		source/imgui/imgui_draw.cpp \
+		source/imgui/imgui_internal.h \
+		source/imgui/imgui_internal.h, \
+		source/imgui/imgui_tables.cpp \
 		source/imgui/imgui_widgets.cpp \
 		source/imgui/imstb_rectpack.h \
 		source/imgui/imstb_textedit.h \
 		source/imgui/imstb_truetype.h \
-		source/imgui/imgui_internal.h, \
+		source/linux/KHR/khrplatform.h \
+		source/linux/glad.c \
+		source/linux/glad/glad.h \
+		source/linux/imgui_impl_glfw.cpp \
+		source/linux/imgui_impl_glfw.h \
+		source/linux/imgui_impl_opengl3.cpp \
+		source/linux/imgui_impl_opengl3.h \
 		$(shell find source include -type f -name \*.c -o -name \*.cpp -o -name \*.h))
 
 clean:

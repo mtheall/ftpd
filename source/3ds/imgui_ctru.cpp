@@ -173,7 +173,7 @@ void updateKeyboard (ImGuiIO &io_)
 		swkbdSetInitialText (
 		    &kbd, std::string (textState.InitialTextA.Data, textState.InitialTextA.Size).c_str ());
 
-		if (textState.UserFlags & ImGuiInputTextFlags_Password)
+		if (textState.Flags & ImGuiInputTextFlags_Password)
 			swkbdSetPasswordMode (&kbd, SWKBD_PASSWORD_HIDE_DELAY);
 
 		char buffer[32]   = {0};

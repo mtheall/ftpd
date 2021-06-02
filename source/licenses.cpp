@@ -31,7 +31,7 @@
 #endif
 
 char const *const g_dearImGuiVersion   = "Dear ImGui " IMGUI_VERSION;
-char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2020 Omar Cornut";
+char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2021 Omar Cornut";
 
 char const *const g_mitLicense =
     "The MIT License (MIT)\n"

@@ -336,7 +336,7 @@ void imgui::citro3d::init ()
 	config.GlyphMinAdvanceX     = 0.0f;
 	config.GlyphMaxAdvanceX     = std::numeric_limits<float>::max ();
 	config.MergeMode            = false;
-	config.RasterizerFlags      = 0;
+	config.FontBuilderFlags     = 0;
 	config.RasterizerMultiply   = 1.0f;
 	config.EllipsisChar         = 0x2026;
 	std::memset (config.Name, 0, sizeof (config.Name));
