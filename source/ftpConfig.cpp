@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2021 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -283,15 +283,22 @@ bool FtpConfig::setPort (std::string const &port_)
 
 bool FtpConfig::setPort (std::uint16_t const port_)
 {
-	if (port_ < 1024
-#if !defined(NDS) && !defined(_3DS)
-	    && port_ != 0
-#endif
-	)
+#ifdef __SWITCH__
+	// Switch is not allowed < 1024, except 0
+	if (port_ < 1024 && port_ != 0)
 	{
 		errno = EPERM;
 		return false;
 	}
+#elif defined(NDS) || defined(_3DS)
+	// 3DS is allowed < 1024, but not 0
+	// NDS is allowed < 1024, but 0 crashes the app
+	if (port_ == 0)
+	{
+		errno = EPERM;
+		return false;
+	}
+#endif
 
 	m_port = port_;
 	return true;
