@@ -1699,9 +1699,46 @@ bool FtpSession::listTransfer ()
 			    // lstat the entry
 			    if (::lstat (fullPath.c_str (), &st) != 0)
 			{
+#ifndef __SWITCH__
 				sendResponse ("550 %s\r\n", std::strerror (errno));
 				setState (State::COMMAND, true, true);
 				return false;
+#else
+				// probably archive bit set; list name with dummy stats
+				std::memset (&st, 0, sizeof (st));
+				error ("%s: type %u\n", dent->d_name, dent->d_type);
+				switch (dent->d_type)
+				{
+				case DT_BLK:
+					st.st_mode = S_IFBLK;
+					break;
+
+				case DT_CHR:
+					st.st_mode = S_IFCHR;
+					break;
+
+				case DT_DIR:
+					st.st_mode = S_IFDIR;
+					break;
+
+				case DT_FIFO:
+					st.st_mode = S_IFIFO;
+					break;
+
+				case DT_LNK:
+					st.st_mode = S_IFLNK;
+					break;
+
+				case DT_REG:
+				case DT_UNKNOWN:
+					st.st_mode = S_IFREG;
+					break;
+
+				case DT_SOCK:
+					st.st_mode = S_IFSOCK;
+					break;
+				}
+#endif
 			}
 
 			auto const path = encodePath (dent->d_name);
