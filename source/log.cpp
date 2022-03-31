@@ -29,7 +29,7 @@
 
 namespace
 {
-#ifdef _3DS
+#ifdef __3DS__
 /// \brief Maximum number of log messages to keep
 constexpr auto MAX_LOGS = 250;
 #else

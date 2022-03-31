@@ -26,7 +26,7 @@
 #include <zstd.h>
 #endif
 
-#if !defined(NDS) && !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(NDS) && !defined(__3DS__) && !defined(__SWITCH__)
 #include <GLFW/glfw3.h>
 #endif
 
@@ -52,7 +52,7 @@ char const *const g_mitLicense =
     "ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE.";
 
-#ifdef _3DS
+#ifdef __3DS__
 char const *const g_libctruVersion = "libctru";
 char const *const g_citro3dVersion = "citro3d";
 
@@ -125,7 +125,7 @@ char const *const g_zlibLicense =
     "3. This notice may not be removed or altered from any source distribution.";
 #endif
 
-#if !defined(NDS) && !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(NDS) && !defined(__3DS__) && !defined(__SWITCH__)
 #define STR(x) #x
 #define XSTR(x) STR (x)
 #define GLFW_VERSION_STRING                                                                        \

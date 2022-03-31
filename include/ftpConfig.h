@@ -60,7 +60,7 @@ public:
 	/// \brief Get port
 	std::uint16_t port () const;
 
-#ifdef _3DS
+#ifdef __3DS__
 	/// \brief Whether to get mtime
 	/// \note only effective on 3DS
 	bool getMTime () const;
@@ -93,7 +93,7 @@ public:
 	/// \param port_ Listen port
 	bool setPort (std::uint16_t port_);
 
-#ifdef _3DS
+#ifdef __3DS__
 	/// \brief Set whether to get mtime
 	/// \param getMTime_ Whether to get mtime
 	void setGetMTime (bool getMTime_);
@@ -130,7 +130,7 @@ private:
 	/// \brief Listen port
 	std::uint16_t m_port;
 
-#ifdef _3DS
+#ifdef __3DS__
 	/// \brief Whether to get mtime
 	bool m_getMTime = true;
 #endif

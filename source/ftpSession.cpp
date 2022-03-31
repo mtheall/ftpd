@@ -40,7 +40,7 @@
 #include <mutex>
 using namespace std::chrono_literals;
 
-#if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
+#if defined(NDS) || defined(__3DS__) || defined(__SWITCH__)
 #define lstat stat
 #endif
 
@@ -341,7 +341,7 @@ void FtpSession::draw ()
 
 	std::fputs (m_workItem.empty () ? m_cwd.c_str () : m_workItem.c_str (), stdout);
 #else
-#ifdef _3DS
+#ifdef __3DS__
 	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 45.0f), true);
 #else
 	ImGui::BeginChild (m_windowName.c_str (), ImVec2 (0.0f, 80.0f), true);
@@ -718,7 +718,7 @@ bool FtpSession::dataAccept ()
 		return false;
 	}
 
-#ifndef _3DS
+#ifndef __3DS__
 	m_dataSocket->setRecvBufferSize (SOCK_BUFFERSIZE);
 	m_dataSocket->setSendBufferSize (SOCK_BUFFERSIZE);
 #endif
@@ -793,7 +793,7 @@ int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_
 					type_ = "file";
 				else if (S_ISDIR (st_.st_mode))
 					type_ = "dir";
-#if !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(__3DS__) && !defined(__SWITCH__)
 				else if (S_ISLNK (st_.st_mode))
 					type_ = "os.unix=symlink";
 				else if (S_ISCHR (st_.st_mode))
@@ -970,7 +970,7 @@ int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_
 			buffer[pos++] = ' ';
 		}
 
-#ifdef _3DS
+#ifdef __3DS__
 		auto const owner = "3DS";
 		auto const group = "3DS";
 #elif defined(__SWITCH__)
@@ -989,7 +989,7 @@ int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_
 		    // clang-format off
 		    S_ISREG (st_.st_mode)  ? '-' :
 		    S_ISDIR (st_.st_mode)  ? 'd' :
-#if !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(__3DS__) && !defined(__SWITCH__)
 		    S_ISLNK (st_.st_mode)  ? 'l' :
 		    S_ISCHR (st_.st_mode)  ? 'c' :
 		    S_ISBLK (st_.st_mode)  ? 'b' :
@@ -1648,7 +1648,7 @@ bool FtpSession::listTransfer ()
 			auto const fullPath = buildPath (m_lwd, dent->d_name);
 			struct stat st;
 
-#ifdef _3DS
+#ifdef __3DS__
 			// the sdmc directory entry already has the type and size, so no need to do a slow stat
 			auto const dp    = static_cast<DIR *> (m_dir);
 			auto const magic = *reinterpret_cast<u32 *> (dp->dirData->dirStruct);
@@ -2226,7 +2226,7 @@ void FtpSession::PASV (char const *args_)
 
 	// create an address to bind
 	struct sockaddr_in addr = m_commandSocket->sockName ();
-#if defined(NDS) || defined(_3DS)
+#if defined(NDS) || defined(__3DS__)
 	static std::uint16_t ephemeralPort = 5001;
 	if (ephemeralPort > 10000)
 		ephemeralPort = 5001;
@@ -2550,7 +2550,7 @@ void FtpSession::SITE (char const *args_)
 		              " Set username: SITE USER <NAME>\r\n"
 		              " Set password: SITE PASS <PASS>\r\n"
 		              " Set port: SITE PORT <PORT>\r\n"
-#ifdef _3DS
+#ifdef __3DS__
 		              " Set getMTime: SITE MTIME [0|1]\r\n"
 #endif
 		              " Save config: SITE SAVE\r\n"
@@ -2608,7 +2608,7 @@ void FtpSession::SITE (char const *args_)
 		sendResponse ("200 OK\r\n");
 		return;
 	}
-#ifdef _3DS
+#ifdef __3DS__
 	else if (::strcasecmp (command.c_str (), "MTIME") == 0)
 	{
 		if (arg == "0")

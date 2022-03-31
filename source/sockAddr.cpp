@@ -65,7 +65,7 @@ SockAddr::SockAddr (struct sockaddr_in const &addr_)
 	assert (m_addr.ss_family == AF_INET);
 }
 
-#ifndef _3DS
+#ifndef __3DS__
 SockAddr::SockAddr (struct sockaddr_in6 const &addr_)
     : SockAddr (reinterpret_cast<struct sockaddr const &> (addr_))
 {
@@ -84,7 +84,7 @@ SockAddr::operator struct sockaddr_in const & () const
 	return reinterpret_cast<struct sockaddr_in const &> (m_addr);
 }
 
-#ifndef _3DS
+#ifndef __3DS__
 SockAddr::operator struct sockaddr_in6 const & () const
 {
 	assert (m_addr.ss_family == AF_INET6);

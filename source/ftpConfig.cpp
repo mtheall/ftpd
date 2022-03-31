@@ -153,7 +153,7 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 			config->m_pass = val;
 		else if (key == "port")
 			parseInt (port, val);
-#ifdef _3DS
+#ifdef __3DS__
 		else if (key == "mtime")
 		{
 			if (val == "0")
@@ -208,7 +208,7 @@ bool FtpConfig::save (char const *const path_)
 		std::fprintf (fp, "pass=%s\n", m_pass.c_str ());
 	std::fprintf (fp, "port=%u\n", m_port);
 
-#ifdef _3DS
+#ifdef __3DS__
 	std::fprintf (fp, "mtime=%u\n", m_getMTime);
 #endif
 
@@ -238,7 +238,7 @@ std::uint16_t FtpConfig::port () const
 	return m_port;
 }
 
-#ifdef _3DS
+#ifdef __3DS__
 bool FtpConfig::getMTime () const
 {
 	return m_getMTime;
@@ -290,7 +290,7 @@ bool FtpConfig::setPort (std::uint16_t const port_)
 		errno = EPERM;
 		return false;
 	}
-#elif defined(NDS) || defined(_3DS)
+#elif defined(NDS) || defined(__3DS__)
 	// 3DS is allowed < 1024, but not 0
 	// NDS is allowed < 1024, but 0 crashes the app
 	if (port_ == 0)
@@ -304,7 +304,7 @@ bool FtpConfig::setPort (std::uint16_t const port_)
 	return true;
 }
 
-#ifdef _3DS
+#ifdef __3DS__
 void FtpConfig::setGetMTime (bool const getMTime_)
 {
 	m_getMTime = getMTime_;

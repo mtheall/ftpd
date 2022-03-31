@@ -25,7 +25,7 @@
 #include <cstdio>
 #include <string>
 
-#if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
+#if defined(NDS) || defined(__3DS__) || defined(__SWITCH__)
 #define getline __getline
 #endif
 

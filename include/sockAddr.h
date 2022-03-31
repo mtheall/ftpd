@@ -65,7 +65,7 @@ public:
 	/// \param addr_ Address
 	SockAddr (struct sockaddr_in const &addr_);
 
-#ifndef _3DS
+#ifndef __3DS__
 	/// \param Parameterized constructor
 	/// \param addr_ Address
 	SockAddr (struct sockaddr_in6 const &addr_);
@@ -78,7 +78,7 @@ public:
 	/// \param sockaddr_in cast operator
 	operator struct sockaddr_in const & () const;
 
-#ifndef _3DS
+#ifndef __3DS__
 	/// \param sockaddr_in6 cast operator
 	operator struct sockaddr_in6 const & () const;
 #endif

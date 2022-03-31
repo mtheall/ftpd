@@ -128,7 +128,7 @@ private:
 	/// \brief Port setting
 	std::uint16_t m_portSetting;
 
-#ifdef _3DS
+#ifdef __3DS__
 	/// \brief getMTime setting
 	bool m_getMTimeSetting;
 #endif

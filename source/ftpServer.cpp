@@ -157,7 +157,7 @@ void FtpServer::draw ()
 	auto const height = io.DisplaySize.y;
 
 	ImGui::SetNextWindowPos (ImVec2 (0, 0), ImGuiCond_FirstUseEver);
-#ifdef _3DS
+#ifdef __3DS__
 	// top screen
 	ImGui::SetNextWindowSize (ImVec2 (width, height * 0.5f));
 #else
@@ -177,26 +177,26 @@ void FtpServer::draw ()
 		ImGui::Begin (title,
 		    nullptr,
 		    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
-#ifndef _3DS
+#ifndef __3DS__
 		        | ImGuiWindowFlags_MenuBar
 #endif
 		);
 	}
 
-#ifndef _3DS
+#ifndef __3DS__
 	showMenu ();
 #endif
 
-#ifndef _3DS
+#ifndef __3DS__
 	ImGui::BeginChild (
 	    "Logs", ImVec2 (0, 0.5f * height), false, ImGuiWindowFlags_HorizontalScrollbar);
 #endif
 	drawLog ();
-#ifndef _3DS
+#ifndef __3DS__
 	ImGui::EndChild ();
 #endif
 
-#ifdef _3DS
+#ifdef __3DS__
 	ImGui::End ();
 
 	// bottom screen
@@ -242,7 +242,7 @@ std::string FtpServer::getFreeSpace ()
 void FtpServer::updateFreeSpace ()
 {
 	struct statvfs st;
-#if defined(NDS) || defined(_3DS) || defined(__SWITCH__)
+#if defined(NDS) || defined(__3DS__) || defined(__SWITCH__)
 	if (::statvfs ("sdmc:/", &st) != 0)
 #else
 	if (::statvfs ("/", &st) != 0)
@@ -329,7 +329,7 @@ void FtpServer::showMenu ()
 
 	if (ImGui::BeginMenuBar ())
 	{
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(__3DS__) || defined(__SWITCH__)
 		if (ImGui::BeginMenu (u8"Menu \xee\x80\x83")) // Y Button
 #else
 		if (ImGui::BeginMenu ("Menu"))
@@ -362,7 +362,7 @@ void FtpServer::showMenu ()
 
 			m_portSetting = m_config->port ();
 
-#ifdef _3DS
+#ifdef __3DS__
 			m_getMTimeSetting = m_config->getMTime ();
 #endif
 
@@ -393,7 +393,7 @@ void FtpServer::showMenu ()
 
 void FtpServer::showSettings ()
 {
-#ifdef _3DS
+#ifdef __3DS__
 	auto const &io    = ImGui::GetIO ();
 	auto const width  = io.DisplaySize.x;
 	auto const height = io.DisplaySize.y;
@@ -425,7 +425,7 @@ void FtpServer::showSettings ()
 		    "%u",
 		    ImGuiInputTextFlags_AutoSelectAll);
 
-#ifdef _3DS
+#ifdef __3DS__
 		ImGui::Checkbox ("Get mtime", &m_getMTimeSetting);
 #endif
 
@@ -491,7 +491,7 @@ void FtpServer::showSettings ()
 			m_config->setPass (m_passSetting);
 			m_config->setPort (m_portSetting);
 
-#ifdef _3DS
+#ifdef __3DS__
 			m_config->setGetMTime (m_getMTimeSetting);
 #endif
 
@@ -522,7 +522,7 @@ void FtpServer::showSettings ()
 			m_userSetting = defaults->user ();
 			m_passSetting = defaults->pass ();
 			m_portSetting = defaults->port ();
-#ifdef _3DS
+#ifdef __3DS__
 			m_getMTimeSetting = defaults->getMTime ();
 #endif
 
@@ -549,7 +549,7 @@ void FtpServer::showAbout ()
 	auto const width  = io.DisplaySize.x;
 	auto const height = io.DisplaySize.y;
 
-#ifdef _3DS
+#ifdef __3DS__
 	ImGui::SetNextWindowSize (ImVec2 (width * 0.8f, height * 0.5f));
 	ImGui::SetNextWindowPos (ImVec2 (width * 0.1f, height * 0.5f));
 #else
@@ -582,7 +582,7 @@ void FtpServer::showAbout ()
 		}
 
 #if defined(NDS)
-#elif defined(_3DS)
+#elif defined(__3DS__)
 		if (ImGui::TreeNode (g_libctruVersion))
 		{
 			ImGui::TextWrapped (g_zlibLicense);

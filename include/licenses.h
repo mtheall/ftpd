@@ -26,7 +26,7 @@ extern char const *const g_dearImGuiVersion;
 extern char const *const g_dearImGuiCopyright;
 extern char const *const g_mitLicense;
 
-#ifdef _3DS
+#ifdef __3DS__
 extern char const *const g_libctruVersion;
 extern char const *const g_citro3dVersion;
 extern char const *const g_citro3dCopyright;
@@ -47,7 +47,7 @@ extern char const *const g_bsdLicense;
 extern char const *const g_zlibLicense;
 #endif
 
-#if !defined(NDS) && !defined(_3DS) && !defined(__SWITCH__)
+#if !defined(NDS) && !defined(__3DS__) && !defined(__SWITCH__)
 extern char const *const g_glfwVersion;
 extern char const *const g_glfwCopyright;
 #endif

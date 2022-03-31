@@ -24,7 +24,7 @@
 
 #if defined(NDS)
 #include <nds.h>
-#elif defined(_3DS)
+#elif defined(__3DS__)
 #include <3ds.h>
 #elif defined(__SWITCH__)
 #include <switch.h>
@@ -80,7 +80,7 @@ void render ();
 /// \brief Deinitialize platform
 void exit ();
 
-#ifdef _3DS
+#ifdef __3DS__
 /// \brief Steady clock
 struct steady_clock
 {

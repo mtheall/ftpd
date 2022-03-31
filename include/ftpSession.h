@@ -83,7 +83,7 @@ private:
 
 	/// \brief Amount of file position history to keep
 	constexpr static auto POSITION_HISTORY = 60;
-#elif defined(_3DS)
+#elif defined(__3DS__)
 	/// \brief Socket buffer size
 	constexpr static auto SOCK_BUFFERSIZE = 32768;
 
