@@ -46,7 +46,7 @@ DATA		:=	data
 INCLUDES	:=	include
 
 ifeq ($(strip $(CLASSIC)),)
-APP_TITLE	:=	ftpd Issue \#139
+APP_TITLE	:=	ftpd pro $(VERSION)
 TARGET		:=	switch/ftpd
 BUILD		:=	switch/build
 SOURCES		+=	source/imgui
