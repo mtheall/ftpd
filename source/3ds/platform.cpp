@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2022 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -62,6 +62,9 @@ constexpr auto SOCU_ALIGN = 0x1000;
 constexpr auto SOCU_BUFFERSIZE = 0x100000;
 
 static_assert (SOCU_BUFFERSIZE % SOCU_ALIGN == 0);
+
+/// \brief Whether ndm:u is locked
+bool s_ndmuLocked = false;
 
 /// \brief Whether soc:u is active
 std::atomic<bool> s_socuActive = false;
@@ -209,8 +212,22 @@ void startNetwork ()
 	if (R_FAILED (socInit (s_socuBuffer, SOCU_BUFFERSIZE)))
 		return;
 
+	aptSetSleepAllowed (false);
+
+	Result res;
+	if (R_FAILED (res = NDMU_EnterExclusiveState(NDM_EXCLUSIVE_STATE_INFRASTRUCTURE)))
+		error ("Failed to enter exclusive NDM state: 0x%lx\n", res);
+	else if (R_FAILED (res = NDMU_LockState ()))
+	{
+		error ("Failed to lock NDM: 0x%lx\n", res);
+		NDMU_LeaveExclusiveState ();
+	}
+	else
+		s_ndmuLocked = true;
+
 	s_socuActive = true;
 	info ("Wifi connected\n");
+	return;
 }
 
 /// \brief Draw citro3d logo
@@ -349,6 +366,7 @@ bool platform::init ()
 	osSetSpeedupEnable (true);
 
 	acInit ();
+	ndmuInit ();
 	ptmuInit ();
 #ifndef CLASSIC
 	romfsInit ();
@@ -533,9 +551,20 @@ void platform::exit ()
 	C3D_Fini ();
 #endif
 
+	if (s_ndmuLocked)
+	{
+		NDMU_UnlockState ();
+		NDMU_LeaveExclusiveState ();
+		aptSetSleepAllowed (true);
+		s_ndmuLocked = false;
+	}
+
 	if (s_socuActive)
+	{
 		socExit ();
-	s_socuActive = false;
+		s_socuActive = false;
+	}
+
 	std::free (s_socuBuffer);
 
 	aptUnhook (&s_aptHookCookie);
@@ -549,6 +578,7 @@ void platform::exit ()
 	romfsExit ();
 #endif
 	ptmuExit ();
+	ndmuExit ();
 	acExit ();
 }
 
