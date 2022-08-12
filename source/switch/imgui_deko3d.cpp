@@ -484,7 +484,7 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 				if (clip.z > width)
 					clip.z = width;
 				if (clip.w > height)
-					clip.z = height;
+					clip.w = height;
 
 				// apply scissor boundaries
 				cmdBuf_.setScissors (
