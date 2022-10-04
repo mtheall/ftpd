@@ -52,7 +52,7 @@ RSF_FILE  := meta/ftpd-classic-cia.rsf
 endif
 
 APP_DESCRIPTION := v$(VERSION)
-APP_AUTHOR      := (c) 2021 Michael Theall, Dave Murphy, TuxSH
+APP_AUTHOR      := (c) 2022 Michael Theall, Dave Murphy, TuxSH
 
 ICON      := meta/icon.png
 BNR_IMAGE := meta/banner.png
@@ -72,9 +72,10 @@ CFLAGS   +=  $(INCLUDE) -DARM11 -D__3DS__ \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
             -DNO_IPV6 -DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
-            -DANTI_ALIAS=1
+            -DANTI_ALIAS=1 \
+            `curl-config --cflags`
 
-CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
+CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++2a
 
 ASFLAGS  := -g $(ARCH)
 LDFLAGS   = -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) $(OPTIMIZE)
@@ -82,7 +83,7 @@ LDFLAGS   = -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) $(OPTIMIZE)
 CC  := `which ccache 2>/dev/null` $(CC)
 CXX := `which ccache 2>/dev/null` $(CXX)
 
-LIBS     := -lcitro3d -lctru -lm
+LIBS     := `curl-config --libs` -lcitro3d -lctru -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

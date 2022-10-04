@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2022 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,12 +24,17 @@
 
 #include "imgui.h"
 
+#ifndef CLASSIC
+#include <curl/curl.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 
 int main (int argc_, char *argv_[])
 {
 #ifndef CLASSIC
+	curl_global_init (CURL_GLOBAL_ALL);
 	IMGUI_CHECKVERSION ();
 	ImGui::CreateContext ();
 #endif
@@ -65,5 +70,6 @@ int main (int argc_, char *argv_[])
 
 #ifndef CLASSIC
 	ImGui::DestroyContext ();
+	curl_global_cleanup ();
 #endif
 }

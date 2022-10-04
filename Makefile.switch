@@ -37,7 +37,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   of a homebrew executable (.nro). This is intended to be used for sysmodules.
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
-APP_AUTHOR	:=	(c) 2021 Michael Theall, Dave Murphy, TuxSH
+APP_AUTHOR	:=	(c) 2022 Michael Theall, Dave Murphy, TuxSH
 ICON		:=	meta/ftpd.jpg
 APP_VERSION	:=	$(VERSION)
 
@@ -75,9 +75,10 @@ CFLAGS	+=	$(INCLUDE) -D__SWITCH__ \
 			-DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
 			-DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
 			-DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
-			`$(PREFIX)pkg-config --cflags libzstd`
+			`$(PREFIX)pkg-config --cflags libzstd` \
+			`curl-config --cflags`
 
-CXXFLAGS	:= $(CFLAGS) -std=gnu++17 -fno-exceptions -fno-rtti
+CXXFLAGS	:= $(CFLAGS) -std=gnu++2a -fno-exceptions -fno-rtti
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) \
@@ -86,7 +87,7 @@ LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) \
 CC  := `which ccache 2>/dev/null` $(CC)
 CXX := `which ccache 2>/dev/null` $(CXX)
 
-LIBS	:= `$(PREFIX)pkg-config --libs libzstd` -ldeko3d -lnx
+LIBS	:= `curl-config --libs` `$(PREFIX)pkg-config --libs libzstd` -ldeko3d -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

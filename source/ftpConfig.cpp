@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2021 Michael Theall
+// Copyright (C) 2022 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -187,9 +187,9 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 }
 
 #ifndef NDS
-std::lock_guard<platform::Mutex> FtpConfig::lockGuard ()
+std::scoped_lock<platform::Mutex> FtpConfig::lockGuard ()
 {
-	return std::lock_guard<platform::Mutex> (m_lock);
+	return std::scoped_lock<platform::Mutex> (m_lock);
 }
 #endif
 

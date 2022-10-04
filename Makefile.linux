@@ -12,10 +12,11 @@ CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/linux \
              -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
              -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
              -DIMGUI_IMPL_OPENGL_LOADER_GLAD=1 \
-             -DFTPDCONFIG="\"ftpd.cfg\""
+             -DFTPDCONFIG="\"ftpd.cfg\"" \
+             `curl-config --cflags`
 CFLAGS    := $(CPPFLAGS)
-CXXFLAGS  := $(CPPFLAGS) -std=gnu++17
-LDFLAGS   := -pthread `pkg-config --libs gl glfw3` -ldl
+CXXFLAGS  := $(CPPFLAGS) -std=gnu++2a
+LDFLAGS   := -pthread `curl-config --libs` `pkg-config --libs gl glfw3` -ldl
 
 .PHONY: all clean
 

@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2022 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ using namespace std::chrono_literals;
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
-		auto const lock = std::lock_guard (m_lock);                                                \
+		auto const lock = std::scoped_lock (m_lock);                                                \
 		x;                                                                                         \
 	} while (0)
 #endif
@@ -318,7 +318,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
 bool FtpSession::dead ()
 {
 #ifndef NDS
-	auto const lock = std::lock_guard (m_lock);
+	auto const lock = std::scoped_lock (m_lock);
 #endif
 	if (m_commandSocket || m_pasvSocket || m_dataSocket)
 		return false;
@@ -329,7 +329,7 @@ bool FtpSession::dead ()
 void FtpSession::draw ()
 {
 #ifndef NDS
-	auto const lock = std::lock_guard (m_lock);
+	auto const lock = std::scoped_lock (m_lock);
 #endif
 
 #ifdef CLASSIC
@@ -615,7 +615,7 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 	{
 		{
 #ifndef NDS
-			auto lock = std::lock_guard (m_lock);
+			auto const lock = std::scoped_lock (m_lock);
 #endif
 
 			m_restartPosition = 0;

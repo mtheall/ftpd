@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2021 Michael Theall
+// Copyright (C) 2022 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ using namespace std::chrono_literals;
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
-		auto const lock = std::lock_guard (m_lock);                                                \
+		auto const lock = std::scoped_lock (m_lock);                                                \
 		x;                                                                                         \
 	} while (0)
 #endif
@@ -69,6 +69,86 @@ platform::Mutex s_lock;
 
 /// \brief Free space string
 std::string s_freeSpace;
+
+#ifndef CLASSIC
+#ifndef NDEBUG
+std::string printable (char *const data_, std::size_t const size_)
+{
+	std::string result;
+	result.reserve (size_);
+
+	for (std::size_t i = 0; i < size_; ++i)
+	{
+		if (std::isprint (data_[i]) || std::isspace (data_[i]))
+			result.push_back (data_[i]);
+		else
+		{
+			char buffer[5];
+			std::snprintf (buffer, sizeof (buffer), "%%%02u", static_cast<unsigned char> (data_[i]));
+			result += buffer;
+		}
+	}
+
+	return result;
+}
+
+int curlDebug (CURL *const handle_, curl_infotype const type_, char *const data_, std::size_t const size_, void *const user_)
+{
+	(void)user_;
+
+	auto const text = printable (data_, size_);
+
+	switch (type_)
+	{
+	case CURLINFO_TEXT:
+		info ("== Info: %s", text.c_str ());
+		break;
+
+	case CURLINFO_HEADER_OUT:
+		info ("=> Send header: %s", text.c_str ());
+		break;
+
+	case CURLINFO_DATA_OUT:
+		info ("=> Send data: %s", text.c_str ());
+		break;
+
+	case CURLINFO_SSL_DATA_OUT:
+		info ("=> Send SSL data: %s", text.c_str ());
+		break;
+
+	case CURLINFO_HEADER_IN:
+		info ("<= Receive header: %s", text.c_str ());
+		break;
+
+	case CURLINFO_DATA_IN:
+		info ("<= Receive data: %s", text.c_str ());
+		break;
+
+	case CURLINFO_SSL_DATA_IN:
+		info ("<= Receive SSL data: %s", text.c_str ());
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+#endif
+
+std::size_t curlCallback (void *const contents_, std::size_t const size_, std::size_t const count_, void *const user_)
+{
+
+	auto const total = size_ * count_;
+	auto const start = static_cast<char*> (contents_);
+	auto const end   = start + total;
+
+	auto &result = *static_cast<std::string*> (user_);
+	result.insert (std::end (result), start, end);
+
+	return total;
+}
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -78,6 +158,18 @@ FtpServer::~FtpServer ()
 
 #ifndef NDS
 	m_thread.join ();
+#endif
+
+#ifndef CLASSIC
+	if (m_uploadLogCurl)
+	{
+		curl_multi_remove_handle (m_uploadLogCurlM, m_uploadLogCurl);
+		curl_easy_cleanup (m_uploadLogCurl);
+		curl_mime_free (m_uploadLogMime);
+	}
+
+	if (m_uploadLogCurlM)
+		curl_multi_cleanup (m_uploadLogCurlM);
 #endif
 }
 
@@ -98,7 +190,7 @@ void FtpServer::draw ()
 	{
 		char port[7];
 #ifndef NDS
-		auto const lock = std::lock_guard (m_lock);
+		auto const lock = std::scoped_lock (m_lock);
 #endif
 		if (m_socket)
 			std::sprintf (port, ":%u", m_socket->sockName ().port ());
@@ -123,7 +215,7 @@ void FtpServer::draw ()
 
 	{
 #ifndef NDS
-		auto const lock = std::lock_guard (s_lock);
+		auto const lock = std::scoped_lock (s_lock);
 #endif
 		if (!s_freeSpace.empty ())
 		{
@@ -137,7 +229,7 @@ void FtpServer::draw ()
 
 	{
 #ifndef NDS
-		auto const lock = std::lock_guard (m_lock);
+		auto const lock = std::scoped_lock (m_lock);
 #endif
 		consoleSelect (&g_sessionConsole);
 		std::fputs ("\x1b[2J", stdout);
@@ -167,7 +259,7 @@ void FtpServer::draw ()
 		char title[64];
 
 		{
-			auto const serverLock = std::lock_guard (m_lock);
+			auto const serverLock = std::scoped_lock (m_lock);
 			std::snprintf (title,
 			    sizeof (title),
 			    STATUS_STRING " %s###ftpd",
@@ -213,7 +305,7 @@ void FtpServer::draw ()
 #endif
 
 	{
-		auto const lock = std::lock_guard (m_lock);
+		auto const lock = std::scoped_lock (m_lock);
 		for (auto &session : m_sessions)
 			session->draw ();
 	}
@@ -234,7 +326,7 @@ UniqueFtpServer FtpServer::create ()
 std::string FtpServer::getFreeSpace ()
 {
 #ifndef NDS
-	auto const lock = std::lock_guard (s_lock);
+	auto const lock = std::scoped_lock (s_lock);
 #endif
 	return s_freeSpace;
 }
@@ -252,7 +344,7 @@ void FtpServer::updateFreeSpace ()
 	auto freeSpace = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
 
 #ifndef NDS
-	auto const lock = std::lock_guard (s_lock);
+	auto const lock = std::scoped_lock (s_lock);
 #endif
 	if (freeSpace != s_freeSpace)
 		s_freeSpace = std::move (freeSpace);
@@ -330,13 +422,65 @@ void FtpServer::showMenu ()
 	if (ImGui::BeginMenuBar ())
 	{
 #if defined(__3DS__) || defined(__SWITCH__)
-		if (ImGui::BeginMenu (u8"Menu \xee\x80\x83")) // Y Button
+		if (ImGui::BeginMenu ("Menu \xee\x80\x83")) // Y Button
 #else
 		if (ImGui::BeginMenu ("Menu"))
 #endif
 		{
 			if (ImGui::MenuItem ("Settings"))
 				m_showSettings = true;
+
+			if (ImGui::MenuItem ("Upload Log"))
+			{
+#ifndef NDS
+				auto const lock = std::scoped_lock (m_lock);
+#endif
+				if (!m_uploadLogCurlM)
+					m_uploadLogCurlM = curl_multi_init ();
+
+				if (m_uploadLogCurlM && !m_uploadLogCurl.load (std::memory_order_relaxed))
+				{
+					m_uploadLogData = getLog ();
+
+					auto const handle = curl_easy_init ();
+
+#ifdef __3DS__
+					// 3DS CA fails peer verification, so add CA here
+					curl_easy_setopt (handle, CURLOPT_CAINFO, "romfs:/sni.cloudflaressl.com.ca");
+#endif
+
+#ifndef NDEBUG
+					curl_easy_setopt (handle, CURLOPT_DEBUGFUNCTION, &curlDebug);
+					curl_easy_setopt (handle, CURLOPT_DEBUGDATA, nullptr);
+					curl_easy_setopt (handle, CURLOPT_VERBOSE, 1L);
+#endif
+
+					// write result into string
+					m_uploadLogResult.clear ();
+					curl_easy_setopt (handle, CURLOPT_WRITEFUNCTION, &curlCallback);
+					curl_easy_setopt (handle, CURLOPT_WRITEDATA, &m_uploadLogResult);
+
+					// set headers
+					static char contentType[]       = "Content-Type: multipart/form-data";
+					static curl_slist const headers = { contentType, nullptr };
+					curl_easy_setopt (handle, CURLOPT_URL, "https://hastebin.com/documents");
+					curl_easy_setopt (handle, CURLOPT_HTTPHEADER, &headers);
+
+					// set form data
+					auto const mime = curl_mime_init (handle);
+					auto const part = curl_mime_addpart (mime);
+					curl_mime_name (part, "data");
+					curl_mime_data (part, m_uploadLogData.data (), m_uploadLogData.size ());
+					curl_easy_setopt (handle, CURLOPT_MIMEPOST, mime);
+
+					// add to multi handle
+					curl_multi_add_handle (m_uploadLogCurlM, handle);
+
+					// signal network thread to process
+					m_uploadLogMime = mime;
+					m_uploadLogCurl.store (handle, std::memory_order_relaxed);
+				}
+			}
 
 			if (ImGui::MenuItem ("About"))
 				m_showAbout = true;
@@ -666,6 +810,49 @@ void FtpServer::loop ()
 			handleNetworkFound ();
 	}
 
+#ifndef CLASSIC
+	{
+		auto const lock = std::scoped_lock (m_lock);
+		if (m_uploadLogCurl.load (std::memory_order_relaxed))
+		{
+			int busy = 0;
+			auto const mc = curl_multi_perform (m_uploadLogCurlM, &busy);
+			if (mc != CURLM_OK)
+			{
+				error ("curl_multi_perform: %d %s\n", mc, curl_multi_strerror (mc));
+
+				curl_multi_remove_handle (m_uploadLogCurlM, m_uploadLogCurl);
+				curl_easy_cleanup (m_uploadLogCurl);
+				curl_mime_free (m_uploadLogMime);
+				m_uploadLogMime = nullptr;
+				m_uploadLogCurl.store (nullptr, std::memory_order_relaxed);
+			}
+			else
+			{
+				int count = 0;
+				auto const msg = curl_multi_info_read (m_uploadLogCurlM, &count);
+				if (msg && msg->msg == CURLMSG_DONE && msg->easy_handle == m_uploadLogCurl)
+				{
+					if (msg->data.result != CURLE_OK)
+						info ("cURL finished with status %d\n", msg->data.result);
+
+					if (m_uploadLogResult.starts_with ("{\"key\":\""))
+					{
+						auto const key = m_uploadLogResult.substr (8, 10);
+						info ("https://hastebin.com/%s\n", key.c_str ());
+					}
+
+					curl_multi_remove_handle (m_uploadLogCurlM, m_uploadLogCurl);
+					curl_easy_cleanup (m_uploadLogCurl);
+					curl_mime_free (m_uploadLogMime);
+					m_uploadLogMime = nullptr;
+					m_uploadLogCurl.store (nullptr, std::memory_order_relaxed);
+				}
+			}
+		}
+	}
+#endif
+
 	// poll listen socket
 	if (m_socket)
 	{
@@ -698,7 +885,7 @@ void FtpServer::loop ()
 		{
 			// remove dead sessions
 #ifndef NDS
-			auto const lock = std::lock_guard (m_lock);
+			auto const lock = std::scoped_lock (m_lock);
 #endif
 			auto it = std::begin (m_sessions);
 			while (it != std::end (m_sessions))

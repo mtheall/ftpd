@@ -168,7 +168,7 @@ void handleAPTHook (APT_HookType const type_, void *const param_)
 bool getNetworkVisibility ()
 {
 	// serialize ac:u access from multiple threads
-	auto lock = std::lock_guard (s_acuFence);
+	auto const lock = std::scoped_lock (s_acuFence);
 
 	// get wifi status
 	std::uint32_t wifi = 0;

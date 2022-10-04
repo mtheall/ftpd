@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2022 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "imgui.h"
 
 #include <mutex>
+#include <ranges>
 #include <vector>
 
 namespace
@@ -79,7 +80,7 @@ platform::Mutex s_lock;
 void drawLog ()
 {
 #ifndef NDS
-	auto const lock = std::lock_guard (s_lock);
+	auto const lock = std::scoped_lock (s_lock);
 #endif
 
 #ifdef CLASSIC
@@ -149,6 +150,39 @@ void drawLog ()
 #endif
 }
 
+#ifndef CLASSIC
+std::string getLog ()
+{
+#ifndef NDS
+	auto const lock = std::scoped_lock (s_lock);
+#endif
+
+	if (s_messages.empty ())
+		return {};
+
+	std::vector<Message const *> stack;
+	stack.reserve (s_messages.size ());
+
+	std::size_t size = 0;
+	for (auto const &msg : s_messages | std::views::reverse)
+	{
+		if (size + msg.message.size () > 1024 * 1024)
+			break;
+
+		size += msg.message.size ();
+		stack.emplace_back (&msg);
+	}
+
+	std::string log;
+	log.reserve (size);
+
+	for (auto const &msg : stack | std::views::reverse)
+		log += msg->message;
+
+	return log;
+}
+#endif
+
 void debug (char const *const fmt_, ...)
 {
 #ifndef NDEBUG
@@ -211,7 +245,7 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
 
 #ifndef NDS
-	auto const lock = std::lock_guard (s_lock);
+	auto const lock = std::scoped_lock (s_lock);
 #endif
 #ifndef NDEBUG
 	// std::fprintf (stderr, "%s", s_prefix[level_]);
@@ -239,7 +273,7 @@ void addLog (LogLevel const level_, std::string_view const message_)
 	}
 
 #ifndef NDS
-	auto const lock = std::lock_guard (s_lock);
+	auto const lock = std::scoped_lock (s_lock);
 #endif
 #ifndef NDEBUG
 	// std::fprintf (stderr, "%s", s_prefix[level_]);
