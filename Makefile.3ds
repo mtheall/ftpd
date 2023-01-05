@@ -52,7 +52,7 @@ RSF_FILE  := meta/ftpd-classic-cia.rsf
 endif
 
 APP_DESCRIPTION := v$(VERSION)
-APP_AUTHOR      := (c) 2022 Michael Theall, Dave Murphy, TuxSH
+APP_AUTHOR      := (c) 2023 Michael Theall, Dave Murphy, TuxSH
 
 ICON      := meta/icon.png
 BNR_IMAGE := meta/banner.png

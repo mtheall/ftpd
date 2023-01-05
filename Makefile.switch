@@ -37,7 +37,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   of a homebrew executable (.nro). This is intended to be used for sysmodules.
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
-APP_AUTHOR	:=	(c) 2022 Michael Theall, Dave Murphy, TuxSH
+APP_AUTHOR	:=	(c) 2023 Michael Theall, Dave Murphy, TuxSH
 ICON		:=	meta/ftpd.jpg
 APP_VERSION	:=	$(VERSION)
 

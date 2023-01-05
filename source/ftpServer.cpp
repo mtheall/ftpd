@@ -705,7 +705,7 @@ void FtpServer::showAbout ()
 	        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
 	{
 		ImGui::TextUnformatted (STATUS_STRING);
-		ImGui::TextWrapped ("Copyright © 2021 Michael Theall, Dave Murphy, TuxSH");
+		ImGui::TextWrapped ("Copyright © 2023 Michael Theall, Dave Murphy, TuxSH");
 		ImGui::Separator ();
 		ImGui::Text ("Platform: %s", io.BackendPlatformName);
 		ImGui::Text ("Renderer: %s", io.BackendRendererName);
