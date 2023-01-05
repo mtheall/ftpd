@@ -10,8 +10,6 @@ OXXFILES  := $(patsubst source/%,$(BUILD)/%,$(CXXFILES:.cpp=.cpp.o))
 CPPFLAGS  := -g -Wall -pthread -Iinclude -Isource/linux \
              `pkg-config --cflags gl glfw3` \
              -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
-             -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
-             -DIMGUI_IMPL_OPENGL_LOADER_GLAD=1 \
              -DFTPDCONFIG="\"ftpd.cfg\"" \
              `curl-config --cflags`
 CFLAGS    := $(CPPFLAGS)

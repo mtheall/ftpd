@@ -36,6 +36,7 @@ format:
 		source/linux/imgui_impl_glfw.h \
 		source/linux/imgui_impl_opengl3.cpp \
 		source/linux/imgui_impl_opengl3.h \
+		source/linux/imgui_impl_opengl3_loader.h \
 		$(shell find source include -type f -name \*.c -o -name \*.cpp -o -name \*.h))
 
 clean:

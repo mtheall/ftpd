@@ -1490,7 +1490,7 @@ bool imgui::nx::init ()
 	io.KeyMap[ImGuiKey_Space]       = HidKeyboardKey_Space;
 	io.KeyMap[ImGuiKey_Enter]       = HidKeyboardKey_Return;
 	io.KeyMap[ImGuiKey_Escape]      = HidKeyboardKey_Escape;
-	io.KeyMap[ImGuiKey_KeyPadEnter] = HidKeyboardKey_NumPadEnter;
+	io.KeyMap[ImGuiKey_KeypadEnter] = HidKeyboardKey_NumPadEnter;
 	io.KeyMap[ImGuiKey_A]           = HidKeyboardKey_A;
 	io.KeyMap[ImGuiKey_C]           = HidKeyboardKey_C;
 	io.KeyMap[ImGuiKey_V]           = HidKeyboardKey_V;
