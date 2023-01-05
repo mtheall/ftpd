@@ -358,6 +358,7 @@ void imgui::citro3d::init ()
 	imFont->ConfigDataCount  = 1;
 	imFont->FallbackChar     = alterChar;
 	imFont->EllipsisChar     = config.EllipsisChar;
+	imFont->DotChar          = '.';
 	imFont->Scale            = s_textScale * 0.5f;
 	imFont->Ascent           = fontInfo->ascent;
 	imFont->Descent          = 0.0f;
@@ -397,6 +398,9 @@ void imgui::citro3d::init ()
 
 	// build lookup table
 	imFont->BuildLookupTable ();
+
+	// tell imgui it is ready
+	atlas->TexReady = true;
 }
 
 void imgui::citro3d::exit ()
