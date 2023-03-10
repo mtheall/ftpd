@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2022 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -1196,18 +1196,8 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 		auto const path = buildResolvedPath (m_cwd, args_);
 		if (path.empty ())
 		{
-			sendResponse ("550 %s\r\n", std::strerror (errno));
-			setState (State::COMMAND, true, true);
-			return;
-		}
-
-		struct stat st;
-		if (::stat (path.c_str (), &st) != 0)
-		{
-			auto const rc = errno;
-
 			// work around broken clients that think LIST -a/-l is valid
-			if (workaround_ && mode_ == XferDirMode::LIST)
+			if (workaround_)
 			{
 				if (args_[0] == '-' && (args_[1] == 'a' || args_[1] == 'l'))
 				{
@@ -1223,12 +1213,32 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 				}
 			}
 
-			sendResponse ("550 %s\r\n", std::strerror (rc));
+			sendResponse ("550 %s\r\n", std::strerror (errno));
 			setState (State::COMMAND, true, true);
 			return;
 		}
 
-		if (S_ISDIR (st.st_mode))
+		struct stat st;
+		if (::stat (path.c_str (), &st) != 0)
+		{
+			sendResponse ("550 %s\r\n", std::strerror (errno));
+			setState (State::COMMAND, true, true);
+			return;
+		}
+
+		if (mode_ == XferDirMode::MLST)
+		{
+			auto const rc = fillDirent (st, path);
+			if (rc != 0)
+			{
+				sendResponse ("550 %s\r\n", std::strerror (rc));
+				setState (State::COMMAND, true, true);
+				return;
+			}
+
+			LOCKED (m_workItem = path);
+		}
+		else if (S_ISDIR (st.st_mode))
 		{
 			if (!m_dir.open (path.c_str ()))
 			{
@@ -1243,7 +1253,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 			if (mode_ == XferDirMode::MLSD && m_mlstType)
 			{
 				// send this directory as type=cdir
-				auto const rc = fillDirent (m_lwd, "cdir");
+				auto const rc = fillDirent (st, m_lwd, "cdir");
 				if (rc != 0)
 				{
 					sendResponse ("550 %s\r\n", std::strerror (rc));
@@ -1288,6 +1298,18 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 			LOCKED (m_workItem = path);
 		}
 	}
+	else if (mode_ == XferDirMode::MLST)
+	{
+		auto const rc = fillDirent (m_cwd);
+		if (rc != 0)
+		{
+			sendResponse ("550 %s\r\n", std::strerror (rc));
+			setState (State::COMMAND, true, true);
+			return;
+		}
+
+		LOCKED (m_workItem = m_cwd);
+	}
 	else if (!m_dir.open (m_cwd.c_str ()))
 	{
 		// no argument, but opening cwd failed
@@ -1318,7 +1340,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 	if (mode_ == XferDirMode::MLST || mode_ == XferDirMode::STAT)
 	{
 		// this is a little different; we have to send the data over the command socket
-		sendResponse ("213-Status\r\n");
+		sendResponse ("250-Status\r\n");
 		setState (State::DATA_TRANSFER, true, true);
 		LOCKED (m_dataSocket = m_commandSocket);
 		m_send = true;
@@ -1600,10 +1622,10 @@ bool FtpSession::listTransfer ()
 
 		// check xfer dir type
 		int rc = 226;
-		if (m_xferDirMode == XferDirMode::STAT)
-			rc = 213;
+		if (m_xferDirMode == XferDirMode::MLST || m_xferDirMode == XferDirMode::STAT)
+			rc = 250;
 
-		// check if this was for a file
+		// check if this was for a file/MLST
 		if (!m_dir)
 		{
 			// we already sent the file's listing
@@ -2070,44 +2092,20 @@ void FtpSession::MLSD (char const *args_)
 	}
 
 	// open the path in MLSD mode
-	xferDir (args_, XferDirMode::MLSD, true);
+	xferDir (args_, XferDirMode::MLSD, false);
 }
 
 void FtpSession::MLST (char const *args_)
 {
-	setState (State::COMMAND, false, false);
-
-	// build the path to list
-	auto const path = buildResolvedPath (m_cwd, args_);
-	if (path.empty ())
+	if (!authorized ())
 	{
-		sendResponse ("501 %s\r\n", std::strerror (errno));
+		setState (State::COMMAND, false, false);
+		sendResponse ("530 Not logged in\r\n");
 		return;
 	}
 
-	// stat path
-	struct stat st;
-	if (::lstat (path.c_str (), &st) != 0)
-	{
-		sendResponse ("550 %s\r\n", std::strerror (errno));
-		return;
-	}
-
-	// encode path
-	auto const encodedPath = encodePath (path);
-
-	m_xferDirMode = XferDirMode::MLST;
-	auto const rc = fillDirent (st, path);
-	if (rc != 0)
-	{
-		sendResponse ("550 %s\r\n", std::strerror (rc));
-		return;
-	}
-
-	sendResponse ("250-Status\r\n"
-	              " %s\r\n"
-	              "250 End\r\n",
-	    encodedPath.c_str ());
+	// open the path in MLST mode
+	xferDir (args_, XferDirMode::MLST, false);
 }
 
 void FtpSession::MODE (char const *args_)
