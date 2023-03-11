@@ -28,9 +28,6 @@ format:
 		source/imgui/imstb_rectpack.h \
 		source/imgui/imstb_textedit.h \
 		source/imgui/imstb_truetype.h \
-		source/linux/KHR/khrplatform.h \
-		source/linux/glad.c \
-		source/linux/glad/glad.h \
 		source/linux/imgui_impl_glfw.cpp \
 		source/linux/imgui_impl_glfw.h \
 		source/linux/imgui_impl_opengl3.cpp \

@@ -24,8 +24,6 @@
 
 #include "imgui.h"
 
-#include <glad/glad.h>
-
 #include <GLFW/glfw3.h>
 
 #include "imgui_impl_glfw.h"
@@ -63,7 +61,7 @@ void windowResize (GLFWwindow *const window_, int const width_, int const height
 /// \param severity_ Message severity
 /// \param length_ Message length
 /// \param userParam_ User parameter
-void logCallback (GLenum const source_,
+void APIENTRY logCallback (GLenum const source_,
     GLenum const type_,
     GLuint const id_,
     GLenum const severity_,
@@ -106,7 +104,7 @@ bool platform::init ()
 	glfwWindowHint (GLFW_STENCIL_BITS, 8);
 
 	// create GLFW window
-	s_mainWindow.reset (glfwCreateWindow (1280, 720, "Test Game", nullptr, nullptr));
+	s_mainWindow.reset (glfwCreateWindow (1280, 720, STATUS_STRING, nullptr, nullptr));
 	if (!s_mainWindow)
 	{
 		std::fprintf (stderr, "Failed to create window\n");
@@ -121,11 +119,18 @@ bool platform::init ()
 	glfwMakeContextCurrent (s_mainWindow.get ());
 	glfwSetFramebufferSizeCallback (s_mainWindow.get (), windowResize);
 
-	// load OpenGL
-	if (!gladLoadGL ())
+	if (!ImGui_ImplGlfw_InitForOpenGL (s_mainWindow.get (), true))
 	{
-		std::fprintf (stderr, "gladLoadGL: failed\n");
-		platform::exit ();
+		std::fprintf (stderr, "Failed to init ImGui\n");
+		glfwTerminate ();
+		return false;
+	}
+
+	if (!ImGui_ImplOpenGL3_Init ())
+	{
+		std::fprintf (stderr, "Failed to init ImGui\n");
+		ImGui_ImplGlfw_Shutdown ();
+		glfwTerminate ();
 		return false;
 	}
 
@@ -136,8 +141,26 @@ bool platform::init ()
 	{
 		glEnable (GL_DEBUG_OUTPUT);
 		glEnable (GL_DEBUG_OUTPUT_SYNCHRONOUS);
-		glDebugMessageCallback (logCallback, nullptr);
-		glDebugMessageControl (GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+
+		using DEBUGPROC = void (APIENTRY *) (
+		    GLenum, GLenum, GLuint, GLenum, GLsizei, GLchar const *, void const *);
+
+		using DEBUGMESSAGECALLBACKPROC = void (APIENTRY *) (DEBUGPROC, void const *);
+
+		using DEBUGMESSAGECONTROLPROC =
+		    void (APIENTRY *) (GLenum, GLenum, GLenum, GLsizei, GLuint const *, GLboolean);
+
+		auto const glDebugMessageCallback =
+		    (DEBUGMESSAGECALLBACKPROC)glfwGetProcAddress ("glDebugMessageCallback");
+
+		auto const glDebugMessageControl =
+		    (DEBUGMESSAGECONTROLPROC)glfwGetProcAddress ("glDebugMessageControl");
+
+		if (glDebugMessageCallback && glDebugMessageControl)
+		{
+			glDebugMessageCallback (logCallback, nullptr);
+			glDebugMessageControl (GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+		}
 	}
 #endif
 
@@ -154,9 +177,6 @@ bool platform::init ()
 
 	std::printf ("Renderer:       %s\n", glGetString (GL_RENDERER));
 	std::printf ("OpenGL Version: %s\n", glGetString (GL_VERSION));
-
-	ImGui_ImplGlfw_InitForOpenGL (s_mainWindow.get (), true);
-	ImGui_ImplOpenGL3_Init ("#version 150");
 
 	auto &io = ImGui::GetIO ();
 
@@ -227,6 +247,8 @@ void platform::render ()
 
 void platform::exit ()
 {
+	ImGui_ImplOpenGL3_Shutdown ();
+	ImGui_ImplGlfw_Shutdown ();
 	s_mainWindow.reset ();
 	glfwTerminate ();
 }
