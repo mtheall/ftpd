@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2021 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@
 #include <chrono>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <string>
 #include <tuple>
 using namespace std::chrono_literals;
@@ -1156,6 +1157,144 @@ ImWchar const nxFontRanges[] = {
 	0xe130, 0xe13c, 0xe140, 0xe14d, 0xe150, 0xe153, 0xf929, 0xf929,
 	0xf9dc, 0xf9dc, 0xfa0e, 0xfa2d, 0xfb01, 0xfb02, 0xfe30, 0xfe33,
 	0xfe35, 0xfe44, 0xff01, 0xff5e, 0xff61, 0xff9f, 0xffe0, 0xffe6,
+	0x0000, 0x0000,
+    // clang-format on
+};
+
+std::map<HidKeyboardKey, ImGuiKey> const s_keyMap = {
+    // clang-format off
+    { HidKeyboardKey_A,                ImGuiKey_A              },
+    { HidKeyboardKey_B,                ImGuiKey_B              },
+    { HidKeyboardKey_C,                ImGuiKey_C              },
+    { HidKeyboardKey_D,                ImGuiKey_D              },
+    { HidKeyboardKey_E,                ImGuiKey_E              },
+    { HidKeyboardKey_F,                ImGuiKey_F              },
+    { HidKeyboardKey_G,                ImGuiKey_G              },
+    { HidKeyboardKey_H,                ImGuiKey_H              },
+    { HidKeyboardKey_I,                ImGuiKey_I              },
+    { HidKeyboardKey_J,                ImGuiKey_J              },
+    { HidKeyboardKey_K,                ImGuiKey_K              },
+    { HidKeyboardKey_L,                ImGuiKey_L              },
+    { HidKeyboardKey_M,                ImGuiKey_M              },
+    { HidKeyboardKey_N,                ImGuiKey_N              },
+    { HidKeyboardKey_O,                ImGuiKey_O              },
+    { HidKeyboardKey_P,                ImGuiKey_P              },
+    { HidKeyboardKey_Q,                ImGuiKey_Q              },
+    { HidKeyboardKey_R,                ImGuiKey_R              },
+    { HidKeyboardKey_S,                ImGuiKey_S              },
+    { HidKeyboardKey_T,                ImGuiKey_T              },
+    { HidKeyboardKey_U,                ImGuiKey_U              },
+    { HidKeyboardKey_V,                ImGuiKey_V              },
+    { HidKeyboardKey_W,                ImGuiKey_W              },
+    { HidKeyboardKey_X,                ImGuiKey_X              },
+    { HidKeyboardKey_Y,                ImGuiKey_Y              },
+    { HidKeyboardKey_Z,                ImGuiKey_Z              },
+    { HidKeyboardKey_D1,               ImGuiKey_1              },
+    { HidKeyboardKey_D2,               ImGuiKey_2              },
+    { HidKeyboardKey_D3,               ImGuiKey_3              },
+    { HidKeyboardKey_D4,               ImGuiKey_4              },
+    { HidKeyboardKey_D5,               ImGuiKey_5              },
+    { HidKeyboardKey_D6,               ImGuiKey_6              },
+    { HidKeyboardKey_D7,               ImGuiKey_7              },
+    { HidKeyboardKey_D8,               ImGuiKey_8              },
+    { HidKeyboardKey_D9,               ImGuiKey_9              },
+    { HidKeyboardKey_D0,               ImGuiKey_0              },
+    { HidKeyboardKey_Return,           ImGuiKey_Enter          },
+    { HidKeyboardKey_Escape,           ImGuiKey_Escape         },
+    { HidKeyboardKey_Backspace,        ImGuiKey_Backspace      },
+    { HidKeyboardKey_Tab,              ImGuiKey_Tab            },
+    { HidKeyboardKey_Space,            ImGuiKey_Space          },
+    { HidKeyboardKey_Minus,            ImGuiKey_Minus          },
+    { HidKeyboardKey_OpenBracket,      ImGuiKey_LeftBracket    },
+    { HidKeyboardKey_CloseBracket,     ImGuiKey_RightBracket   },
+    { HidKeyboardKey_Semicolon,        ImGuiKey_Semicolon      },
+    { HidKeyboardKey_Quote,            ImGuiKey_Apostrophe     },
+    { HidKeyboardKey_Backquote,        ImGuiKey_GraveAccent    },
+    { HidKeyboardKey_Comma,            ImGuiKey_Comma          },
+    { HidKeyboardKey_Period,           ImGuiKey_Period         },
+    { HidKeyboardKey_Slash,            ImGuiKey_Slash          },
+    { HidKeyboardKey_CapsLock,         ImGuiKey_CapsLock       },
+    { HidKeyboardKey_F1,               ImGuiKey_F1             },
+    { HidKeyboardKey_F2,               ImGuiKey_F2             },
+    { HidKeyboardKey_F3,               ImGuiKey_F3             },
+    { HidKeyboardKey_F4,               ImGuiKey_F4             },
+    { HidKeyboardKey_F5,               ImGuiKey_F5             },
+    { HidKeyboardKey_F6,               ImGuiKey_F6             },
+    { HidKeyboardKey_F7,               ImGuiKey_F7             },
+    { HidKeyboardKey_F8,               ImGuiKey_F8             },
+    { HidKeyboardKey_F9,               ImGuiKey_F9             },
+    { HidKeyboardKey_F10,              ImGuiKey_F10            },
+    { HidKeyboardKey_F11,              ImGuiKey_F11            },
+    { HidKeyboardKey_F12,              ImGuiKey_F12            },
+    { HidKeyboardKey_PrintScreen,      ImGuiKey_PrintScreen    },
+    { HidKeyboardKey_ScrollLock,       ImGuiKey_ScrollLock     },
+    { HidKeyboardKey_Pause,            ImGuiKey_Pause          },
+    { HidKeyboardKey_Insert,           ImGuiKey_Insert         },
+    { HidKeyboardKey_Home,             ImGuiKey_Home           },
+    { HidKeyboardKey_PageUp,           ImGuiKey_PageUp         },
+    { HidKeyboardKey_Delete,           ImGuiKey_Delete         },
+    { HidKeyboardKey_End,              ImGuiKey_End            },
+    { HidKeyboardKey_PageDown,         ImGuiKey_PageDown       },
+    { HidKeyboardKey_RightArrow,       ImGuiKey_RightArrow     },
+    { HidKeyboardKey_LeftArrow,        ImGuiKey_LeftArrow      },
+    { HidKeyboardKey_DownArrow,        ImGuiKey_DownArrow      },
+    { HidKeyboardKey_UpArrow,          ImGuiKey_UpArrow        },
+    { HidKeyboardKey_NumLock,          ImGuiKey_NumLock        },
+    { HidKeyboardKey_NumPadDivide,     ImGuiKey_KeypadDivide   },
+    { HidKeyboardKey_NumPadMultiply,   ImGuiKey_KeypadMultiply },
+    { HidKeyboardKey_NumPadSubtract,   ImGuiKey_KeypadSubtract },
+    { HidKeyboardKey_NumPadAdd,        ImGuiKey_KeypadAdd      },
+    { HidKeyboardKey_NumPadEnter,      ImGuiKey_KeypadEnter    },
+    { HidKeyboardKey_NumPad1,          ImGuiKey_Keypad1        },
+    { HidKeyboardKey_NumPad2,          ImGuiKey_Keypad2        },
+    { HidKeyboardKey_NumPad3,          ImGuiKey_Keypad3        },
+    { HidKeyboardKey_NumPad4,          ImGuiKey_Keypad4        },
+    { HidKeyboardKey_NumPad5,          ImGuiKey_Keypad5        },
+    { HidKeyboardKey_NumPad6,          ImGuiKey_Keypad6        },
+    { HidKeyboardKey_NumPad7,          ImGuiKey_Keypad7        },
+    { HidKeyboardKey_NumPad8,          ImGuiKey_Keypad8        },
+    { HidKeyboardKey_NumPad9,          ImGuiKey_Keypad9        },
+    { HidKeyboardKey_NumPad0,          ImGuiKey_Keypad0        },
+    { HidKeyboardKey_NumPadDot,        ImGuiKey_KeypadDecimal  },
+    { HidKeyboardKey_Backslash,        ImGuiKey_Backslash      },
+    { HidKeyboardKey_NumPadEquals,     ImGuiKey_KeypadEqual    },
+    { HidKeyboardKey_LeftControl,      ImGuiKey_LeftCtrl       },
+    { HidKeyboardKey_LeftShift,        ImGuiKey_LeftShift      },
+    { HidKeyboardKey_LeftAlt,          ImGuiKey_LeftAlt        },
+    { HidKeyboardKey_LeftGui,          ImGuiKey_LeftSuper      },
+    { HidKeyboardKey_RightControl,     ImGuiKey_RightCtrl      },
+    { HidKeyboardKey_RightShift,       ImGuiKey_RightShift     },
+    { HidKeyboardKey_RightAlt,         ImGuiKey_RightAlt       },
+    { HidKeyboardKey_RightGui,         ImGuiKey_RightSuper     },
+    //{ HidKeyboardKey_Plus,             ImGuiKey_ },
+    //{ HidKeyboardKey_Pipe,             ImGuiKey_ },
+    //{ HidKeyboardKey_Tilde,            ImGuiKey_ },
+    //{ HidKeyboardKey_Application,      ImGuiKey_ },
+    //{ HidKeyboardKey_Power,            ImGuiKey_ },
+    //{ HidKeyboardKey_F13,              ImGuiKey_ },
+    //{ HidKeyboardKey_F14,              ImGuiKey_ },
+    //{ HidKeyboardKey_F15,              ImGuiKey_ },
+    //{ HidKeyboardKey_F16,              ImGuiKey_ },
+    //{ HidKeyboardKey_F17,              ImGuiKey_ },
+    //{ HidKeyboardKey_F18,              ImGuiKey_ },
+    //{ HidKeyboardKey_F19,              ImGuiKey_ },
+    //{ HidKeyboardKey_F20,              ImGuiKey_ },
+    //{ HidKeyboardKey_F21,              ImGuiKey_ },
+    //{ HidKeyboardKey_F22,              ImGuiKey_ },
+    //{ HidKeyboardKey_F23,              ImGuiKey_ },
+    //{ HidKeyboardKey_F24,              ImGuiKey_ },
+    //{ HidKeyboardKey_NumPadComma,      ImGuiKey_ },
+    //{ HidKeyboardKey_Ro,               ImGuiKey_ },
+    //{ HidKeyboardKey_KatakanaHiragana, ImGuiKey_ },
+    //{ HidKeyboardKey_Yen,              ImGuiKey_ },
+    //{ HidKeyboardKey_Henkan,           ImGuiKey_ },
+    //{ HidKeyboardKey_Muhenkan,         ImGuiKey_ },
+    //{ HidKeyboardKey_NumPadCommaPc98,  ImGuiKey_ },
+    //{ HidKeyboardKey_HangulEnglish,    ImGuiKey_ },
+    //{ HidKeyboardKey_Hanja,            ImGuiKey_ },
+    //{ HidKeyboardKey_Katakana,         ImGuiKey_ },
+    //{ HidKeyboardKey_Hiragana,         ImGuiKey_ },
+    //{ HidKeyboardKey_ZenkakuHankaku,   ImGuiKey_ },
     // clang-format on
 };
 
@@ -1242,13 +1381,24 @@ void moveMouse (ImGuiIO &io_, ImVec2 const &pos_, bool const force_ = false)
 /// \param io_ ImGui IO
 void updateMouseButtons (HidMouseState const &mouseState_, ImGuiIO &io_)
 {
+	static HidMouseState prevMouseState;
+
+	auto const diff = prevMouseState.buttons ^ mouseState_.buttons;
+
+	prevMouseState = mouseState_;
+
 	// read mouse buttons
-	for (std::size_t i = 0; i < IM_ARRAYSIZE (io_.MouseDown); ++i)
+	for (std::size_t i = 0;
+	     i < IM_ARRAYSIZE (io_.MouseDown) && i < sizeof (HidMouseState::buttons) * CHAR_BIT;
+	     ++i)
 	{
-		io_.MouseDown[i] = mouseState_.buttons & BIT (i);
+		if (!(diff & BIT (i)))
+			continue;
+
+		io_.AddMouseButtonEvent (i, mouseState_.buttons & BIT (i));
 
 		// force mouse cursor to show on click
-		if (io_.MouseDown[i])
+		if (mouseState_.buttons & BIT (i))
 			moveMouse (io_, s_mousePos, true);
 	}
 }
@@ -1258,15 +1408,8 @@ void updateMouseButtons (HidMouseState const &mouseState_, ImGuiIO &io_)
 /// \param io_ ImGui IO
 void updateMousePos (HidMouseState const &mouseState_, ImGuiIO &io_)
 {
-	if (mouseState_.wheel_delta_x > 0)
-		io_.MouseWheel += 1;
-	else if (mouseState_.wheel_delta_x < 0)
-		io_.MouseWheel -= 1;
-
-	if (mouseState_.wheel_delta_y > 0)
-		io_.MouseWheelH += 1;
-	else if (mouseState_.wheel_delta_y < 0)
-		io_.MouseWheelH -= 1;
+	if (mouseState_.wheel_delta_x || mouseState_.wheel_delta_y)
+		io_.AddMouseWheelEvent (mouseState_.wheel_delta_x, mouseState_.wheel_delta_y);
 
 	moveMouse (io_,
 	    ImVec2 (
@@ -1278,13 +1421,21 @@ void updateMousePos (HidMouseState const &mouseState_, ImGuiIO &io_)
 /// \param io_ ImGui IO
 void updateTouch (HidTouchScreenState const &touchState_, ImGuiIO &io_)
 {
+	static HidTouchScreenState prevTouchState;
+
+	if (prevTouchState.count > 0 && touchState_.count < 1)
+		io_.AddMouseButtonEvent (0, false);
+	else if (prevTouchState.count < 1 && touchState_.count > 0)
+		io_.AddMouseButtonEvent (0, true);
+
+	prevTouchState = touchState_;
+
 	if (touchState_.count < 1)
 		return;
 
 	// set mouse position to touch point; force hide mouse cursor
 	moveMouse (io_, ImVec2 (touchState_.touches[0].x, touchState_.touches[0].y));
-	io_.MouseDown[0] = true;
-	s_showMouse      = false;
+	s_showMouse = false;
 }
 
 /// \brief Update gamepad inputs
@@ -1296,54 +1447,61 @@ void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 	std::memset (io_.NavInputs, 0, sizeof (io_.NavInputs));
 
 	auto const buttonMapping = {
-	    std::make_pair (HidNpadButton_A, ImGuiNavInput_Activate),
-	    std::make_pair (HidNpadButton_B, ImGuiNavInput_Cancel),
-	    std::make_pair (HidNpadButton_X, ImGuiNavInput_Input),
-	    std::make_pair (HidNpadButton_Y, ImGuiNavInput_Menu),
-	    std::make_pair (HidNpadButton_L, ImGuiNavInput_FocusPrev),
-	    std::make_pair (HidNpadButton_L, ImGuiNavInput_TweakSlow),
-	    std::make_pair (HidNpadButton_R, ImGuiNavInput_FocusNext),
-	    std::make_pair (HidNpadButton_R, ImGuiNavInput_TweakFast),
-	    std::make_pair (HidNpadButton_Up, ImGuiNavInput_DpadUp),
-	    std::make_pair (HidNpadButton_Right, ImGuiNavInput_DpadRight),
-	    std::make_pair (HidNpadButton_Down, ImGuiNavInput_DpadDown),
-	    std::make_pair (HidNpadButton_Left, ImGuiNavInput_DpadLeft),
+	    // clang-format off
+	    std::make_pair (HidNpadButton_A,     ImGuiKey_GamepadFaceDown),  // A and B are swapped
+	    std::make_pair (HidNpadButton_B,     ImGuiKey_GamepadFaceRight), // this is more intuitive
+	    std::make_pair (HidNpadButton_X,     ImGuiKey_GamepadFaceUp),
+	    std::make_pair (HidNpadButton_Y,     ImGuiKey_GamepadFaceLeft),
+	    std::make_pair (HidNpadButton_L,     ImGuiKey_GamepadL1),
+	    std::make_pair (HidNpadButton_R,     ImGuiKey_GamepadR1),
+	    std::make_pair (HidNpadButton_Up,    ImGuiKey_GamepadDpadUp),
+	    std::make_pair (HidNpadButton_Right, ImGuiKey_GamepadDpadRight),
+	    std::make_pair (HidNpadButton_Down,  ImGuiKey_GamepadDpadDown),
+	    std::make_pair (HidNpadButton_Left,  ImGuiKey_GamepadDpadLeft),
+	    // clang-format on
 	};
 
 	// read buttons from primary controller
-	auto const keys = padGetButtons (&padState_);
+	auto const keys     = padGetButtons (&padState_);
+	auto const keysDown = padGetButtonsDown (&padState_);
+	auto const keysUp   = padGetButtonsUp (&padState_);
 	for (auto const &[in, out] : buttonMapping)
 	{
-		if (keys & in)
-			io_.NavInputs[out] = 1.0f;
+		if (keysUp & in)
+			io_.AddKeyEvent (out, false);
+		else if (keysDown & in)
+			io_.AddKeyEvent (out, true);
 	}
 
 	// use ZR/ZL as left-click/right-click, respectively
-	if (keys & HidNpadButton_ZR)
+	if ((keysDown | keysUp) & HidNpadButton_ZR)
 	{
-		io_.MouseDown[0] = true;
+		io_.AddMouseButtonEvent (0, keysDown & HidNpadButton_ZR);
 		moveMouse (io_, s_mousePos, true);
 	}
-	if (keys & HidNpadButton_ZL)
+	if ((keysDown | keysUp) & HidNpadButton_ZL)
 	{
-		io_.MouseDown[1] = true;
+		io_.AddMouseButtonEvent (1, keysDown & HidNpadButton_ZL);
 		moveMouse (io_, s_mousePos, true);
 	}
 
 	// update joystick
-	auto const jsLeft        = padGetStickPos (&padState_, 0);
+	auto const jsLeft = padGetStickPos (&padState_, 0);
+
 	auto const analogMapping = {
-	    std::make_tuple (std::ref (jsLeft.x), ImGuiNavInput_LStickLeft, -0.3f, -0.9f),
-	    std::make_tuple (std::ref (jsLeft.x), ImGuiNavInput_LStickRight, +0.3f, +0.9f),
-	    std::make_tuple (std::ref (jsLeft.y), ImGuiNavInput_LStickUp, +0.3f, +0.9f),
-	    std::make_tuple (std::ref (jsLeft.y), ImGuiNavInput_LStickDown, -0.3f, -0.9f),
+	    // clang-format off
+	    std::make_tuple (std::ref (jsLeft.x), ImGuiKey_GamepadLStickLeft,  -0.3f, -0.9f),
+	    std::make_tuple (std::ref (jsLeft.x), ImGuiKey_GamepadLStickRight, +0.3f, +0.9f),
+	    std::make_tuple (std::ref (jsLeft.y), ImGuiKey_GamepadLStickUp,    +0.3f, +0.9f),
+	    std::make_tuple (std::ref (jsLeft.y), ImGuiKey_GamepadLStickDown,  -0.3f, -0.9f),
+	    // clang-format on
 	};
 
 	// read left joystick from primary controller
 	for (auto const &[in, out, min, max] : analogMapping)
 	{
-		auto const value   = in / static_cast<float> (JOYSTICK_MAX);
-		io_.NavInputs[out] = std::clamp ((value - min) / (max - min), 0.0f, 1.0f);
+		auto const value = std::clamp ((in / JOYSTICK_MAX - min) / (max - min), 0.0f, 1.0f);
+		io_.AddKeyAnalogEvent (out, value > 0.1f, value);
 	}
 
 	// use right stick as mouse
@@ -1366,13 +1524,36 @@ void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 /// \param io_ ImGui IO
 void updateKeyboard (HidKeyboardState const &kbState_, ImGuiIO &io_)
 {
-	io_.KeyCtrl  = kbState_.modifiers & HidKeyboardModifier_Control;
-	io_.KeyShift = kbState_.modifiers & HidKeyboardModifier_Shift;
-	io_.KeyAlt = kbState_.modifiers & (HidKeyboardModifier_LeftAlt | HidKeyboardModifier_RightAlt);
-	io_.KeySuper = kbState_.modifiers & HidKeyboardModifier_Gui;
+	static HidKeyboardState prevKbState;
 
-	for (int i = 0; i < 256; ++i)
-		io_.KeysDown[i] = kbState_.keys[i / 64] & (1ul << (i % 64));
+	auto const modDiff = prevKbState.modifiers ^ kbState_.modifiers;
+
+	if (modDiff & HidKeyboardModifier_Control)
+		io_.AddKeyEvent (ImGuiMod_Ctrl, kbState_.modifiers & HidKeyboardModifier_Control);
+
+	if (modDiff & HidKeyboardModifier_Shift)
+		io_.AddKeyEvent (ImGuiMod_Shift, kbState_.modifiers & HidKeyboardModifier_Shift);
+
+	if (modDiff & (HidKeyboardModifier_LeftAlt | HidKeyboardModifier_RightAlt))
+		io_.AddKeyEvent (ImGuiMod_Alt,
+		    kbState_.modifiers & (HidKeyboardModifier_LeftAlt | HidKeyboardModifier_RightAlt));
+
+	if (modDiff & HidKeyboardModifier_Gui)
+		io_.AddKeyEvent (ImGuiMod_Super, kbState_.modifiers & HidKeyboardModifier_Gui);
+
+	for (std::size_t i = 0; i < sizeof (HidKeyboardState::keys) * CHAR_BIT; ++i)
+	{
+		auto const key = static_cast<HidKeyboardKey> (i);
+
+		auto const it = s_keyMap.find (key);
+		if (it == std::end (s_keyMap))
+			continue;
+
+		if (hidKeyboardStateGetKey (&prevKbState, key) != hidKeyboardStateGetKey (&kbState_, key))
+			io_.AddKeyEvent (it->second, hidKeyboardStateGetKey (&kbState_, key));
+	}
+
+	prevKbState = kbState_;
 
 	static enum {
 		INACTIVE,
@@ -1473,30 +1654,6 @@ bool imgui::nx::init ()
 	// setup platform backend
 	io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 	io.BackendPlatformName = "Switch";
-
-	// keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-	io.KeyMap[ImGuiKey_Tab]         = HidKeyboardKey_Tab;
-	io.KeyMap[ImGuiKey_LeftArrow]   = HidKeyboardKey_LeftArrow;
-	io.KeyMap[ImGuiKey_RightArrow]  = HidKeyboardKey_RightArrow;
-	io.KeyMap[ImGuiKey_UpArrow]     = HidKeyboardKey_UpArrow;
-	io.KeyMap[ImGuiKey_DownArrow]   = HidKeyboardKey_DownArrow;
-	io.KeyMap[ImGuiKey_PageUp]      = HidKeyboardKey_PageUp;
-	io.KeyMap[ImGuiKey_PageDown]    = HidKeyboardKey_PageDown;
-	io.KeyMap[ImGuiKey_Home]        = HidKeyboardKey_Home;
-	io.KeyMap[ImGuiKey_End]         = HidKeyboardKey_End;
-	io.KeyMap[ImGuiKey_Insert]      = HidKeyboardKey_Insert;
-	io.KeyMap[ImGuiKey_Delete]      = HidKeyboardKey_Delete;
-	io.KeyMap[ImGuiKey_Backspace]   = HidKeyboardKey_Backspace;
-	io.KeyMap[ImGuiKey_Space]       = HidKeyboardKey_Space;
-	io.KeyMap[ImGuiKey_Enter]       = HidKeyboardKey_Return;
-	io.KeyMap[ImGuiKey_Escape]      = HidKeyboardKey_Escape;
-	io.KeyMap[ImGuiKey_KeyPadEnter] = HidKeyboardKey_NumPadEnter;
-	io.KeyMap[ImGuiKey_A]           = HidKeyboardKey_A;
-	io.KeyMap[ImGuiKey_C]           = HidKeyboardKey_C;
-	io.KeyMap[ImGuiKey_V]           = HidKeyboardKey_V;
-	io.KeyMap[ImGuiKey_X]           = HidKeyboardKey_X;
-	io.KeyMap[ImGuiKey_Y]           = HidKeyboardKey_Y;
-	io.KeyMap[ImGuiKey_Z]           = HidKeyboardKey_Z;
 
 	// initially disable mouse cursor
 	io.MouseDrawCursor = false;

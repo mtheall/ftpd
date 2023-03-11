@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -397,6 +397,9 @@ void imgui::citro3d::init ()
 
 	// build lookup table
 	imFont->BuildLookupTable ();
+
+	// tell imgui it is ready
+	atlas->TexReady = true;
 }
 
 void imgui::citro3d::exit ()

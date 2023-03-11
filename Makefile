@@ -18,12 +18,11 @@ all-classic: nds 3dsx-classic nro-classic linux
 
 format:
 	@clang-format -style=file -i $(filter-out \
+		include/imconfig.h \
 		include/imgui.h \
 		source/imgui/imgui.cpp \
-		source/imgui/imgui_demo.cpp \
 		source/imgui/imgui_draw.cpp \
 		source/imgui/imgui_internal.h \
-		source/imgui/imgui_internal.h, \
 		source/imgui/imgui_tables.cpp \
 		source/imgui/imgui_widgets.cpp \
 		source/imgui/imstb_rectpack.h \
@@ -36,7 +35,8 @@ format:
 		source/linux/imgui_impl_glfw.h \
 		source/linux/imgui_impl_opengl3.cpp \
 		source/linux/imgui_impl_opengl3.h \
-		$(shell find source include -type f -name \*.c -o -name \*.cpp -o -name \*.h))
+		source/linux/imgui_impl_opengl3_loader.h \
+		, $(shell find source include -type f -name \*.c -o -name \*.cpp -o -name \*.h))
 
 clean:
 	@$(MAKE) -f Makefile.nds clean

@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2022 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ using namespace std::chrono_literals;
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
-		auto const lock = std::scoped_lock (m_lock);                                                \
+		auto const lock = std::scoped_lock (m_lock);                                               \
 		x;                                                                                         \
 	} while (0)
 #endif
@@ -84,7 +84,8 @@ std::string printable (char *const data_, std::size_t const size_)
 		else
 		{
 			char buffer[5];
-			std::snprintf (buffer, sizeof (buffer), "%%%02u", static_cast<unsigned char> (data_[i]));
+			std::snprintf (
+			    buffer, sizeof (buffer), "%%%02u", static_cast<unsigned char> (data_[i]));
 			result += buffer;
 		}
 	}
@@ -92,7 +93,11 @@ std::string printable (char *const data_, std::size_t const size_)
 	return result;
 }
 
-int curlDebug (CURL *const handle_, curl_infotype const type_, char *const data_, std::size_t const size_, void *const user_)
+int curlDebug (CURL *const handle_,
+    curl_infotype const type_,
+    char *const data_,
+    std::size_t const size_,
+    void *const user_)
 {
 	(void)user_;
 
@@ -136,14 +141,16 @@ int curlDebug (CURL *const handle_, curl_infotype const type_, char *const data_
 }
 #endif
 
-std::size_t curlCallback (void *const contents_, std::size_t const size_, std::size_t const count_, void *const user_)
+std::size_t curlCallback (void *const contents_,
+    std::size_t const size_,
+    std::size_t const count_,
+    void *const user_)
 {
-
 	auto const total = size_ * count_;
-	auto const start = static_cast<char*> (contents_);
+	auto const start = static_cast<char *> (contents_);
 	auto const end   = start + total;
 
-	auto &result = *static_cast<std::string*> (user_);
+	auto &result = *static_cast<std::string *> (user_);
 	result.insert (std::end (result), start, end);
 
 	return total;
@@ -462,7 +469,7 @@ void FtpServer::showMenu ()
 
 					// set headers
 					static char contentType[]       = "Content-Type: multipart/form-data";
-					static curl_slist const headers = { contentType, nullptr };
+					static curl_slist const headers = {contentType, nullptr};
 					curl_easy_setopt (handle, CURLOPT_URL, "https://hastebin.com/documents");
 					curl_easy_setopt (handle, CURLOPT_HTTPHEADER, &headers);
 
@@ -705,7 +712,7 @@ void FtpServer::showAbout ()
 	        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
 	{
 		ImGui::TextUnformatted (STATUS_STRING);
-		ImGui::TextWrapped ("Copyright © 2021 Michael Theall, Dave Murphy, TuxSH");
+		ImGui::TextWrapped ("Copyright © 2023 Michael Theall, Dave Murphy, TuxSH");
 		ImGui::Separator ();
 		ImGui::Text ("Platform: %s", io.BackendPlatformName);
 		ImGui::Text ("Renderer: %s", io.BackendRendererName);
@@ -719,9 +726,9 @@ void FtpServer::showAbout ()
 		ImGui::Separator ();
 		if (ImGui::TreeNode (g_dearImGuiVersion))
 		{
-			ImGui::TextWrapped (g_dearImGuiCopyright);
+			ImGui::TextWrapped ("%s", g_dearImGuiCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_mitLicense);
+			ImGui::TextWrapped ("%s", g_mitLicense);
 			ImGui::TreePop ();
 		}
 
@@ -729,50 +736,50 @@ void FtpServer::showAbout ()
 #elif defined(__3DS__)
 		if (ImGui::TreeNode (g_libctruVersion))
 		{
-			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TextWrapped ("%s", g_zlibLicense);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TextWrapped ("%s", g_zlibLicense);
 			ImGui::TreePop ();
 		}
 
 		if (ImGui::TreeNode (g_citro3dVersion))
 		{
-			ImGui::TextWrapped (g_citro3dCopyright);
+			ImGui::TextWrapped ("%s", g_citro3dCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TextWrapped ("%s", g_zlibLicense);
 			ImGui::TreePop ();
 		}
 
 #elif defined(__SWITCH__)
 		if (ImGui::TreeNode (g_libnxVersion))
 		{
-			ImGui::TextWrapped (g_libnxCopyright);
+			ImGui::TextWrapped ("%s", g_libnxCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_libnxLicense);
+			ImGui::TextWrapped ("%s", g_libnxLicense);
 			ImGui::TreePop ();
 		}
 
 		if (ImGui::TreeNode (g_deko3dVersion))
 		{
-			ImGui::TextWrapped (g_deko3dCopyright);
+			ImGui::TextWrapped ("%s", g_deko3dCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TextWrapped ("%s", g_zlibLicense);
 			ImGui::TreePop ();
 		}
 
 		if (ImGui::TreeNode (g_zstdVersion))
 		{
-			ImGui::TextWrapped (g_zstdCopyright);
+			ImGui::TextWrapped ("%s", g_zstdCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_bsdLicense);
+			ImGui::TextWrapped ("%s", g_bsdLicense);
 			ImGui::TreePop ();
 		}
 #else
 		if (ImGui::TreeNode (g_glfwVersion))
 		{
-			ImGui::TextWrapped (g_glfwCopyright);
+			ImGui::TextWrapped ("%s", g_glfwCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped (g_zlibLicense);
+			ImGui::TextWrapped ("%s", g_zlibLicense);
 			ImGui::TreePop ();
 		}
 #endif
@@ -815,7 +822,7 @@ void FtpServer::loop ()
 		auto const lock = std::scoped_lock (m_lock);
 		if (m_uploadLogCurl.load (std::memory_order_relaxed))
 		{
-			int busy = 0;
+			int busy      = 0;
 			auto const mc = curl_multi_perform (m_uploadLogCurlM, &busy);
 			if (mc != CURLM_OK)
 			{
@@ -829,7 +836,7 @@ void FtpServer::loop ()
 			}
 			else
 			{
-				int count = 0;
+				int count      = 0;
 				auto const msg = curl_multi_info_read (m_uploadLogCurlM, &count);
 				if (msg && msg->msg == CURLMSG_DONE && msg->easy_handle == m_uploadLogCurl)
 				{

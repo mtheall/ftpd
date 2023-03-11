@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2021 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 #endif
 
 char const *const g_dearImGuiVersion   = "Dear ImGui " IMGUI_VERSION;
-char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2021 Omar Cornut";
+char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2023 Omar Cornut";
 
 char const *const g_mitLicense =
     "The MIT License (MIT)\n"

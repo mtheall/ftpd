@@ -50,7 +50,7 @@ using namespace std::chrono_literals;
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
-		auto const lock = std::scoped_lock (m_lock);                                                \
+		auto const lock = std::scoped_lock (m_lock);                                               \
 		x;                                                                                         \
 	} while (0)
 #endif

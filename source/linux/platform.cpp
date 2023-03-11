@@ -71,9 +71,11 @@ void logCallback (GLenum const source_,
     GLchar const *const message_,
     void const *const userParam_)
 {
+	if (id_ == 131185)
+		return;
+
 	(void)source_;
 	(void)type_;
-	(void)id_;
 	(void)severity_;
 	(void)length_;
 	(void)userParam_;

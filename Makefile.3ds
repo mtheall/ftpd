@@ -52,7 +52,7 @@ RSF_FILE  := meta/ftpd-classic-cia.rsf
 endif
 
 APP_DESCRIPTION := v$(VERSION)
-APP_AUTHOR      := (c) 2022 Michael Theall, Dave Murphy, TuxSH
+APP_AUTHOR      := (c) 2023 Michael Theall, Dave Murphy, TuxSH
 
 ICON      := meta/icon.png
 BNR_IMAGE := meta/banner.png
@@ -70,7 +70,6 @@ CFLAGS   := -g -Wall $(OPTIMIZE) -mword-relocations \
 
 CFLAGS   +=  $(INCLUDE) -DARM11 -D__3DS__ \
             -DSTATUS_STRING="\"ftpd v$(VERSION)\"" \
-            -DIMGUI_DISABLE_INCLUDE_IMCONFIG_H=1 \
             -DNO_IPV6 -DFTPDCONFIG="\"/config/ftpd/ftpd.cfg\"" \
             -DANTI_ALIAS=1 \
             `curl-config --cflags`

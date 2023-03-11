@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2022 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -215,7 +215,7 @@ void startNetwork ()
 	aptSetSleepAllowed (false);
 
 	Result res;
-	if (R_FAILED (res = NDMU_EnterExclusiveState(NDM_EXCLUSIVE_STATE_INFRASTRUCTURE)))
+	if (R_FAILED (res = NDMU_EnterExclusiveState (NDM_EXCLUSIVE_STATE_INFRASTRUCTURE)))
 		error ("Failed to enter exclusive NDM state: 0x%lx\n", res);
 	else if (R_FAILED (res = NDMU_LockState ()))
 	{
