@@ -60,7 +60,7 @@ private:
 	/// \brief Command buffer size
 	constexpr static auto COMMAND_BUFFERSIZE = 4096;
 
-#ifdef NDS
+#ifdef __NDS__
 	/// \brief Response buffer size
 	constexpr static auto RESPONSE_BUFFERSIZE = 4096;
 
@@ -77,7 +77,7 @@ private:
 	/// \brief File buffersize
 	constexpr static auto FILE_BUFFERSIZE = 4 * XFER_BUFFERSIZE;
 
-#if defined(NDS)
+#if defined(__NDS__)
 	/// \brief Socket buffer size
 	constexpr static auto SOCK_BUFFERSIZE = 4096;
 
@@ -205,7 +205,7 @@ private:
 	/// \brief Transfer upload
 	bool storeTransfer ();
 
-#ifndef NDS
+#ifndef __NDS__
 	/// \brief Mutex
 	platform::Mutex m_lock;
 #endif

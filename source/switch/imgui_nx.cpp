@@ -1605,11 +1605,15 @@ bool imgui::nx::init ()
 	u64 languageCode;
 	auto rc = setInitialize ();
 	if (R_FAILED (rc))
+	{
+		std::fprintf (stderr, "setInitialize: 0x%lx\n", rc);
 		return false;
+	}
 
 	rc = setGetSystemLanguage (&languageCode);
 	if (R_FAILED (rc))
 	{
+		std::fprintf (stderr, "setGetSystemLanguage: 0x%lx\n", rc);
 		setExit ();
 		return false;
 	}
@@ -1620,7 +1624,10 @@ bool imgui::nx::init ()
 	s32 numFonts = 0;
 	rc           = plGetSharedFont (languageCode, fonts.data (), fonts.size (), &numFonts);
 	if (R_FAILED (rc))
+	{
+		std::fprintf (stderr, "plGetSharedFont: 0x%lx\n", rc);
 		return false;
+	}
 	fonts.resize (numFonts);
 
 	// add fonts

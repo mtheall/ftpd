@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ char const *SockAddr::name (char *buffer_, std::size_t size_) const
 	switch (m_addr.ss_family)
 	{
 	case AF_INET:
-#ifdef NDS
+#ifdef __NDS__
 		return inet_ntoa (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr);
 #else
 		return inet_ntop (AF_INET,
@@ -175,7 +175,7 @@ char const *SockAddr::name (char *buffer_, std::size_t size_) const
 
 char const *SockAddr::name () const
 {
-#ifdef NDS
+#ifdef __NDS__
 	return inet_ntoa (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr);
 #else
 #ifdef NO_IPV6

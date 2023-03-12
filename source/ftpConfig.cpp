@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2022 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -186,7 +186,7 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 	return config;
 }
 
-#ifndef NDS
+#ifndef __NDS__
 std::scoped_lock<platform::Mutex> FtpConfig::lockGuard ()
 {
 	return std::scoped_lock<platform::Mutex> (m_lock);
@@ -290,7 +290,7 @@ bool FtpConfig::setPort (std::uint16_t const port_)
 		errno = EPERM;
 		return false;
 	}
-#elif defined(NDS) || defined(__3DS__)
+#elif defined(__NDS__) || defined(__3DS__)
 	// 3DS is allowed < 1024, but not 0
 	// NDS is allowed < 1024, but 0 crashes the app
 	if (port_ == 0)

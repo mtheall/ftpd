@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2022 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ struct Message
 /// \brief Log messages
 std::vector<Message> s_messages;
 
-#ifndef NDS
+#ifndef __NDS__
 /// \brief Log lock
 platform::Mutex s_lock;
 #endif
@@ -79,7 +79,7 @@ platform::Mutex s_lock;
 
 void drawLog ()
 {
-#ifndef NDS
+#ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 
@@ -153,7 +153,7 @@ void drawLog ()
 #ifndef CLASSIC
 std::string getLog ()
 {
-#ifndef NDS
+#ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 
@@ -237,14 +237,14 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 		return;
 #endif
 
-#ifndef NDS
+#ifndef __NDS__
 	thread_local
 #endif
 	    static char buffer[1024];
 
 	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
 
-#ifndef NDS
+#ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 #ifndef NDEBUG
@@ -272,7 +272,7 @@ void addLog (LogLevel const level_, std::string_view const message_)
 			c = '?';
 	}
 
-#ifndef NDS
+#ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 #ifndef NDEBUG

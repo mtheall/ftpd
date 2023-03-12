@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ Socket::~Socket ()
 	if (m_connected)
 		info ("Closing connection to [%s]:%u\n", m_peerName.name (), m_peerName.port ());
 
-#ifdef NDS
+#ifdef __NDS__
 	if (::closesocket (m_fd) != 0)
 		error ("closesocket: %s\n", std::strerror (errno));
 #else
@@ -80,7 +80,7 @@ UniqueSocket Socket::accept ()
 
 int Socket::atMark ()
 {
-#ifdef NDS
+#ifdef __NDS__
 	errno = ENOSYS;
 	return -1;
 #else
@@ -180,7 +180,7 @@ bool Socket::shutdown (int const how_)
 
 bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 {
-#ifdef NDS
+#ifdef __NDS__
 	errno = ENOSYS;
 	return -1;
 #else
@@ -204,7 +204,7 @@ bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 
 bool Socket::setNonBlocking (bool const nonBlocking_)
 {
-#ifdef NDS
+#ifdef __NDS__
 	unsigned long enable = nonBlocking_;
 
 	auto const rc = ::ioctl (m_fd, FIONBIO, &enable);
@@ -369,7 +369,7 @@ int Socket::poll (PollInfo *const info_,
 	return rc;
 }
 
-#ifdef NDS
+#ifdef __NDS__
 extern "C" int poll (struct pollfd *const fds_, nfds_t const nfds_, int const timeout_)
 {
 	fd_set readFds;

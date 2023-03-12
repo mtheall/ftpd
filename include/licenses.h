@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,11 +43,11 @@ extern char const *const g_libnxLicense;
 extern char const *const g_bsdLicense;
 #endif
 
-#if !defined(NDS)
+#if !defined(__NDS__)
 extern char const *const g_zlibLicense;
 #endif
 
-#if !defined(NDS) && !defined(__3DS__) && !defined(__SWITCH__)
+#if !defined(__NDS__) && !defined(__3DS__) && !defined(__SWITCH__)
 extern char const *const g_glfwVersion;
 extern char const *const g_glfwCopyright;
 #endif

@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2023 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include <cstdio>
 #include <string>
 
-#if defined(NDS) || defined(__3DS__) || defined(__SWITCH__)
+#if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__)
 #define getline __getline
 #endif
 

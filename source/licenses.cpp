@@ -26,7 +26,7 @@
 #include <zstd.h>
 #endif
 
-#if !defined(NDS) && !defined(__3DS__) && !defined(__SWITCH__)
+#if !defined(__NDS__) && !defined(__3DS__) && !defined(__SWITCH__)
 #include <GLFW/glfw3.h>
 #endif
 
@@ -108,7 +108,7 @@ char const *const g_bsdLicense =
     "OF THE POSSIBILITY OF SUCH DAMAGE.";
 #endif
 
-#if !defined(NDS)
+#if !defined(__NDS__)
 char const *const g_zlibLicense =
     "This software is provided 'as-is', without any express or implied warranty.  In no event will "
     "the authors be held liable for any damages arising from the use of this software.\n"
@@ -125,7 +125,7 @@ char const *const g_zlibLicense =
     "3. This notice may not be removed or altered from any source distribution.";
 #endif
 
-#if !defined(NDS) && !defined(__3DS__) && !defined(__SWITCH__)
+#if !defined(__NDS__) && !defined(__3DS__) && !defined(__SWITCH__)
 #define STR(x) #x
 #define XSTR(x) STR (x)
 #define GLFW_VERSION_STRING                                                                        \

@@ -28,7 +28,7 @@
 
 #include "imgui.h"
 
-#ifdef NDS
+#ifdef __NDS__
 #include <dswifi9.h>
 #endif
 
@@ -46,7 +46,7 @@
 #include <thread>
 using namespace std::chrono_literals;
 
-#ifdef NDS
+#ifdef __NDS__
 #define LOCKED(x) x
 #else
 #define LOCKED(x)                                                                                  \
@@ -62,7 +62,7 @@ namespace
 /// \brief Application start time
 auto const s_startTime = std::time (nullptr);
 
-#ifndef NDS
+#ifndef __NDS__
 /// \brief Mutex for s_freeSpace
 platform::Mutex s_lock;
 #endif
@@ -163,7 +163,7 @@ FtpServer::~FtpServer ()
 {
 	m_quit = true;
 
-#ifndef NDS
+#ifndef __NDS__
 	m_thread.join ();
 #endif
 
@@ -182,21 +182,21 @@ FtpServer::~FtpServer ()
 
 FtpServer::FtpServer (UniqueFtpConfig config_) : m_config (std::move (config_)), m_quit (false)
 {
-#ifndef NDS
+#ifndef __NDS__
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
 #endif
 }
 
 void FtpServer::draw ()
 {
-#ifdef NDS
+#ifdef __NDS__
 	loop ();
 #endif
 
 #ifdef CLASSIC
 	{
 		char port[7];
-#ifndef NDS
+#ifndef __NDS__
 		auto const lock = std::scoped_lock (m_lock);
 #endif
 		if (m_socket)
@@ -208,7 +208,7 @@ void FtpServer::draw ()
 		    m_socket ? m_socket->sockName ().name () : "Waiting on WiFi",
 		    m_socket ? port : "");
 
-#ifndef NDS
+#ifndef __NDS__
 		char timeBuffer[16];
 		auto const now = std::time (nullptr);
 		std::strftime (timeBuffer, sizeof (timeBuffer), "%H:%M:%S", std::localtime (&now));
@@ -221,7 +221,7 @@ void FtpServer::draw ()
 	}
 
 	{
-#ifndef NDS
+#ifndef __NDS__
 		auto const lock = std::scoped_lock (s_lock);
 #endif
 		if (!s_freeSpace.empty ())
@@ -235,7 +235,7 @@ void FtpServer::draw ()
 	}
 
 	{
-#ifndef NDS
+#ifndef __NDS__
 		auto const lock = std::scoped_lock (m_lock);
 #endif
 		consoleSelect (&g_sessionConsole);
@@ -332,7 +332,7 @@ UniqueFtpServer FtpServer::create ()
 
 std::string FtpServer::getFreeSpace ()
 {
-#ifndef NDS
+#ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 	return s_freeSpace;
@@ -341,7 +341,7 @@ std::string FtpServer::getFreeSpace ()
 void FtpServer::updateFreeSpace ()
 {
 	struct statvfs st;
-#if defined(NDS) || defined(__3DS__) || defined(__SWITCH__)
+#if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__)
 	if (::statvfs ("sdmc:/", &st) != 0)
 #else
 	if (::statvfs ("/", &st) != 0)
@@ -350,7 +350,7 @@ void FtpServer::updateFreeSpace ()
 
 	auto freeSpace = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
 
-#ifndef NDS
+#ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 	if (freeSpace != s_freeSpace)
@@ -371,7 +371,7 @@ void FtpServer::handleNetworkFound ()
 	std::uint16_t port;
 
 	{
-#ifndef NDS
+#ifndef __NDS__
 		auto const lock = m_config->lockGuard ();
 #endif
 		port = m_config->port ();
@@ -439,7 +439,7 @@ void FtpServer::showMenu ()
 
 			if (ImGui::MenuItem ("Upload Log"))
 			{
-#ifndef NDS
+#ifndef __NDS__
 				auto const lock = std::scoped_lock (m_lock);
 #endif
 				if (!m_uploadLogCurlM)
@@ -501,7 +501,7 @@ void FtpServer::showMenu ()
 	{
 		if (!prevShowSettings)
 		{
-#ifndef NDS
+#ifndef __NDS__
 			auto const lock = m_config->lockGuard ();
 #endif
 
@@ -634,7 +634,7 @@ void FtpServer::showSettings ()
 			m_showSettings = false;
 			ImGui::CloseCurrentPopup ();
 
-#ifndef NDS
+#ifndef __NDS__
 			auto const lock = m_config->lockGuard ();
 #endif
 
@@ -659,7 +659,7 @@ void FtpServer::showSettings ()
 
 		if (save)
 		{
-#ifndef NDS
+#ifndef __NDS__
 			auto const lock = m_config->lockGuard ();
 #endif
 			if (!m_config->save (FTPDCONFIG))
@@ -732,7 +732,7 @@ void FtpServer::showAbout ()
 			ImGui::TreePop ();
 		}
 
-#if defined(NDS)
+#if defined(__NDS__)
 #elif defined(__3DS__)
 		if (ImGui::TreeNode (g_libctruVersion))
 		{
@@ -891,7 +891,7 @@ void FtpServer::loop ()
 		std::vector<UniqueFtpSession> deadSessions;
 		{
 			// remove dead sessions
-#ifndef NDS
+#ifndef __NDS__
 			auto const lock = std::scoped_lock (m_lock);
 #endif
 			auto it = std::begin (m_sessions);
@@ -915,7 +915,7 @@ void FtpServer::loop ()
 		if (!FtpSession::poll (m_sessions))
 			handleNetworkLost ();
 	}
-#ifndef NDS
+#ifndef __NDS__
 	// avoid busy polling in background thread
 	else
 		platform::Thread::sleep (16ms);
