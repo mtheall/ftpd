@@ -144,6 +144,8 @@ void enableBacklight (bool const enable_)
 /// \param param_ User param
 void handleAPTHook (APT_HookType const type_, void *const param_)
 {
+	(void)param_;
+
 	switch (type_)
 	{
 	case APTHOOK_ONSUSPEND:

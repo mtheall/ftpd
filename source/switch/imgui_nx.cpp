@@ -1357,6 +1357,8 @@ void setClipboardText (void *const userData_, char const *const text_)
 /// \param force_ Whether to ignore prior mouse position
 void moveMouse (ImGuiIO &io_, ImVec2 const &pos_, bool const force_ = false)
 {
+	(void)io_;
+
 	// get update timestamp
 	auto const now = std::chrono::steady_clock::now ();
 
@@ -1606,14 +1608,14 @@ bool imgui::nx::init ()
 	auto rc = setInitialize ();
 	if (R_FAILED (rc))
 	{
-		std::fprintf (stderr, "setInitialize: 0x%lx\n", rc);
+		std::fprintf (stderr, "setInitialize: 0x%x\n", rc);
 		return false;
 	}
 
 	rc = setGetSystemLanguage (&languageCode);
 	if (R_FAILED (rc))
 	{
-		std::fprintf (stderr, "setGetSystemLanguage: 0x%lx\n", rc);
+		std::fprintf (stderr, "setGetSystemLanguage: 0x%x\n", rc);
 		setExit ();
 		return false;
 	}
@@ -1625,7 +1627,7 @@ bool imgui::nx::init ()
 	rc           = plGetSharedFont (languageCode, fonts.data (), fonts.size (), &numFonts);
 	if (R_FAILED (rc))
 	{
-		std::fprintf (stderr, "plGetSharedFont: 0x%lx\n", rc);
+		std::fprintf (stderr, "plGetSharedFont: 0x%x\n", rc);
 		return false;
 	}
 	fonts.resize (numFonts);

@@ -402,7 +402,7 @@ void loadTextures ()
 
 		// copy texture to image
 		dk::ImageView imageView (image);
-		cmdBuf.copyBufferToImage ({memBlock.getGpuAddr ()},
+		cmdBuf.copyBufferToImage ({memBlock.getGpuAddr (), 0, 0},
 		    imageView,
 		    {0, 0, 0, textureInfo.width, textureInfo.height, 1});
 		s_queue.submitCommands (cmdBuf.finishList ());

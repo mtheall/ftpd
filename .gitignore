@@ -12,6 +12,7 @@
 *.nso
 *.pfs0
 *.smdh
+*~
 .gdb_history
 3ds/build
 3ds-classic/build
@@ -23,3 +24,4 @@ switch/build
 switch-classic/build
 switch/romfs/*.zst
 switch/romfs/shaders/*.dksh
+build*/

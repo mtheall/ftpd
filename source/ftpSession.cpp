@@ -1723,7 +1723,6 @@ bool FtpSession::listTransfer ()
 				if (::lstat (fullPath.c_str (), &st) != 0)
 				{
 					error ("Skipping %s: %s\n", fullPath.c_str (), std::strerror (errno));
-					std::fprintf (stderr, "Skipping %s: %s\n", fullPath.c_str (), std::strerror (errno));
 					continue; // just skip it
 				}
 #ifdef __3DS__
@@ -1867,6 +1866,8 @@ bool FtpSession::storeTransfer ()
 ///////////////////////////////////////////////////////////////////////////
 void FtpSession::ABOR (char const *args_)
 {
+	(void)args_;
+
 	if (m_state == State::COMMAND)
 	{
 		sendResponse ("225 No transfer to abort\r\n");
@@ -1881,6 +1882,8 @@ void FtpSession::ABOR (char const *args_)
 
 void FtpSession::ALLO (char const *args_)
 {
+	(void)args_;
+
 	sendResponse ("202 Superfluous command\r\n");
 	setState (State::COMMAND, false, false);
 }
@@ -1900,6 +1903,8 @@ void FtpSession::APPE (char const *args_)
 
 void FtpSession::CDUP (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 
 	if (!authorized ())
@@ -1966,6 +1971,8 @@ void FtpSession::DELE (char const *args_)
 }
 void FtpSession::FEAT (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 	sendResponse ("211-\r\n"
 	              " MDTM\r\n"
@@ -1985,6 +1992,8 @@ void FtpSession::FEAT (char const *args_)
 
 void FtpSession::HELP (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 	sendResponse ("214-\r\n"
 	              "The following commands are recognized\r\n"
@@ -2009,6 +2018,8 @@ void FtpSession::LIST (char const *args_)
 
 void FtpSession::MDTM (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 
 	if (!authorized ())
@@ -2104,6 +2115,8 @@ void FtpSession::NLST (char const *args_)
 
 void FtpSession::NOOP (char const *args_)
 {
+	(void)args_;
+
 	sendResponse ("200 OK\r\n");
 }
 
@@ -2201,6 +2214,8 @@ void FtpSession::PASS (char const *args_)
 
 void FtpSession::PASV (char const *args_)
 {
+	(void)args_;
+
 	if (!authorized ())
 	{
 		setState (State::COMMAND, false, false);
@@ -2364,6 +2379,8 @@ void FtpSession::PORT (char const *args_)
 
 void FtpSession::PWD (char const *args_)
 {
+	(void)args_;
+
 	if (!authorized ())
 	{
 		sendResponse ("530 Not logged in\r\n");
@@ -2381,6 +2398,8 @@ void FtpSession::PWD (char const *args_)
 
 void FtpSession::QUIT (char const *args_)
 {
+	(void)args_;
+
 	sendResponse ("221 Disconnecting\r\n");
 	closeCommand ();
 }
@@ -2756,6 +2775,8 @@ void FtpSession::STOR (char const *args_)
 
 void FtpSession::STOU (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 	sendResponse ("502 Command not implemented\r\n");
 }
@@ -2776,12 +2797,16 @@ void FtpSession::STRU (char const *args_)
 
 void FtpSession::SYST (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 	sendResponse ("215 UNIX Type: L8\r\n");
 }
 
 void FtpSession::TYPE (char const *args_)
 {
+	(void)args_;
+
 	setState (State::COMMAND, false, false);
 
 	// we always transfer in binary mode

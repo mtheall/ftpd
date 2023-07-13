@@ -151,6 +151,8 @@ char const *SockAddr::name (char *buffer_, std::size_t size_) const
 	{
 	case AF_INET:
 #ifdef __NDS__
+		(void)buffer_;
+		(void)size_;
 		return inet_ntoa (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr);
 #else
 		return inet_ntop (AF_INET,

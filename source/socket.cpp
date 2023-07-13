@@ -181,6 +181,8 @@ bool Socket::shutdown (int const how_)
 bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 {
 #ifdef __NDS__
+	(void)enable_;
+	(void)time_;
 	errno = ENOSYS;
 	return -1;
 #else

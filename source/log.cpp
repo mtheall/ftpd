@@ -191,6 +191,8 @@ void debug (char const *const fmt_, ...)
 	va_start (ap, fmt_);
 	addLog (DEBUG, fmt_, ap);
 	va_end (ap);
+#else
+	(void)fmt_;
 #endif
 }
 

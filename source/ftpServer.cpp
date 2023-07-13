@@ -99,6 +99,7 @@ int curlDebug (CURL *const handle_,
     std::size_t const size_,
     void *const user_)
 {
+	(void)handle_;
 	(void)user_;
 
 	auto const text = printable (data_, size_);
