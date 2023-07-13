@@ -99,7 +99,7 @@ if(NINTENDO_SWITCH)
 		return()
 	endif()
 
-	include(FindPkgConfig)
+	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(CURL libcurl IMPORTED_TARGET)
 	pkg_check_modules(ZSTD libzstd IMPORTED_TARGET)
 
@@ -207,7 +207,7 @@ elseif(NINTENDO_3DS)
 		ANTI_ALIAS=1
 	)
 
-	include(FindPkgConfig)
+	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(CURL libcurl IMPORTED_TARGET)
 
 	target_link_libraries(${FTPD_TARGET} PRIVATE

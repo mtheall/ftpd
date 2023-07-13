@@ -1192,25 +1192,19 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 
 	if (std::strlen (args_) > 0)
 	{
+		// work around broken clients that think LIST -a/-l is valid
+		auto const needWorkaround = workaround_ && args_[0] == '-' &&
+		                            (args_[1] == 'a' || args_[1] == 'l') &&
+		                            (args_[2] == '\0' || args_[2] == ' ');
+
 		// an argument was provided
 		auto const path = buildResolvedPath (m_cwd, args_);
 		if (path.empty ())
 		{
-			// work around broken clients that think LIST -a/-l is valid
-			if (workaround_)
+			if (needWorkaround)
 			{
-				if (args_[0] == '-' && (args_[1] == 'a' || args_[1] == 'l'))
-				{
-					char const *args = &args_[2];
-					if (*args == '\0' || *args == ' ')
-					{
-						if (*args == ' ')
-							++args;
-
-						xferDir (args, mode_, false);
-						return;
-					}
-				}
+				xferDir (args_ + 2 + (args_[2] == ' '), mode_, false);
+				return;
 			}
 
 			sendResponse ("550 %s\r\n", std::strerror (errno));
@@ -1221,6 +1215,12 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 		struct stat st;
 		if (::stat (path.c_str (), &st) != 0)
 		{
+			if (needWorkaround)
+			{
+				xferDir (args_ + 2 + (args_[2] == ' '), mode_, false);
+				return;
+			}
+
 			sendResponse ("550 %s\r\n", std::strerror (errno));
 			setState (State::COMMAND, true, true);
 			return;
@@ -1616,7 +1616,7 @@ void FtpSession::sendResponse (std::string_view const response_)
 bool FtpSession::listTransfer ()
 {
 	// check if we sent all available data
-	if (m_xferBuffer.empty ())
+	while (m_xferBuffer.empty ())
 	{
 		m_xferBuffer.clear ();
 
@@ -1646,7 +1646,7 @@ bool FtpSession::listTransfer ()
 
 		// I think we are supposed to return entries for . and ..
 		if (std::strcmp (dent->d_name, ".") == 0 || std::strcmp (dent->d_name, "..") == 0)
-			return true;
+			continue; // just skip it
 
 		// check if this was NLST
 		if (m_xferDirMode == XferDirMode::NLST)
@@ -1717,51 +1717,18 @@ bool FtpSession::listTransfer ()
 				}
 			}
 			else
-#endif
-			    // lstat the entry
-			    if (::lstat (fullPath.c_str (), &st) != 0)
 			{
-#ifndef __SWITCH__
-				sendResponse ("550 %s\r\n", std::strerror (errno));
-				setState (State::COMMAND, true, true);
-				return false;
-#else
-				// probably archive bit set; list name with dummy stats
-				std::memset (&st, 0, sizeof (st));
-				error ("%s: type %u\n", dent->d_name, dent->d_type);
-				switch (dent->d_type)
-				{
-				case DT_BLK:
-					st.st_mode = S_IFBLK;
-					break;
-
-				case DT_CHR:
-					st.st_mode = S_IFCHR;
-					break;
-
-				case DT_DIR:
-					st.st_mode = S_IFDIR;
-					break;
-
-				case DT_FIFO:
-					st.st_mode = S_IFIFO;
-					break;
-
-				case DT_LNK:
-					st.st_mode = S_IFLNK;
-					break;
-
-				case DT_REG:
-				case DT_UNKNOWN:
-					st.st_mode = S_IFREG;
-					break;
-
-				case DT_SOCK:
-					st.st_mode = S_IFSOCK;
-					break;
-				}
 #endif
+				// lstat the entry
+				if (::lstat (fullPath.c_str (), &st) != 0)
+				{
+					error ("Skipping %s: %s\n", fullPath.c_str (), std::strerror (errno));
+					std::fprintf (stderr, "Skipping %s: %s\n", fullPath.c_str (), std::strerror (errno));
+					continue; // just skip it
+				}
+#ifdef __3DS__
 			}
+#endif
 
 			auto const path = encodePath (dent->d_name);
 			auto const rc   = fillDirent (st, path);
