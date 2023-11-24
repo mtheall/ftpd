@@ -53,6 +53,8 @@ void userAppInit ()
 {
 	// disable immediate app close
 	appletLockExit ();
+	// disable auto-sleep
+	appletSetAutoSleepDisabled (true);
 
 	romfsInit ();
 	plInitialize (PlServiceType_User);
@@ -80,5 +82,7 @@ void userAppExit ()
 	psmExit ();
 	plExit ();
 	romfsExit ();
+	// Restore auto-sleep
+	appletSetAutoSleepDisabled (false);
 	appletUnlockExit ();
 }
