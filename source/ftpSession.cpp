@@ -546,7 +546,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 			else
 			{
 				assert (session->m_send);
-				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT, 0});
+				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT | POLLIN, 0});
 			}
 			break;
 		}
