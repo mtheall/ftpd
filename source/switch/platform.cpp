@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -733,10 +733,37 @@ bool platform::networkVisible ()
 	if (s_activeAP)
 		return true;
 
+	static NifmInternetConnectionType lastType;
+	static std::uint32_t lastWifi;
+	static NifmInternetConnectionStatus lastStatus;
+	static Result lastResult;
+
 	NifmInternetConnectionType type;
 	std::uint32_t wifi;
 	NifmInternetConnectionStatus status;
-	if (R_FAILED (nifmGetInternetConnectionStatus (&type, &wifi, &status)))
+
+	auto const result = nifmGetInternetConnectionStatus (&type, &wifi, &status);
+	if (result != lastResult)
+		info ("nifmGetInternetConnectionStatus: result 0x%x -> 0x%x\n", lastResult, result);
+	lastResult = result;
+
+	if (R_SUCCEEDED (result))
+	{
+		if (type != lastType)
+			info ("nifmGetInternetConnectionStatus: type 0x%x -> 0x%x\n", lastType, type);
+
+		if (wifi != lastWifi)
+			info ("nifmGetInternetConnectionStatus: wifi 0x%x -> 0x%x\n", lastWifi, wifi);
+
+		if (status != lastStatus)
+			info ("nifmGetInternetConnectionStatus: status 0x%x -> 0x%x\n", lastStatus, status);
+
+		lastType   = type;
+		lastWifi   = wifi;
+		lastStatus = status;
+	}
+
+	if (R_FAILED (result))
 		return false;
 
 	return status == NifmInternetConnectionStatus_Connected;

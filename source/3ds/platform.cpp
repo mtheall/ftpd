@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -173,8 +173,23 @@ bool getNetworkVisibility ()
 	auto const lock = std::scoped_lock (s_acuFence);
 
 	// get wifi status
+	static std::uint32_t lastWifi = 0;
+	static Result lastResult      = 0;
+
 	std::uint32_t wifi = 0;
-	if (R_FAILED (ACU_GetWifiStatus (&wifi)) || !wifi)
+	auto const result  = ACU_GetWifiStatus (&wifi);
+	if (result != lastResult)
+		info ("ACU_GetWifiStatus: result 0x%lx -> 0x%lx\n", lastResult, result);
+	lastResult = result;
+
+	if (R_SUCCEEDED (result))
+	{
+		if (wifi != lastWifi)
+			info ("ACU_GetWifiStatus: wifi 0x%lx -> 0x%lx\n", lastWifi, wifi);
+		lastWifi = wifi;
+	}
+
+	if (R_FAILED (result) || !wifi)
 	{
 #ifdef CLASSIC
 		s_addr = 0;
