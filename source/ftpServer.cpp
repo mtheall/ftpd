@@ -737,6 +737,14 @@ void FtpServer::showAbout ()
 		}
 
 		ImGui::Separator ();
+		if (ImGui::TreeNode ("Connections"))
+		{
+			for (auto const &session : m_sessions)
+				session->drawConnections ();
+			ImGui::TreePop ();
+		}
+
+		ImGui::Separator ();
 		if (ImGui::TreeNode (g_dearImGuiVersion))
 		{
 			ImGui::TextWrapped ("%s", g_dearImGuiCopyright);

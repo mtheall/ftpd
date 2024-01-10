@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -395,6 +395,60 @@ void FtpSession::draw ()
 	}
 
 	ImGui::EndChild ();
+#endif
+}
+
+void FtpSession::drawConnections ()
+{
+#ifndef CLASSIC
+#ifdef NO_IPV6
+	char peerName[INET_ADDRSTRLEN];
+	char sockName[INET_ADDRSTRLEN];
+#else
+	char peerName[INET6_ADDRSTRLEN];
+	char sockName[INET6_ADDRSTRLEN];
+#endif
+
+	static char const *const stateStrings[] = {
+	    "Command",
+	    "Data Connect",
+	    "Data Transfer",
+	};
+
+	ImGui::TextWrapped ("State: %s", stateStrings[static_cast<int> (m_state)]);
+	if (m_commandSocket)
+	{
+		m_commandSocket->peerName ().name (peerName, sizeof (peerName));
+		m_commandSocket->sockName ().name (sockName, sizeof (sockName));
+
+		if (m_commandSocket == m_dataSocket)
+			ImGui::TextWrapped ("Command/Data %s -> %s", peerName, sockName);
+		else
+			ImGui::TextWrapped ("Command %s -> %s", peerName, sockName);
+	}
+
+	if (m_pasvSocket)
+	{
+		m_pasvSocket->sockName ().name (sockName, sizeof (sockName));
+		ImGui::TextWrapped ("PASV %s", sockName);
+	}
+
+	if (m_dataSocket && m_dataSocket != m_commandSocket)
+	{
+		m_dataSocket->peerName ().name (peerName, sizeof (peerName));
+		m_dataSocket->sockName ().name (sockName, sizeof (sockName));
+		ImGui::TextWrapped ("Data %s -> %s", peerName, sockName);
+	}
+
+	for (auto const &sock : m_pendingCloseSocket)
+	{
+		if (!sock)
+			continue;
+
+		sock->peerName ().name (peerName, sizeof (peerName));
+		sock->sockName ().name (sockName, sizeof (sockName));
+		ImGui::TextWrapped ("Closing %s -> %s", peerName, sockName);
+	}
 #endif
 }
 

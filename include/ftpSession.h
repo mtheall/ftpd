@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -46,6 +46,9 @@ public:
 
 	/// \brief Draw session status
 	void draw ();
+
+	/// \brief Draw session connections
+	void drawConnections ();
 
 	/// \brief Create session
 	/// \param config_ FTP config
