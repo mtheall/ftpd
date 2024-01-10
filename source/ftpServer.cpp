@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -322,6 +322,11 @@ void FtpServer::draw ()
 #endif
 }
 
+bool FtpServer::quit ()
+{
+	return m_quit;
+}
+
 UniqueFtpServer FtpServer::create ()
 {
 	updateFreeSpace ();
@@ -490,8 +495,15 @@ void FtpServer::showMenu ()
 				}
 			}
 
+			ImGui::Separator ();
+
 			if (ImGui::MenuItem ("About"))
 				m_showAbout = true;
+
+			ImGui::Separator ();
+
+			if (ImGui::MenuItem ("Quit"))
+				m_quit = true;
 
 			ImGui::EndMenu ();
 		}
@@ -713,7 +725,7 @@ void FtpServer::showAbout ()
 	        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
 	{
 		ImGui::TextUnformatted (STATUS_STRING);
-		ImGui::TextWrapped ("Copyright © 2023 Michael Theall, Dave Murphy, TuxSH");
+		ImGui::TextWrapped ("Copyright © 2024 Michael Theall, Dave Murphy, TuxSH");
 		ImGui::Separator ();
 		ImGui::Text ("Platform: %s", io.BackendPlatformName);
 		ImGui::Text ("Renderer: %s", io.BackendRendererName);
