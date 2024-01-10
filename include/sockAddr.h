@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -59,13 +59,9 @@ public:
 
 	/// \param Parameterized constructor
 	/// \param addr_ Address
-	SockAddr (struct sockaddr const &addr_);
-
-	/// \param Parameterized constructor
-	/// \param addr_ Address
 	SockAddr (struct sockaddr_in const &addr_);
 
-#ifndef __3DS__
+#ifndef NO_IPV6
 	/// \param Parameterized constructor
 	/// \param addr_ Address
 	SockAddr (struct sockaddr_in6 const &addr_);
@@ -78,7 +74,7 @@ public:
 	/// \param sockaddr_in cast operator
 	operator struct sockaddr_in const & () const;
 
-#ifndef __3DS__
+#ifndef NO_IPV6
 	/// \param sockaddr_in6 cast operator
 	operator struct sockaddr_in6 const & () const;
 #endif

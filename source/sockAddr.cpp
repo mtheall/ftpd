@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -39,16 +39,32 @@ SockAddr &SockAddr::operator= (SockAddr const &that_) = default;
 
 SockAddr &SockAddr::operator= (SockAddr &&that_) = default;
 
-SockAddr::SockAddr (struct sockaddr const &addr_)
+SockAddr::SockAddr (struct sockaddr_in const &addr_)
 {
-	switch (addr_.sa_family)
+	assert (addr_.sin_family == AF_INET);
+	std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in));
+}
+
+#ifndef NO_IPV6
+SockAddr::SockAddr (struct sockaddr_in6 const &addr_)
+{
+	assert (addr_.sin6_family == AF_INET6);
+	std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in6));
+}
+#endif
+
+SockAddr::SockAddr (struct sockaddr_storage const &addr_)
+{
+	switch (addr_.ss_family)
 	{
 	case AF_INET:
+		assert (addr_.ss_family == AF_INET);
 		std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in));
 		break;
 
 #ifndef NO_IPV6
 	case AF_INET6:
+		assert (addr_.ss_family == AF_INET6);
 		std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in6));
 		break;
 #endif
@@ -59,32 +75,13 @@ SockAddr::SockAddr (struct sockaddr const &addr_)
 	}
 }
 
-SockAddr::SockAddr (struct sockaddr_in const &addr_)
-    : SockAddr (reinterpret_cast<struct sockaddr const &> (addr_))
-{
-	assert (m_addr.ss_family == AF_INET);
-}
-
-#ifndef __3DS__
-SockAddr::SockAddr (struct sockaddr_in6 const &addr_)
-    : SockAddr (reinterpret_cast<struct sockaddr const &> (addr_))
-{
-	assert (m_addr.ss_family == AF_INET6);
-}
-#endif
-
-SockAddr::SockAddr (struct sockaddr_storage const &addr_)
-    : SockAddr (reinterpret_cast<struct sockaddr const &> (addr_))
-{
-}
-
 SockAddr::operator struct sockaddr_in const & () const
 {
 	assert (m_addr.ss_family == AF_INET);
 	return reinterpret_cast<struct sockaddr_in const &> (m_addr);
 }
 
-#ifndef __3DS__
+#ifndef NO_IPV6
 SockAddr::operator struct sockaddr_in6 const & () const
 {
 	assert (m_addr.ss_family == AF_INET6);
