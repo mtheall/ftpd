@@ -11,6 +11,11 @@ else()
 endif()
 
 add_executable(${FTPD_TARGET})
+
+if(NINTENDO_SWITCH OR NINTENDO_3DS OR NINTENDO_DS)
+	dkp_target_generate_symbol_list(${FTPD_TARGET})
+endif()
+
 target_compile_features(${FTPD_TARGET} PRIVATE cxx_std_20)
 target_include_directories(${FTPD_TARGET} PRIVATE include)
 target_compile_definitions(${FTPD_TARGET} PRIVATE
@@ -91,7 +96,7 @@ if(NINTENDO_SWITCH)
 	if(FTPD_CLASSIC)
 		nx_generate_nacp(${FTPD_TARGET}.nacp
 			NAME "${PROJECT_NAME} classic"
-			AUTHOR "(c) 2023 Michael Theall, Dave Murphy, TuxSH"
+			AUTHOR "(c) 2024 Michael Theall, Dave Murphy, TuxSH"
 			VERSION ${PROJECT_VERSION}
 		)
 
@@ -251,7 +256,9 @@ elseif(NINTENDO_3DS)
 			3ds/gfx/wifi3.png
 			3ds/gfx/wifiNull.png
 	)
+
 	target_include_directories(${FTPD_TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+	add_dependencies(${FTPD_TARGET} gfx)
 
 	dkp_install_assets(${PROJECT_NAME}_romfs
 		TARGETS
