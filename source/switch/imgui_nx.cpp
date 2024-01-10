@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -1445,9 +1445,6 @@ void updateTouch (HidTouchScreenState const &touchState_, ImGuiIO &io_)
 /// \param io_ ImGui IO
 void updateGamepads (PadState const &padState_, ImGuiIO &io_)
 {
-	// clear navigation inputs
-	std::memset (io_.NavInputs, 0, sizeof (io_.NavInputs));
-
 	auto const buttonMapping = {
 	    // clang-format off
 	    std::make_pair (HidNpadButton_A,     ImGuiKey_GamepadFaceDown),  // A and B are swapped
