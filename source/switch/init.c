@@ -29,8 +29,6 @@ static int s_fd = -1;
 
 /// \brief Socket initialization configuration
 static SocketInitConfig const s_socketInitConfig = {
-    .bsdsockets_version = 1,
-
     .tcp_tx_buf_size     = 1 * 1024 * 1024,
     .tcp_rx_buf_size     = 1 * 1024 * 1024,
     .tcp_tx_buf_max_size = 4 * 1024 * 1024,
