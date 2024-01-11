@@ -32,6 +32,10 @@
 #include <dswifi9.h>
 #endif
 
+#ifndef CLASSIC
+#include <jansson.h>
+#endif
+
 #include <arpa/inet.h>
 #include <sys/statvfs.h>
 #include <unistd.h>
@@ -457,11 +461,6 @@ void FtpServer::showMenu ()
 
 					auto const handle = curl_easy_init ();
 
-#ifdef __3DS__
-					// 3DS CA fails peer verification, so add CA here
-					curl_easy_setopt (handle, CURLOPT_CAINFO, "romfs:/sni.cloudflaressl.com.ca");
-#endif
-
 #ifndef NDEBUG
 					curl_easy_setopt (handle, CURLOPT_DEBUGFUNCTION, &curlDebug);
 					curl_easy_setopt (handle, CURLOPT_DEBUGDATA, nullptr);
@@ -474,9 +473,9 @@ void FtpServer::showMenu ()
 					curl_easy_setopt (handle, CURLOPT_WRITEDATA, &m_uploadLogResult);
 
 					// set headers
-					static char contentType[]       = "Content-Type: multipart/form-data";
+					static char contentType[]       = "Content-Type: text/plain";
 					static curl_slist const headers = {contentType, nullptr};
-					curl_easy_setopt (handle, CURLOPT_URL, "https://hastebin.com/documents");
+					curl_easy_setopt (handle, CURLOPT_URL, "https://pastie.io/documents");
 					curl_easy_setopt (handle, CURLOPT_HTTPHEADER, &headers);
 
 					// set form data
@@ -864,11 +863,18 @@ void FtpServer::loop ()
 					if (msg->data.result != CURLE_OK)
 						info ("cURL finished with status %d\n", msg->data.result);
 
-					if (m_uploadLogResult.starts_with ("{\"key\":\""))
+					json_error_t err;
+					auto const root = json_loads (m_uploadLogResult.c_str (), 0, &err);
+					if (json_is_object (root))
 					{
-						auto const key = m_uploadLogResult.substr (8, 10);
-						info ("https://hastebin.com/%s\n", key.c_str ());
+						auto const key = json_object_get (root, "key");
+						if (json_is_string (key))
+							info ("Log uploaded to https://pastie.io/%s\n", json_string_value (key));
 					}
+					else
+						error ("Failed to upload log\n");
+
+					json_decref (root);
 
 					curl_multi_remove_handle (m_uploadLogCurlM, m_uploadLogCurl);
 					curl_easy_cleanup (m_uploadLogCurl);

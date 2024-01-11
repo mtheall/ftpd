@@ -110,11 +110,13 @@ if(NINTENDO_SWITCH)
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(CURL libcurl IMPORTED_TARGET)
 	pkg_check_modules(ZSTD libzstd IMPORTED_TARGET)
+	pkg_check_modules(jansson jansson IMPORTED_TARGET)
 
 	target_link_libraries(${FTPD_TARGET} PRIVATE
 		deko3d$<$<CONFIG:Debug>:d>
 		PkgConfig::CURL
 		PkgConfig::ZSTD
+		PkgConfig::jansson
 	)
 
 	target_sources(${FTPD_TARGET} PRIVATE
@@ -217,10 +219,12 @@ elseif(NINTENDO_3DS)
 
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(CURL libcurl IMPORTED_TARGET)
+	pkg_check_modules(jansson jansson IMPORTED_TARGET)
 
 	target_link_libraries(${FTPD_TARGET} PRIVATE
 		citro3d$<$<CONFIG:Debug>:d>
 		PkgConfig::CURL
+		PkgConfig::jansson
 	)
 
 	target_sources(${FTPD_TARGET} PRIVATE
@@ -235,10 +239,6 @@ elseif(NINTENDO_3DS)
 	target_link_libraries(${FTPD_TARGET} PRIVATE vshader_data)
 
 	dkp_add_asset_target(${PROJECT_NAME}_romfs ${CMAKE_CURRENT_BINARY_DIR}/romfs)
-
-	add_custom_target(ca_cert DEPENDS 3ds/romfs/sni.cloudflaressl.com.ca)
-	dkp_set_target_file(ca_cert ${CMAKE_CURRENT_SOURCE_DIR}/3ds/romfs/sni.cloudflaressl.com.ca)
-	dkp_install_assets(${PROJECT_NAME}_romfs TARGETS ca_cert)
 
 	ctr_add_graphics_target(gfx ATLAS
 		OPTIONS
@@ -293,11 +293,13 @@ elseif(NINTENDO_DS)
 		ICON nds/icon.bmp
 	)
 else()
+	find_package(PkgConfig REQUIRED)
 	find_package(glfw3 REQUIRED)
 	find_package(CURL REQUIRED)
 	find_package(OpenGL REQUIRED)
+	pkg_check_modules(jansson jansson IMPORTED_TARGET)
 
-	target_link_libraries(${FTPD_TARGET} PRIVATE CURL::libcurl glfw OpenGL::GL)
+	target_link_libraries(${FTPD_TARGET} PRIVATE CURL::libcurl glfw OpenGL::GL PkgConfig::jansson)
 
 	target_compile_definitions(${FTPD_TARGET} PRIVATE
 		FTPDCONFIG="${PROJECT_NAME}.cfg"
