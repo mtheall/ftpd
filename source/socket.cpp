@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -95,30 +95,10 @@ int Socket::atMark ()
 
 bool Socket::bind (SockAddr const &addr_)
 {
-	switch (static_cast<struct sockaddr_storage const &> (addr_).ss_family)
+	if (::bind (m_fd, addr_, addr_.size ()) != 0)
 	{
-	case AF_INET:
-		if (::bind (m_fd, addr_, sizeof (struct sockaddr_in)) != 0)
-		{
-			error ("bind: %s\n", std::strerror (errno));
-			return false;
-		}
-		break;
-
-#ifndef NO_IPV6
-	case AF_INET6:
-		if (::bind (m_fd, addr_, sizeof (struct sockaddr_in6)) != 0)
-		{
-			error ("bind: %s\n", std::strerror (errno));
-			return false;
-		}
-		break;
-#endif
-
-	default:
-		errno = EINVAL;
 		error ("bind: %s\n", std::strerror (errno));
-		break;
+		return false;
 	}
 
 	if (addr_.port () == 0)
@@ -136,7 +116,7 @@ bool Socket::bind (SockAddr const &addr_)
 
 bool Socket::connect (SockAddr const &addr_)
 {
-	if (::connect (m_fd, addr_, sizeof (struct sockaddr_storage)) != 0)
+	if (::connect (m_fd, addr_, addr_.size ()) != 0)
 	{
 		if (errno != EINPROGRESS)
 			error ("connect: %s\n", std::strerror (errno));

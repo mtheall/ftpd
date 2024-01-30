@@ -57,35 +57,38 @@ public:
 	/// \param that_ Object to move from
 	SockAddr &operator= (SockAddr &&that_);
 
-	/// \param Parameterized constructor
+	/// \brief Parameterized constructor
 	/// \param addr_ Address
 	SockAddr (struct sockaddr_in const &addr_);
 
 #ifndef NO_IPV6
-	/// \param Parameterized constructor
+	/// \brief Parameterized constructor
 	/// \param addr_ Address
 	SockAddr (struct sockaddr_in6 const &addr_);
 #endif
 
-	/// \param Parameterized constructor
+	/// \brief Parameterized constructor
 	/// \param addr_ Address
 	SockAddr (struct sockaddr_storage const &addr_);
 
-	/// \param sockaddr_in cast operator
+	/// \brief sockaddr_in cast operator
 	operator struct sockaddr_in const & () const;
 
 #ifndef NO_IPV6
-	/// \param sockaddr_in6 cast operator
+	/// \brief sockaddr_in6 cast operator
 	operator struct sockaddr_in6 const & () const;
 #endif
 
-	/// \param sockaddr_storage cast operator
+	/// \brief sockaddr_storage cast operator
 	operator struct sockaddr_storage const & () const;
 
-	/// \param sockaddr* cast operator
+	/// \brief sockaddr* cast operator
 	operator struct sockaddr * ();
-	/// \param sockaddr const* cast operator
+	/// \brief sockaddr const* cast operator
 	operator struct sockaddr const * () const;
+
+	/// \brief sockaddr size
+	socklen_t size () const;
 
 	/// \brief Address port
 	std::uint16_t port () const;

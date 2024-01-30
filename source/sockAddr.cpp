@@ -124,6 +124,23 @@ bool SockAddr::setPort (std::uint16_t const port_)
 	}
 }
 
+socklen_t SockAddr::size () const
+{
+	switch (m_addr.ss_family)
+	{
+	case AF_INET:
+		return sizeof (struct sockaddr_in);
+
+#ifndef NO_IPV6
+	case AF_INET6:
+		return sizeof (struct sockaddr_in6);
+#endif
+
+	default:
+		std::abort ();
+	}
+}
+
 std::uint16_t SockAddr::port () const
 {
 	switch (m_addr.ss_family)
