@@ -57,6 +57,9 @@ using namespace std::chrono_literals;
 
 namespace
 {
+/// \brief Idle timeout
+constexpr auto IDLE_TIMEOUT = 60;
+
 /// \brief Parse command
 /// \param buffer_ Buffer to parse
 /// \param size_ Size of buffer
@@ -546,7 +549,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 			else
 			{
 				assert (session->m_send);
-				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT | POLLIN, 0});
+				pollInfo.emplace_back (Socket::PollInfo{*session->m_dataSocket, POLLOUT, 0});
 			}
 			break;
 		}
@@ -563,15 +566,17 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 		return false;
 	}
 
-	if (rc == 0)
-		return true;
+	auto const now = std::time (nullptr);
 
 	for (auto &session : sessions_)
 	{
+		bool handled = false;
 		for (auto const &i : pollInfo)
 		{
 			if (!i.revents)
 				continue;
+
+			handled = true;
 
 			// check command socket
 			if (&i.socket.get () == session->m_commandSocket.get ())
@@ -646,6 +651,13 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 				}
 			}
 		}
+
+		if (!handled && now - session->m_timestamp >= IDLE_TIMEOUT)
+		{
+			session->closeCommand ();
+			session->closePasv ();
+			session->closeData ();
+		}
 	}
 
 	return true;
@@ -658,7 +670,8 @@ bool FtpSession::authorized () const
 
 void FtpSession::setState (State const state_, bool const closePasv_, bool const closeData_)
 {
-	m_state = state_;
+	m_state     = state_;
+	m_timestamp = std::time (nullptr);
 
 	if (closePasv_)
 		closePasv ();
@@ -1485,6 +1498,8 @@ void FtpSession::readCommand (int const events_)
 			auto const rc = m_commandSocket->read (m_commandBuffer);
 			if (rc < 0 && errno != EWOULDBLOCK)
 				closeCommand ();
+			else
+				m_timestamp = std::time (nullptr);
 
 			return;
 		}
@@ -1497,8 +1512,13 @@ void FtpSession::readCommand (int const events_)
 			// EWOULDBLOCK means out-of-band data is on the way
 			if (errno != EWOULDBLOCK)
 				closeCommand ();
+			else
+				m_timestamp = std::time (nullptr);
+
 			return;
 		}
+		else
+			m_timestamp = std::time (nullptr);
 
 		// reset the command buffer
 		m_commandBuffer.clear ();
@@ -1530,6 +1550,8 @@ void FtpSession::readCommand (int const events_)
 			closeCommand ();
 			return;
 		}
+
+		m_timestamp = std::time (nullptr);
 
 		if (m_urgent)
 		{
@@ -1639,6 +1661,8 @@ void FtpSession::writeResponse ()
 		return;
 	}
 
+	m_timestamp = std::time (nullptr);
+
 	m_responseBuffer.coalesce ();
 }
 
@@ -1685,7 +1709,10 @@ void FtpSession::sendResponse (char const *fmt_, ...)
 			closeCommand ();
 	}
 	else
+	{
+		m_timestamp = std::time (nullptr);
 		m_responseBuffer.coalesce ();
+	}
 }
 
 void FtpSession::sendResponse (std::string_view const response_)
@@ -1849,6 +1876,8 @@ bool FtpSession::listTransfer ()
 		return false;
 	}
 
+	m_timestamp = std::time (nullptr);
+
 	// we can try to send more data
 	return true;
 }
@@ -1902,6 +1931,8 @@ bool FtpSession::retrieveTransfer ()
 		return false;
 	}
 
+	m_timestamp = std::time (nullptr);
+
 	// we can try to read/send more data
 	LOCKED (m_filePosition += rc);
 	return true;
@@ -1933,6 +1964,8 @@ bool FtpSession::storeTransfer ()
 			setState (State::COMMAND, true, true);
 			return false;
 		}
+
+		m_timestamp = std::time (nullptr);
 	}
 
 	if (!m_devZero)
