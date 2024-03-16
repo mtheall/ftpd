@@ -214,7 +214,7 @@ elseif(NINTENDO_3DS)
 	endif()
 
 	target_compile_definitions(${FTPD_TARGET} PRIVATE
-		ANTI_ALIAS=1
+		ANTI_ALIAS=0
 	)
 
 	find_package(PkgConfig REQUIRED)
@@ -250,6 +250,7 @@ elseif(NINTENDO_3DS)
 			3ds/gfx/battery3.png
 			3ds/gfx/battery4.png
 			3ds/gfx/batteryCharge.png
+			3ds/gfx/bubble.png
 			3ds/gfx/c3dlogo.png
 			3ds/gfx/wifi1.png
 			3ds/gfx/wifi2.png

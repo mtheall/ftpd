@@ -3,7 +3,7 @@
 ; - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 ; - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 ; 
-; Copyright (C) 2020 Michael Theall
+; Copyright (C) 2024 Michael Theall
 ; 
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 ; uniforms
 ; Projection matrix
 .fvec proj[4]
+.fvec z
 
 ; constants
 ; [1.0, 0.0, 1.0/255.0, 0.0]
@@ -42,6 +43,9 @@
 	; force inPos.z = 0.0, inPos.w = 1.0
 	mov r0.xy, inPos.xy
 	mov r0.zw, constants.yx
+
+	; offset stereoscopy
+	add r0.x, z.x, r0.x
 
 	; outPos = proj * inPos
 	dp4 outPos.x, proj[0], r0

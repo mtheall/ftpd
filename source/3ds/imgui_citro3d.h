@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,9 @@
 #ifndef CLASSIC
 #include <citro3d.h>
 
+struct ImDrawList;
+struct ImDrawCmd;
+
 namespace imgui
 {
 namespace citro3d
@@ -40,7 +43,15 @@ void init ();
 void exit ();
 
 /// \brief Render ImGui draw list
-void render (C3D_RenderTarget *top_, C3D_RenderTarget *bottom_);
+/// \param topLeft_ Top left render target
+/// \param topRight_ Top right render target (skipped if not stereoscopic)
+/// \param bottom_ Bottom render target
+void render (C3D_RenderTarget *topLeft_, C3D_RenderTarget *topRight_, C3D_RenderTarget *bottom_);
+
+/// \brief Set Z offset (for stereoscopic effect)
+/// \param drawList_ Draw list
+/// \param drawCmd_ Draw command
+void setZ (ImDrawList const *drawList_, ImDrawCmd const *drawCmd_);
 }
 }
 #endif
