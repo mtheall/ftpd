@@ -26,7 +26,10 @@
 #include "platform.h"
 #include "socket.h"
 
+#include <sys/stat.h>
+
 #include <chrono>
+#include <ctime>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -158,6 +161,16 @@ private:
 
 	/// \brief Connect data socket
 	bool dataConnect ();
+
+	/// \brief Perform stat and apply tz offset to mtime
+	/// \param path_ Path to stat
+	/// \param st_ Output stat
+	int tzStat (char const *const path_, struct stat *st_);
+
+	/// \brief Perform lstat and apply tz offset to mtime
+	/// \param path_ Path to lstat
+	/// \param st_ Output stat
+	int tzLStat (char const *const path_, struct stat *st_);
 
 	/// \brief Fill directory entry
 	/// \param st_ Entry status
@@ -291,7 +304,7 @@ private:
 	/// \brief Directory transfer mode
 	XferDirMode m_xferDirMode;
 
-	/// \brief Last command timestamp
+	/// \brief Last activity timestamp
 	time_t m_timestamp;
 
 	/// \brief Whether user has been authorized

@@ -63,6 +63,11 @@ public:
 	/// \brief Server start time
 	static std::time_t startTime ();
 
+#ifdef __3DS__
+	/// \brief Get timezone offset in seconds (only used on 3DS)
+	static int tzOffset ();
+#endif
+
 private:
 	/// \brief Paramterized constructor
 	/// \param config_ FTP config

@@ -66,6 +66,11 @@ namespace
 /// \brief Application start time
 auto const s_startTime = std::time (nullptr);
 
+#ifdef __3DS__
+/// \brief Timezone offset in seconds (only used on 3DS)
+int s_tzOffset = 0;
+#endif
+
 #ifndef __NDS__
 /// \brief Mutex for s_freeSpace
 platform::Mutex s_lock;
@@ -189,6 +194,12 @@ FtpServer::FtpServer (UniqueFtpConfig config_) : m_config (std::move (config_)),
 {
 #ifndef __NDS__
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
+#endif
+
+#ifdef __3DS__
+	s64 tzOffsetMinutes;
+	if (R_SUCCEEDED (svcGetSystemInfo (&tzOffsetMinutes, 0x10000, 0x103)))
+		s_tzOffset = tzOffsetMinutes * 60;
 #endif
 }
 
@@ -371,6 +382,13 @@ std::time_t FtpServer::startTime ()
 {
 	return s_startTime;
 }
+
+#ifdef __3DS__
+int FtpServer::tzOffset ()
+{
+	return s_tzOffset;
+}
+#endif
 
 void FtpServer::handleNetworkFound ()
 {
@@ -869,7 +887,8 @@ void FtpServer::loop ()
 					{
 						auto const key = json_object_get (root, "key");
 						if (json_is_string (key))
-							info ("Log uploaded to https://pastie.io/%s\n", json_string_value (key));
+							info (
+							    "Log uploaded to https://pastie.io/%s\n", json_string_value (key));
 					}
 					else
 						error ("Failed to upload log\n");

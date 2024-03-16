@@ -739,7 +739,7 @@ bool FtpSession::changeDir (char const *const args_)
 		return false;
 
 	struct stat st;
-	if (::stat (path.c_str (), &st) != 0)
+	if (tzStat (path.c_str (), &st) != 0)
 		return false;
 
 	if (!S_ISDIR (st.st_mode))
@@ -819,6 +819,48 @@ bool FtpSession::dataConnect ()
 	sendResponse ("150 Ready\r\n");
 	setState (State::DATA_TRANSFER, true, false);
 	return true;
+}
+
+int FtpSession::tzStat (char const *const path_, struct stat *st_)
+{
+	auto const rc = ::stat (path_, st_);
+	if (rc != 0)
+		return rc;
+
+#ifdef __3DS__
+	if (m_config.getMTime ())
+	{
+		std::uint64_t mtime = 0;
+		auto const rc       = archive_getmtime (path_, &mtime);
+		if (rc != 0)
+			error ("sdmc_getmtime %s 0x%lx\n", path_, rc);
+		else
+			st_->st_mtime = mtime - FtpServer::tzOffset ();
+	}
+#endif
+
+	return 0;
+}
+
+int FtpSession::tzLStat (char const *const path_, struct stat *st_)
+{
+	auto const rc = ::lstat (path_, st_);
+	if (rc != 0)
+		return rc;
+
+#ifdef __3DS__
+	if (m_config.getMTime ())
+	{
+		std::uint64_t mtime = 0;
+		auto const rc       = archive_getmtime (path_, &mtime);
+		if (rc != 0)
+			error ("sdmc_getmtime %s 0x%lx\n", path_, rc);
+		else
+			st_->st_mtime = mtime - FtpServer::tzOffset ();
+	}
+#endif
+
+	return 0;
 }
 
 int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_, char const *type_)
@@ -1108,7 +1150,7 @@ int FtpSession::fillDirent (struct stat const &st_, std::string_view const path_
 int FtpSession::fillDirent (std::string const &path_, char const *type_)
 {
 	struct stat st;
-	if (::stat (path_.c_str (), &st) != 0)
+	if (tzStat (path_.c_str (), &st) != 0)
 		return errno;
 
 	return fillDirent (st, encodePath (path_), type_);
@@ -1135,7 +1177,7 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 	{
 		// stat the file
 		struct stat st;
-		if (::stat (path.c_str (), &st) != 0)
+		if (tzStat (path.c_str (), &st) != 0)
 		{
 			sendResponse ("450 %s\r\n", std::strerror (errno));
 			return;
@@ -1267,7 +1309,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 		}
 
 		struct stat st;
-		if (::stat (path.c_str (), &st) != 0)
+		if (tzStat (path.c_str (), &st) != 0)
 		{
 			if (needWorkaround)
 			{
@@ -1767,14 +1809,14 @@ bool FtpSession::listTransfer ()
 					if (rc != 0)
 						error ("sdmc_getmtime %s 0x%lx\n", fullPath.c_str (), rc);
 					else
-						st.st_mtime = mtime;
+						st.st_mtime = mtime - FtpServer::tzOffset ();
 				}
 			}
 			else
 			{
 #endif
 				// lstat the entry
-				if (::lstat (fullPath.c_str (), &st) != 0)
+				if (tzLStat (fullPath.c_str (), &st) != 0)
 				{
 					error ("Skipping %s: %s\n", fullPath.c_str (), std::strerror (errno));
 					continue; // just skip it
@@ -2556,7 +2598,7 @@ void FtpSession::RNFR (char const *args_)
 
 	// make sure the path exists
 	struct stat st;
-	if (::lstat (path.c_str (), &st) != 0)
+	if (tzLStat (path.c_str (), &st) != 0)
 	{
 		sendResponse ("450 %s\r\n", std::strerror (errno));
 		return;
@@ -2751,7 +2793,7 @@ void FtpSession::SIZE (char const *args_)
 
 	// stat the path
 	struct stat st;
-	if (::stat (path.c_str (), &st) != 0)
+	if (tzStat (path.c_str (), &st) != 0)
 	{
 		sendResponse ("550 %s\r\n", std::strerror (errno));
 		return;
