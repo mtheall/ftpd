@@ -2533,7 +2533,7 @@ void FtpSession::REST (char const *args_)
 
 	// set the restart offset
 	m_restartPosition = pos;
-	sendResponse ("200 OK\r\n");
+	sendResponse ("350 OK\r\n");
 }
 
 void FtpSession::RETR (char const *args_)
