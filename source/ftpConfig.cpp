@@ -232,6 +232,11 @@ std::string const &FtpConfig::pass () const
 	return m_pass;
 }
 
+std::string const &FtpConfig::hostname () const
+{
+	return m_hostname;
+}
+
 std::uint16_t FtpConfig::port () const
 {
 	return m_port;
@@ -269,6 +274,11 @@ void FtpConfig::setUser (std::string user_)
 void FtpConfig::setPass (std::string pass_)
 {
 	m_pass = std::move (pass_);
+}
+
+void FtpConfig::setHostname (std::string hostname_)
+{
+	m_hostname = std::move (hostname_);
 }
 
 bool FtpConfig::setPort (std::string_view const port_)

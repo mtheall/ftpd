@@ -577,6 +577,12 @@ bool platform::networkAddress (SockAddr &addr_)
 	return true;
 }
 
+std::string const &platform::hostname ()
+{
+	static std::string const hostname = "3ds-ftpd";
+	return hostname;
+}
+
 bool platform::loop ()
 {
 	if (!aptMainLoop ())

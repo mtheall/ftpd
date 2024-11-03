@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 
 #ifdef CLASSIC
 extern PrintConsole g_statusConsole;
@@ -70,6 +71,9 @@ bool networkVisible ();
 /// \brief Get network address
 /// \param[out] addr_ Network address
 bool networkAddress (SockAddr &addr_);
+
+/// \brief Get hostname
+std::string const &hostname ();
 
 /// \brief Platform loop
 bool loop ();

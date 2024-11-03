@@ -255,6 +255,38 @@ bool Socket::setSendBufferSize (std::size_t const size_)
 	return true;
 }
 
+#ifndef __NDS__
+bool Socket::joinMulticastGroup (SockAddr const &addr_, SockAddr const &iface_)
+{
+	ip_mreq group;
+	group.imr_multiaddr = static_cast<sockaddr_in const &> (addr_).sin_addr;
+	group.imr_interface = static_cast<sockaddr_in const &> (iface_).sin_addr;
+
+	if (::setsockopt (m_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &group, sizeof (group)) != 0)
+	{
+		error ("setsockopt(IP_ADD_MEMBERSHIP, %s): %s\n", addr_.name (), std::strerror (errno));
+		return false;
+	}
+
+	return true;
+}
+
+bool Socket::dropMulticastGroup (SockAddr const &addr_, SockAddr const &iface_)
+{
+	ip_mreq group;
+	group.imr_multiaddr = static_cast<sockaddr_in const &> (addr_).sin_addr;
+	group.imr_interface = static_cast<sockaddr_in const &> (iface_).sin_addr;
+
+	if (::setsockopt (m_fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &group, sizeof (group)) != 0)
+	{
+		error ("setsockopt(IP_DROP_MEMBERSHIP, %s): %s\n", addr_.name (), std::strerror (errno));
+		return false;
+	}
+
+	return true;
+}
+#endif
+
 std::make_signed_t<std::size_t>
     Socket::read (void *const buffer_, std::size_t const size_, bool const oob_)
 {
@@ -275,6 +307,21 @@ std::make_signed_t<std::size_t> Socket::read (IOBuffer &buffer_, bool const oob_
 	auto const rc = read (buffer_.freeArea (), buffer_.freeSize (), oob_);
 	if (rc > 0)
 		buffer_.markUsed (rc);
+
+	return rc;
+}
+
+std::make_signed_t<std::size_t>
+    Socket::readFrom (void *const buffer_, std::size_t const size_, SockAddr &addr_)
+{
+	assert (buffer_);
+	assert (size_);
+
+	socklen_t addrLen = sizeof (sockaddr_storage);
+
+	auto const rc = ::recvfrom (m_fd, buffer_, size_, 0, addr_, &addrLen);
+	if (rc < 0 && errno != EWOULDBLOCK)
+		error ("recvfrom: %s\n", std::strerror (errno));
 
 	return rc;
 }
@@ -302,6 +349,19 @@ std::make_signed_t<std::size_t> Socket::write (IOBuffer &buffer_)
 	return rc;
 }
 
+std::make_signed_t<std::size_t>
+    Socket::writeTo (void const *buffer_, std::size_t size_, SockAddr const &addr_)
+{
+	assert (buffer_);
+	assert (size_ > 0);
+
+	auto const rc = ::sendto (m_fd, buffer_, size_, 0, addr_, addr_.size ());
+	if (rc < 0 && errno != EWOULDBLOCK)
+		error ("sendto: %s\n", std::strerror (errno));
+
+	return rc;
+}
+
 SockAddr const &Socket::sockName () const
 {
 	return m_sockName;
@@ -312,9 +372,9 @@ SockAddr const &Socket::peerName () const
 	return m_peerName;
 }
 
-UniqueSocket Socket::create ()
+UniqueSocket Socket::create (Type const type_)
 {
-	auto const fd = ::socket (AF_INET, SOCK_STREAM, 0);
+	auto const fd = ::socket (AF_INET, static_cast<int> (type_), 0);
 	if (fd < 0)
 	{
 		error ("socket: %s\n", std::strerror (errno));

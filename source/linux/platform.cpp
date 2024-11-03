@@ -204,6 +204,24 @@ bool platform::networkAddress (SockAddr &addr_)
 	return true;
 }
 
+std::string const &platform::hostname ()
+{
+	static std::string hostname = "switch-ftpd.local";
+	if (hostname.empty ())
+	{
+		std::string buffer (256, '\0');
+		gethostname (buffer.data (), buffer.size ());
+
+		if (buffer.back () == 0) // check for truncation
+		{
+			hostname = std::move (buffer);
+			hostname.resize (std::strlen (hostname.data ()));
+		}
+	}
+
+	return hostname;
+}
+
 bool platform::loop ()
 {
 	bool inactive;

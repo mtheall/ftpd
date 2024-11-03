@@ -84,6 +84,13 @@ target_sources(${FTPD_TARGET} PRIVATE
 	source/socket.cpp
 )
 
+if(NOT NINTENDO_DS)
+	target_sources(${FTPD_TARGET} PRIVATE
+		source/mdns.cpp
+		include/mdns.h
+	)
+endif()
+
 if(NOT FTPD_CLASSIC AND NOT NINTENDO_DS)
 	target_sources(${FTPD_TARGET} PRIVATE
 		include/imconfig.h

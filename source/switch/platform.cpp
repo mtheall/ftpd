@@ -793,6 +793,12 @@ bool platform::networkAddress (SockAddr &addr_)
 	return true;
 }
 
+std::string const &platform::hostname ()
+{
+	static std::string const hostname = "switch-ftpd";
+	return hostname;
+}
+
 bool platform::loop ()
 {
 	if (!appletMainLoop ())

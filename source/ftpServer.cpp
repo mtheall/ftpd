@@ -29,6 +29,10 @@
 #include "sockAddr.h"
 #include "socket.h"
 
+#ifndef __NDS__
+#include "mdns.h"
+#endif
+
 #include "imgui.h"
 
 #ifdef __NDS__
@@ -223,8 +227,14 @@ FtpServer::~FtpServer ()
 
 FtpServer::FtpServer (UniqueFtpConfig config_)
     : m_config (std::move (config_))
+#ifndef CLASSIC
+      ,
+      m_hostnameSetting (m_config->hostname ())
+#endif
 {
 #ifndef __NDS__
+	mdns::setHostname (m_config->hostname ());
+
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
 #endif
 
@@ -439,7 +449,7 @@ void FtpServer::handleNetworkFound ()
 
 	addr.setPort (port);
 
-	auto socket = Socket::create ();
+	auto socket = Socket::create (Socket::eStream);
 	if (!socket)
 		return;
 
@@ -461,6 +471,14 @@ void FtpServer::handleNetworkFound ()
 	info ("Started server at %s\n", m_name.c_str ());
 
 	LOCKED (m_socket = std::move (socket));
+
+#ifndef __NDS__
+	socket = mdns::createSocket ();
+	if (!socket)
+		return;
+
+	LOCKED (m_mdnsSocket = std::move (socket));
+#endif
 }
 
 void FtpServer::handleNetworkLost ()
@@ -476,6 +494,11 @@ void FtpServer::handleNetworkLost ()
 
 		// destroy command socket
 		LOCKED (sock = std::move (m_socket));
+
+#ifndef __NDS__
+		// destroy mDNS socket
+		LOCKED (sock = std::move (m_mdnsSocket));
+#endif
 	}
 
 	info ("Stopped server at %s\n", m_name.c_str ());
@@ -574,6 +597,9 @@ void FtpServer::showMenu ()
 			m_passSetting = m_config->pass ();
 			m_passSetting.resize (32);
 
+			m_hostnameSetting = m_config->hostname ();
+			m_hostnameSetting.resize (32);
+
 			m_portSetting = m_config->port ();
 
 #ifdef __3DS__
@@ -630,6 +656,11 @@ void FtpServer::showSettings ()
 		    m_passSetting.data (),
 		    m_passSetting.size (),
 		    ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_Password);
+
+		ImGui::InputText ("Hostname",
+		    m_hostnameSetting.data (),
+		    m_hostnameSetting.size (),
+		    ImGuiInputTextFlags_AutoSelectAll);
 
 		ImGui::InputScalar ("Port",
 		    ImGuiDataType_U16,
@@ -703,6 +734,7 @@ void FtpServer::showSettings ()
 
 			m_config->setUser (m_userSetting);
 			m_config->setPass (m_passSetting);
+			m_config->setHostname (m_hostnameSetting);
 			m_config->setPort (m_portSetting);
 
 #ifdef __3DS__
@@ -718,6 +750,8 @@ void FtpServer::showSettings ()
 
 			UniqueSocket socket;
 			LOCKED (socket = std::move (m_socket));
+
+			mdns::setHostname (m_hostnameSetting);
 		}
 
 		if (save)
@@ -733,9 +767,10 @@ void FtpServer::showSettings ()
 		{
 			static auto const defaults = FtpConfig::create ();
 
-			m_userSetting = defaults->user ();
-			m_passSetting = defaults->pass ();
-			m_portSetting = defaults->port ();
+			m_userSetting     = defaults->user ();
+			m_passSetting     = defaults->pass ();
+			m_hostnameSetting = defaults->hostname ();
+			m_portSetting     = defaults->port ();
 #ifdef __3DS__
 			m_getMTimeSetting = defaults->getMTime ();
 #endif
@@ -965,6 +1000,12 @@ void FtpServer::loop ()
 			}
 		}
 	}
+
+#ifndef __NDS__
+	// poll mDNS socket
+	if (m_socket && m_mdnsSocket)
+		mdns::handleSocket (m_mdnsSocket.get (), m_socket->sockName ());
+#endif
 
 	{
 		std::vector<UniqueFtpSession> deadSessions;

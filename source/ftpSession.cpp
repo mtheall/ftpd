@@ -22,6 +22,7 @@
 
 #include "ftpServer.h"
 #include "log.h"
+#include "mdns.h"
 #include "platform.h"
 
 #include "imgui.h"
@@ -837,7 +838,7 @@ bool FtpSession::dataConnect ()
 
 	m_port = false;
 
-	auto data = Socket::create ();
+	auto data = Socket::create (Socket::eStream);
 	LOCKED (m_dataSocket = std::move (data));
 	if (!m_dataSocket)
 		return false;
@@ -2384,7 +2385,7 @@ void FtpSession::PASV (char const *args_)
 	m_port = false;
 
 	// create a socket to listen on
-	auto pasv = Socket::create ();
+	auto pasv = Socket::create (Socket::eStream);
 	LOCKED (m_pasvSocket = std::move (pasv));
 	if (!m_pasvSocket)
 	{
@@ -2726,6 +2727,9 @@ void FtpSession::SITE (char const *args_)
 		              " Set username: SITE USER <NAME>\r\n"
 		              " Set password: SITE PASS <PASS>\r\n"
 		              " Set port: SITE PORT <PORT>\r\n"
+#ifndef __NDS__
+		              " Set hostname: SITE HOST <HOSTNAME>\r\n"
+#endif
 #ifdef __3DS__
 		              " Set getMTime: SITE MTIME [0|1]\r\n"
 #endif
@@ -2784,6 +2788,16 @@ void FtpSession::SITE (char const *args_)
 		sendResponse ("200 OK\r\n");
 		return;
 	}
+#ifndef __NDS__
+	else if (compare (command, "HOST") == 0)
+	{
+		{
+			auto const lock = m_config.lockGuard ();
+			m_config.setHostname (std::string (arg));
+			mdns::setHostname (std::string (arg));
+		}
+	}
+#endif
 #ifdef __3DS__
 	else if (compare (command, "MTIME") == 0)
 	{

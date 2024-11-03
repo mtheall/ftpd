@@ -23,6 +23,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include <compare>
 #include <cstdint>
 
 #ifdef __NDS__
@@ -37,9 +38,47 @@ struct sockaddr_storage
 class SockAddr
 {
 public:
+	enum class Domain
+	{
+		IPv4 = AF_INET,
+#ifndef NO_IPV6
+		IPv6 = AF_INET6,
+#endif
+	};
+
+	/// \brief 0.0.0.0
+	static SockAddr const AnyIPv4;
+
+#ifndef NO_IPV6
+	/// \brief ::
+	static SockAddr const AnyIPv6;
+#endif
+
 	~SockAddr ();
 
 	SockAddr ();
+
+	/// \brief Parameterized constructor
+	/// \param domain_ Socket domain
+	/// \note Initial address is INADDR_ANY/in6addr_any
+	SockAddr (Domain domain_);
+
+	/// \brief Parameterized constructor
+	/// \param addr_ Socket address (network byte order)
+	/// \param port_ Socket port (host byte order)
+	SockAddr (in_addr_t addr_, std::uint16_t port_ = 0);
+
+	/// \brief Parameterized constructor
+	/// \param addr_ Socket address (network byte order)
+	/// \param port_ Socket port (host byte order)
+	SockAddr (in_addr const &addr_, std::uint16_t port_ = 0);
+
+#ifndef NO_IPV6
+	/// \brief Parameterized constructor
+	/// \param addr_ Socket address
+	/// \param port_ Socket port (host byte order)
+	SockAddr (in6_addr const &addr_, std::uint16_t port_ = 0);
+#endif
 
 	/// \brief Copy constructor
 	/// \param that_ Object to copy
@@ -88,9 +127,31 @@ public:
 	/// \brief sockaddr const* cast operator (network byte order)
 	operator sockaddr const * () const;
 
+	/// \brief Equality operator
+	bool operator== (SockAddr const &that_) const;
+
+	/// \brief Comparison operator
+	std::strong_ordering operator<=> (SockAddr const &that_) const;
+
+	/// \brief sockaddr domain
+	Domain domain () const;
 
 	/// \brief sockaddr size
 	socklen_t size () const;
+
+	/// \brief Set address
+	/// \param addr_ Address to set (network byte order)
+	void setAddr (in_addr_t addr_);
+
+	/// \brief Set address
+	/// \param addr_ Address to set (network byte order)
+	void setAddr (in_addr const &addr_);
+
+#ifndef NO_IPV6
+	/// \brief Set address
+	/// \param addr_ Address to set (network byte order)
+	void setAddr (in6_addr const &addr_);
+#endif
 
 	/// \brief Address port (host byte order)
 	std::uint16_t port () const;

@@ -110,6 +110,11 @@ private:
 	/// \brief Listen socket
 	UniqueSocket m_socket;
 
+#ifndef __NDS__
+	/// \brief mDNS socket
+	UniqueSocket m_mdnsSocket;
+#endif
+
 	/// \brief ImGui window name
 	std::string m_name;
 
@@ -150,6 +155,9 @@ private:
 
 	/// \brief Password setting
 	std::string m_passSetting;
+
+	/// \brief Hostname setting
+	std::string m_hostnameSetting;
 
 	/// \brief Port setting
 	std::uint16_t m_portSetting = 0;

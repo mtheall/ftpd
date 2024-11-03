@@ -60,6 +60,9 @@ public:
 	/// \brief Get password
 	std::string const &pass () const;
 
+	/// \brief Get hostname
+	std::string const &hostname () const;
+
 	/// \brief Get port
 	std::uint16_t port () const;
 
@@ -87,6 +90,10 @@ public:
 	/// \brief Set password
 	/// \param pass_ Password
 	void setPass (std::string pass_);
+
+	/// \brief Set hostname
+	/// \param hostname_ Hostname
+	void setHostname (std::string hostname_);
 
 	/// \brief Set listen port
 	/// \param port_ Listen port
@@ -129,6 +136,9 @@ private:
 
 	/// \brief Password
 	std::string m_pass;
+
+	/// \brief Hostname
+	std::string m_hostname;
 
 	/// \brief Listen port
 	std::uint16_t m_port;
