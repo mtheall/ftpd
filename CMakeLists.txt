@@ -108,6 +108,15 @@ if(NOT FTPD_CLASSIC AND NOT NINTENDO_DS)
 	)
 endif()
 
+if(NOT UNIX)
+	target_sources(${FTPD_TARGET} PRIVATE
+		source/posix/collate.c
+		source/posix/collate.h
+		source/posix/collcmp.c
+		source/posix/glob.c
+	)
+endif()
+
 if(NINTENDO_SWITCH)
 	target_sources(${FTPD_TARGET} PRIVATE
 		source/switch/init.c

@@ -26,6 +26,13 @@
 #include "platform.h"
 #include "socket.h"
 
+#if __has_include(<glob.h>)
+#include <glob.h>
+#define FTPD_HAS_GLOB 1
+#else
+#define FTPD_HAS_GLOB 0
+#endif
+
 #include <sys/stat.h>
 using stat_t = struct stat;
 
@@ -217,6 +224,11 @@ private:
 	/// \brief Transfer directory list
 	bool listTransfer ();
 
+#if FTPD_HAS_GLOB
+	/// \brief Transfer glob list
+	bool globTransfer ();
+#endif
+
 	/// \brief Transfer download
 	bool retrieveTransfer ();
 
@@ -302,6 +314,37 @@ private:
 
 	/// \brief Directory being transferred
 	fs::Dir m_dir;
+
+#if FTPD_HAS_GLOB
+	/// \brief Glob wrappre
+	class Glob
+	{
+	public:
+		~Glob () noexcept;
+		Glob () noexcept;
+
+		/// \brief Perform glob
+		/// \param pattern_ Glob pattern
+		bool glob (char const *pattern_) noexcept;
+
+		/// \brief Get next glob result
+		/// \note returns nullptr when no more entries exist
+		char const *next () noexcept;
+
+	private:
+		/// \brief Clear glob
+		void clear () noexcept;
+
+		/// \brief Glob result
+		std::optional<glob_t> m_glob = std::nullopt;
+
+		/// \brief Result counter
+		unsigned m_offset = 0;
+	};
+
+	/// \brief Glob
+	Glob m_glob;
+#endif
 
 	/// \brief Directory transfer mode
 	XferDirMode m_xferDirMode;

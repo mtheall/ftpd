@@ -31,6 +31,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#if FTPD_HAS_GLOB
+#include <glob.h>
+#endif
+
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
@@ -296,6 +300,66 @@ std::string buildResolvedPath (std::string_view const cwd_, std::string_view con
 	return resolvePath (buildPath (cwd_, args_));
 }
 }
+
+///////////////////////////////////////////////////////////////////////////
+#if FTPD_HAS_GLOB
+FtpSession::Glob::~Glob () noexcept
+{
+	clear ();
+}
+
+FtpSession::Glob::Glob () noexcept = default;
+
+bool FtpSession::Glob::glob (char const *const pattern_) noexcept
+{
+	if (!m_glob.has_value ())
+		m_glob.emplace ();
+	else
+		::globfree (&m_glob.value ());
+
+	std::memset (&m_glob.value (), 0, sizeof (glob_t));
+
+	auto const rc = ::glob (pattern_, GLOB_NOSORT, nullptr, &m_glob.value ());
+	if (rc == GLOB_NOSPACE)
+	{
+		clear ();
+		errno = ENOMEM;
+		return false;
+	}
+	else if (rc != 0)
+	{
+		clear ();
+		errno = EIO;
+		return false;
+	}
+
+	m_offset = 0;
+	return true;
+}
+
+char const *FtpSession::Glob::next () noexcept
+{
+	if (!m_glob.has_value ())
+		return nullptr;
+
+	if (m_glob->gl_pathc <= 0 || m_offset >= static_cast<unsigned> (m_glob->gl_pathc))
+	{
+		clear ();
+		return nullptr;
+	}
+
+	return m_glob->gl_pathv[m_offset++];
+}
+
+void FtpSession::Glob::clear () noexcept
+{
+	if (!m_glob.has_value ())
+		return;
+
+	::globfree (&m_glob.value ());
+	m_glob.reset ();
+}
+#endif
 
 ///////////////////////////////////////////////////////////////////////////
 FtpSession::~FtpSession ()
@@ -1909,6 +1973,62 @@ bool FtpSession::listTransfer ()
 	return true;
 }
 
+bool FtpSession::globTransfer ()
+{
+#if FTPD_HAS_GLOB
+	// check if we sent all available data
+	if (m_xferBuffer.empty ())
+	{
+		m_xferBuffer.clear ();
+
+		auto const entry = m_glob.next ();
+		if (!entry)
+		{
+			// we have exhausted the glob listing
+			sendResponse ("226 OK\r\n");
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
+		// NLST gives the whole path name
+		auto const path = encodePath (entry) + "\r\n";
+		if (m_xferBuffer.freeSize () < path.size ())
+		{
+			sendResponse ("501 %s\r\n", std::strerror (ENOMEM));
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
+		std::memcpy (m_xferBuffer.freeArea (), path.data (), path.size ());
+		m_xferBuffer.markUsed (path.size ());
+		LOCKED (m_filePosition += path.size ());
+	}
+
+	// send any pending data
+	auto const rc = m_dataSocket->write (m_xferBuffer);
+	if (rc <= 0)
+	{
+		// error sending data
+		if (rc < 0 && errno == EWOULDBLOCK)
+			return false;
+
+		sendResponse ("426 Connection broken during transfer\r\n");
+		setState (State::COMMAND, true, true);
+		return false;
+	}
+
+	m_timestamp = std::time (nullptr);
+
+	// we can try to send more data
+	return true;
+#else
+	/// \todo error code?
+	sendResponse ("451 Glob unsupported\r\n");
+	setState (State::COMMAND, true, true);
+	return false;
+#endif
+}
+
 bool FtpSession::retrieveTransfer ()
 {
 	if (m_xferBuffer.empty ())
@@ -2265,7 +2385,40 @@ void FtpSession::NLST (char const *args_)
 		return;
 	}
 
-	// open the path in NLST mode
+#if FTPD_HAS_GLOB
+	if (std::strchr (args_, '*'))
+	{
+		if (::chdir (m_cwd.c_str ()) != 0 || !m_glob.glob (args_))
+		{
+			sendResponse ("501 %s\r\n", std::strerror (errno));
+			setState (State::COMMAND, false, false);
+			return;
+		}
+
+		m_transfer = &FtpSession::globTransfer;
+
+		if (!m_port && !m_pasv)
+		{
+			// Prior PORT or PASV required
+			sendResponse ("503 Bad sequence of commands\r\n");
+			setState (State::COMMAND, true, true);
+			return;
+		}
+
+		setState (State::DATA_CONNECT, false, true);
+		m_send = true;
+
+		// setup connection
+		if (m_port && !dataConnect ())
+		{
+			sendResponse ("425 Can't open data connection\r\n");
+			setState (State::COMMAND, true, true);
+		}
+
+		return;
+	}
+#endif
+
 	xferDir (args_, XferDirMode::NLST, false);
 }
 

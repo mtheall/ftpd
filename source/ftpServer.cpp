@@ -877,7 +877,7 @@ void FtpServer::showAbout ()
 		{
 			ImGui::TextWrapped ("%s", g_zstdCopyright);
 			ImGui::Separator ();
-			ImGui::TextWrapped ("%s", g_bsdLicense);
+			ImGui::TextWrapped ("%s", g_zstdLicense);
 			ImGui::TreePop ();
 		}
 #else
@@ -886,6 +886,24 @@ void FtpServer::showAbout ()
 			ImGui::TextWrapped ("%s", g_glfwCopyright);
 			ImGui::Separator ();
 			ImGui::TextWrapped ("%s", g_zlibLicense);
+			ImGui::TreePop ();
+		}
+#endif
+
+#if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__)
+		if (ImGui::TreeNode (g_globVersion))
+		{
+			ImGui::TextWrapped ("%s", g_globCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped ("%s", g_globLicense);
+			ImGui::TreePop ();
+		}
+
+		if (ImGui::TreeNode (g_collateVersion))
+		{
+			ImGui::TextWrapped ("%s", g_collateCopyright);
+			ImGui::Separator ();
+			ImGui::TextWrapped ("%s", g_collateLicense);
 			ImGui::TreePop ();
 		}
 #endif
