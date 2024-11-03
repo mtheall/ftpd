@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,10 +22,13 @@
 
 #include "platform.h"
 
+#include <gsl/gsl>
+
 #include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <string_view>
 
 class FtpConfig;
 using UniqueFtpConfig = std::unique_ptr<FtpConfig>;
@@ -41,7 +44,7 @@ public:
 
 	/// \brief Load config
 	/// \param path_ Path to config file
-	static UniqueFtpConfig load (char const *path_);
+	static UniqueFtpConfig load (gsl::not_null<gsl::czstring> path_);
 
 #ifndef __NDS__
 	std::scoped_lock<platform::Mutex> lockGuard ();
@@ -49,7 +52,7 @@ public:
 
 	/// \brief Save config
 	/// \param path_ Path to config file
-	bool save (char const *path_);
+	bool save (gsl::not_null<gsl::czstring> path_);
 
 	/// \brief Get user
 	std::string const &user () const;
@@ -79,15 +82,15 @@ public:
 
 	/// \brief Set user
 	/// \param user_ User
-	void setUser (std::string const &user_);
+	void setUser (std::string user_);
 
 	/// \brief Set password
 	/// \param pass_ Password
-	void setPass (std::string const &pass_);
+	void setPass (std::string pass_);
 
 	/// \brief Set listen port
 	/// \param port_ Listen port
-	bool setPort (std::string const &port_);
+	bool setPort (std::string_view port_);
 
 	/// \brief Set listen port
 	/// \param port_ Listen port
@@ -106,11 +109,11 @@ public:
 
 	/// \brief Set access point SSID
 	/// \param ssid_ SSID
-	void setSSID (std::string const &ssid_);
+	void setSSID (std::string_view ssid_);
 
 	/// \brief Set access point passphrase
 	/// \param passphrase_ Passphrase
-	void setPassphrase (std::string const &passphrase_);
+	void setPassphrase (std::string_view passphrase_);
 #endif
 
 private:

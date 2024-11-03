@@ -2,6 +2,18 @@ cmake_minimum_required(VERSION 3.12)
 
 project(ftpd VERSION 3.2.0)
 
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+	list(APPEND CMAKE_C_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES})
+	list(APPEND CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+endif()
+
+include(FetchContent)
+FetchContent_Declare(gsl
+	GIT_REPOSITORY https://github.com/microsoft/GSL.git
+	GIT_TAG v4.0.0
+)
+FetchContent_Populate(gsl)
+
 option(FTPD_CLASSIC "Build ${PROJECT_NAME} classic" OFF)
 
 if(FTPD_CLASSIC AND (NINTENDO_SWITCH OR NINTENDO_3DS))
@@ -11,6 +23,8 @@ else()
 endif()
 
 add_executable(${FTPD_TARGET})
+
+target_include_directories(${FTPD_TARGET} PRIVATE ${gsl_SOURCE_DIR}/include)
 
 if(NINTENDO_SWITCH OR NINTENDO_3DS OR NINTENDO_DS)
 	dkp_target_generate_symbol_list(${FTPD_TARGET})

@@ -27,10 +27,12 @@
 #include "socket.h"
 
 #include <sys/stat.h>
+using stat_t = struct stat;
 
 #include <chrono>
 #include <ctime>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -165,18 +167,18 @@ private:
 	/// \brief Perform stat and apply tz offset to mtime
 	/// \param path_ Path to stat
 	/// \param st_ Output stat
-	int tzStat (char const *const path_, struct stat *st_);
+	int tzStat (char const *const path_, stat_t *st_);
 
 	/// \brief Perform lstat and apply tz offset to mtime
 	/// \param path_ Path to lstat
 	/// \param st_ Output stat
-	int tzLStat (char const *const path_, struct stat *st_);
+	int tzLStat (char const *const path_, stat_t *st_);
 
 	/// \brief Fill directory entry
 	/// \param st_ Entry status
 	/// \param path_ Path name
 	/// \param type_ MLST type
-	int fillDirent (struct stat const &st_, std::string_view path_, char const *type_ = nullptr);
+	int fillDirent (stat_t const &st_, std::string_view path_, char const *type_ = nullptr);
 
 	/// \brief Fill directory entry
 	/// \param path_ Path name

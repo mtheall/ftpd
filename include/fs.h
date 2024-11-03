@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 
 #include "ioBuffer.h"
 
+#include <gsl/gsl>
+
 #include <dirent.h>
 
 #include <cstdint>
@@ -29,6 +31,7 @@
 #include <cstdlib>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 namespace fs
 {
@@ -69,7 +72,7 @@ public:
 	/// \brief Open file
 	/// \param path_ Path to open
 	/// \param mode_ Access mode (\sa std::fopen)
-	bool open (char const *path_, char const *mode_ = "rb");
+	bool open (gsl::not_null<gsl::czstring> path_, gsl::not_null<gsl::czstring> mode_ = "rb");
 
 	/// \brief Close file
 	void close ();
@@ -77,13 +80,13 @@ public:
 	/// \brief Seek to file position
 	/// \param pos_ File position
 	/// \param origin_ Reference position (\sa std::fseek)
-	std::make_signed_t<std::size_t> seek (std::size_t pos_, int origin_);
+	std::make_signed_t<std::size_t> seek (std::make_signed_t<std::size_t> pos_, int origin_);
 
 	/// \brief Read data
 	/// \param buffer_ Output buffer
 	/// \param size_ Size to read
 	/// \note Can return partial reads
-	std::make_signed_t<std::size_t> read (void *buffer_, std::size_t size_);
+	std::make_signed_t<std::size_t> read (gsl::not_null<void *> buffer_, std::size_t size_);
 
 	/// \brief Read data
 	/// \param buffer_ Output buffer
@@ -97,13 +100,13 @@ public:
 	/// \param buffer_ Output buffer
 	/// \param size_ Size to read
 	/// \note Fails on partial reads and errors
-	bool readAll (void *buffer_, std::size_t size_);
+	bool readAll (gsl::not_null<void *> buffer_, std::size_t size_);
 
 	/// \brief Write data
 	/// \param buffer_ Input data
 	/// \param size_ Size to write
 	/// \note Can return partial writes
-	std::make_signed_t<std::size_t> write (void const *buffer_, std::size_t size_);
+	std::make_signed_t<std::size_t> write (gsl::not_null<void const *> buffer_, std::size_t size_);
 
 	/// \brief Write data
 	/// \param buffer_ Input data
@@ -114,20 +117,17 @@ public:
 	/// \param buffer_ Input data
 	/// \param size_ Size to write
 	/// \note Fails on partials writes and errors
-	bool writeAll (void const *buffer_, std::size_t size_);
+	bool writeAll (gsl::not_null<void const *> buffer_, std::size_t size_);
 
 private:
 	/// \brief Underlying std::FILE*
 	std::unique_ptr<std::FILE, int (*) (std::FILE *)> m_fp{nullptr, nullptr};
 
 	/// \brief Buffer
-	std::unique_ptr<char[]> m_buffer;
-
-	/// \brief Buffer size
-	std::size_t m_bufferSize = 0;
+	std::vector<char> m_buffer;
 
 	/// \brief Line buffer
-	char *m_lineBuffer = nullptr;
+	gsl::owner<char *> m_lineBuffer = nullptr;
 
 	/// \brief Line buffer size
 	std::size_t m_lineBufferSize = 0;
@@ -161,14 +161,14 @@ public:
 
 	/// \brief Open directory
 	/// \param path_ Path to open
-	bool open (char const *const path_);
+	bool open (gsl::not_null<gsl::czstring> path_);
 
 	/// \brief Close directory
 	void close ();
 
 	/// \brief Read a directory entry
 	/// \note Returns nullptr on end-of-directory or error; check errno
-	struct dirent *read ();
+	dirent *read ();
 
 private:
 	/// \brief Underlying DIR*

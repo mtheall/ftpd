@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,24 +22,36 @@
 
 #include "fs.h"
 #include "log.h"
+#include "platform.h"
+
+#include <gsl/pointers>
 
 #include <sys/stat.h>
+using stat_t = struct stat;
 
-#include <limits>
+#include <cctype>
+#include <cerrno>
+#include <charconv>
+#include <cstdint>
+#include <cstdio>
 #include <mutex>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
 
 namespace
 {
 constexpr std::uint16_t DEFAULT_PORT = 5000;
 
-bool mkdirParent (std::string const &path_)
+bool mkdirParent (std::string_view const path_)
 {
 	auto pos = path_.find_first_of ('/');
 	while (pos != std::string::npos)
 	{
-		auto const dir = path_.substr (0, pos);
+		auto const dir = std::string (path_.substr (0, pos));
 
-		struct stat st;
+		stat_t st{};
 		auto const rc = ::stat (dir.c_str (), &st);
 		if (rc < 0 && errno != ENOENT)
 			return false;
@@ -57,14 +69,13 @@ bool mkdirParent (std::string const &path_)
 	return true;
 }
 
-std::string strip (std::string const &str_)
+std::string_view strip (std::string_view const str_)
 {
 	auto const start = str_.find_first_not_of (" \t");
 	if (start == std::string::npos)
 		return {};
 
 	auto const end = str_.find_last_not_of (" \t");
-
 	if (end == std::string::npos)
 		return str_.substr (start);
 
@@ -72,37 +83,21 @@ std::string strip (std::string const &str_)
 }
 
 template <typename T>
-bool parseInt (T &out_, std::string const &val_)
+bool parseInt (T &out_, std::string_view const val_)
 {
-	T val = 0;
-
-	for (auto const &c : val_)
+	auto const rc = std::from_chars (val_.data (), val_.data () + val_.size (), out_);
+	if (rc.ec != std::errc{})
 	{
-		if (!std::isdigit (c))
-		{
-			errno = EINVAL;
-			return false;
-		}
-
-		if (std::numeric_limits<T>::max () / 10 < val)
-		{
-			errno = EOVERFLOW;
-			return false;
-		}
-
-		val *= 10;
-
-		auto const v = c - '0';
-		if (std::numeric_limits<T>::max () - v < val)
-		{
-			errno = EOVERFLOW;
-			return false;
-		}
-
-		val += v;
+		errno = static_cast<int> (rc.ec);
+		return false;
 	}
 
-	out_ = val;
+	if (rc.ptr != val_.data () + val_.size ())
+	{
+		errno = EINVAL;
+		return false;
+	}
+
 	return true;
 }
 }
@@ -119,7 +114,7 @@ UniqueFtpConfig FtpConfig::create ()
 	return UniqueFtpConfig (new FtpConfig ());
 }
 
-UniqueFtpConfig FtpConfig::load (char const *const path_)
+UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 {
 	auto config = create ();
 
@@ -139,8 +134,8 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 			continue;
 		}
 
-		auto const key = strip (line.substr (0, pos));
-		auto const val = strip (line.substr (pos + 1));
+		auto const key = strip (std::string_view (line).substr (0, pos));
+		auto const val = strip (std::string_view (line).substr (pos + 1));
 		if (key.empty () || val.empty ())
 		{
 			error ("Ignoring '%s'\n", line.c_str ());
@@ -161,7 +156,9 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 			else if (val == "1")
 				config->m_getMTime = true;
 			else
-				error ("Invalid value for mtime: %s\n", val.c_str ());
+				error ("Invalid value for mtime: %.*s\n",
+				    gsl::narrow_cast<int> (val.size ()),
+				    val.data ());
 		}
 #endif
 #ifdef __SWITCH__
@@ -172,7 +169,9 @@ UniqueFtpConfig FtpConfig::load (char const *const path_)
 			else if (val == "1")
 				config->m_enableAP = true;
 			else
-				error ("Invalid value for ap: %s\n", val.c_str ());
+				error ("Invalid value for ap: %.*s\n",
+				    gsl::narrow_cast<int> (val.size ()),
+				    val.data ());
 		}
 		else if (key == "ssid")
 			config->m_ssid = val;
@@ -193,9 +192,9 @@ std::scoped_lock<platform::Mutex> FtpConfig::lockGuard ()
 }
 #endif
 
-bool FtpConfig::save (char const *const path_)
+bool FtpConfig::save (gsl::not_null<gsl::czstring> const path_)
 {
-	if (!mkdirParent (path_))
+	if (!mkdirParent (path_.get ()))
 		return false;
 
 	auto fp = fs::File ();
@@ -203,21 +202,21 @@ bool FtpConfig::save (char const *const path_)
 		return false;
 
 	if (!m_user.empty ())
-		std::fprintf (fp, "user=%s\n", m_user.c_str ());
+		(void)std::fprintf (fp, "user=%s\n", m_user.c_str ());
 	if (!m_pass.empty ())
-		std::fprintf (fp, "pass=%s\n", m_pass.c_str ());
-	std::fprintf (fp, "port=%u\n", m_port);
+		(void)std::fprintf (fp, "pass=%s\n", m_pass.c_str ());
+	(void)std::fprintf (fp, "port=%u\n", m_port);
 
 #ifdef __3DS__
-	std::fprintf (fp, "mtime=%u\n", m_getMTime);
+	(void)std::fprintf (fp, "mtime=%u\n", m_getMTime);
 #endif
 
 #ifdef __SWITCH__
-	std::fprintf (fp, "ap=%u\n", m_enableAP);
+	(void)std::fprintf (fp, "ap=%u\n", m_enableAP);
 	if (!m_ssid.empty ())
-		std::fprintf (fp, "ssid=%s\n", m_ssid.c_str ());
+		(void)std::fprintf (fp, "ssid=%s\n", m_ssid.c_str ());
 	if (!m_passphrase.empty ())
-		std::fprintf (fp, "passphrase=%s\n", m_passphrase.c_str ());
+		(void)std::fprintf (fp, "passphrase=%s\n", m_passphrase.c_str ());
 #endif
 
 	return true;
@@ -262,19 +261,19 @@ std::string const &FtpConfig::passphrase () const
 }
 #endif
 
-void FtpConfig::setUser (std::string const &user_)
+void FtpConfig::setUser (std::string user_)
 {
-	m_user = user_.substr (0, user_.find_first_of ('\0'));
+	m_user = std::move (user_);
 }
 
-void FtpConfig::setPass (std::string const &pass_)
+void FtpConfig::setPass (std::string pass_)
 {
-	m_pass = pass_.substr (0, pass_.find_first_of ('\0'));
+	m_pass = std::move (pass_);
 }
 
-bool FtpConfig::setPort (std::string const &port_)
+bool FtpConfig::setPort (std::string_view const port_)
 {
-	std::uint16_t parsed;
+	std::uint16_t parsed{};
 	if (!parseInt (parsed, port_))
 		return false;
 
@@ -317,12 +316,12 @@ void FtpConfig::setEnableAP (bool const enable_)
 	m_enableAP = enable_;
 }
 
-void FtpConfig::setSSID (std::string const &ssid_)
+void FtpConfig::setSSID (std::string_view const ssid_)
 {
 	m_ssid = ssid_.substr (0, ssid_.find_first_of ('\0'));
 }
 
-void FtpConfig::setPassphrase (std::string const &passphrase_)
+void FtpConfig::setPassphrase (std::string_view const passphrase_)
 {
 	m_passphrase = passphrase_.substr (0, passphrase_.find_first_of ('\0'));
 }

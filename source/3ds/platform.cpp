@@ -70,7 +70,7 @@ static_assert (SOCU_BUFFERSIZE % SOCU_ALIGN == 0);
 bool s_ndmuLocked = false;
 
 /// \brief Whether soc:u is active
-std::atomic<bool> s_socuActive = false;
+std::atomic_bool s_socuActive = false;
 /// \brief soc:u buffer
 u32 *s_socuBuffer = nullptr;
 /// \brief ac:u fence
@@ -569,7 +569,7 @@ bool platform::networkVisible ()
 
 bool platform::networkAddress (SockAddr &addr_)
 {
-	struct sockaddr_in addr;
+	sockaddr_in addr;
 	addr.sin_family      = AF_INET;
 	addr.sin_addr.s_addr = gethostid ();
 

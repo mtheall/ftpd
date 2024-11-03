@@ -39,83 +39,80 @@ SockAddr &SockAddr::operator= (SockAddr const &that_) = default;
 
 SockAddr &SockAddr::operator= (SockAddr &&that_) = default;
 
-SockAddr::SockAddr (struct sockaddr_in const &addr_)
+SockAddr::SockAddr (sockaddr_in const &addr_)
 {
 	assert (addr_.sin_family == AF_INET);
-	std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in));
+	std::memcpy (&m_addr, &addr_, sizeof (sockaddr_in));
 }
 
 #ifndef NO_IPV6
-SockAddr::SockAddr (struct sockaddr_in6 const &addr_)
+SockAddr::SockAddr (sockaddr_in6 const &addr_)
 {
 	assert (addr_.sin6_family == AF_INET6);
-	std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in6));
+	std::memcpy (&m_addr, &addr_, sizeof (sockaddr_in6));
 }
 #endif
 
-SockAddr::SockAddr (struct sockaddr_storage const &addr_)
+SockAddr::SockAddr (sockaddr_storage const &addr_)
 {
 	switch (addr_.ss_family)
 	{
 	case AF_INET:
-		assert (addr_.ss_family == AF_INET);
-		std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in));
+		std::memcpy (&m_addr, &addr_, sizeof (sockaddr_in));
 		break;
 
 #ifndef NO_IPV6
 	case AF_INET6:
-		assert (addr_.ss_family == AF_INET6);
-		std::memcpy (&m_addr, &addr_, sizeof (struct sockaddr_in6));
+		std::memcpy (&m_addr, &addr_, sizeof (sockaddr_in6));
 		break;
 #endif
 
 	default:
 		std::abort ();
-		break;
 	}
 }
 
-SockAddr::operator struct sockaddr_in const & () const
+SockAddr::operator sockaddr_in const & () const
 {
 	assert (m_addr.ss_family == AF_INET);
-	return reinterpret_cast<struct sockaddr_in const &> (m_addr);
+	return reinterpret_cast<sockaddr_in const &> (m_addr);
 }
 
 #ifndef NO_IPV6
-SockAddr::operator struct sockaddr_in6 const & () const
+SockAddr::operator sockaddr_in6 const & () const
 {
 	assert (m_addr.ss_family == AF_INET6);
-	return reinterpret_cast<struct sockaddr_in6 const &> (m_addr);
+	return reinterpret_cast<sockaddr_in6 const &> (m_addr);
 }
 #endif
 
-SockAddr::operator struct sockaddr_storage const & () const
+SockAddr::operator sockaddr_storage const & () const
 {
 	return m_addr;
 }
 
-SockAddr::operator struct sockaddr * ()
+SockAddr::operator sockaddr * ()
 {
-	return reinterpret_cast<struct sockaddr *> (&m_addr);
+	return reinterpret_cast<sockaddr *> (&m_addr);
 }
 
-SockAddr::operator struct sockaddr const * () const
+SockAddr::operator sockaddr const * () const
 {
-	return reinterpret_cast<struct sockaddr const *> (&m_addr);
+	return reinterpret_cast<sockaddr const *> (&m_addr);
 }
 
-bool SockAddr::setPort (std::uint16_t const port_)
+void SockAddr::setPort (std::uint16_t const port_)
 {
 	switch (m_addr.ss_family)
 	{
 	case AF_INET:
 		reinterpret_cast<struct sockaddr_in *> (&m_addr)->sin_port = htons (port_);
-		return true;
+		break;
 
 #ifndef NO_IPV6
 	case AF_INET6:
 		reinterpret_cast<struct sockaddr_in6 *> (&m_addr)->sin6_port = htons (port_);
-		return true;
+		break;
 #endif
 
 	default:
@@ -146,11 +143,11 @@ std::uint16_t SockAddr::port () const
 	switch (m_addr.ss_family)
 	{
 	case AF_INET:
-		return ntohs (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_port);
+		return ntohs (reinterpret_cast<sockaddr_in const *> (&m_addr)->sin_port);
 
 #ifndef NO_IPV6
 	case AF_INET6:
-		return ntohs (reinterpret_cast<struct sockaddr_in6 const *> (&m_addr)->sin6_port);
+		return ntohs (reinterpret_cast<sockaddr_in6 const *> (&m_addr)->sin6_port);
 #endif
 
 	default:
@@ -167,32 +164,27 @@ char const *SockAddr::name (char *buffer_, std::size_t size_) const
 #ifdef __NDS__
 		(void)buffer_;
 		(void)size_;
-		return inet_ntoa (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr);
+		return inet_ntoa (reinterpret_cast<sockaddr_in const *> (&m_addr)->sin_addr);
 #else
-		return inet_ntop (AF_INET,
-		    &reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr,
-		    buffer_,
-		    size_);
+		return inet_ntop (
+		    AF_INET, &reinterpret_cast<sockaddr_in const *> (&m_addr)->sin_addr, buffer_, size_);
 #endif
 
 #ifndef NO_IPV6
 	case AF_INET6:
-		return inet_ntop (AF_INET6,
-		    &reinterpret_cast<struct sockaddr_in6 const *> (&m_addr)->sin6_addr,
-		    buffer_,
-		    size_);
+		return inet_ntop (
+		    AF_INET6, &reinterpret_cast<sockaddr_in6 const *> (&m_addr)->sin6_addr, buffer_, size_);
 #endif
 
 	default:
 		std::abort ();
-		break;
 	}
 }
 
 char const *SockAddr::name () const
 {
 #ifdef __NDS__
-	return inet_ntoa (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr);
+	return inet_ntoa (reinterpret_cast<sockaddr_in const *> (&m_addr)->sin_addr);
 #else
 #ifdef NO_IPV6
 	thread_local static char buffer[INET_ADDRSTRLEN];

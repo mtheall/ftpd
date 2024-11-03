@@ -339,7 +339,7 @@ void loadTextures ()
 	unsigned imageOffset = 0;
 	for (auto const &textureInfo : textureInfos)
 	{
-		struct stat st;
+		stat_t st;
 		if (::stat (textureInfo.path, &st) != 0)
 		{
 			std::fprintf (stderr, "stat(%s): %s\n", textureInfo.path, std::strerror (errno));
@@ -618,14 +618,14 @@ bool platform::init ()
 	return true;
 }
 
-bool platform::enableAP (bool const enableAP_,
+bool platform::enableAP (bool const enable_,
     std::string const &ssid_,
     std::string const &passphrase_)
 {
-	if (s_activeAP == enableAP_)
+	if (s_activeAP == enable_)
 		return true;
 
-	if (enableAP_)
+	if (enable_)
 	{
 		auto const ssidError = validateSSID (ssid_);
 		if (ssidError)
@@ -781,11 +781,11 @@ bool platform::networkAddress (SockAddr &addr_)
 			return false;
 		}
 
-		addr_ = *reinterpret_cast<struct sockaddr_in *> (ipConfig.ip_addr);
+		addr_ = *reinterpret_cast<sockaddr_in *> (ipConfig.ip_addr);
 		return true;
 	}
 
-	struct sockaddr_in addr;
+	sockaddr_in addr;
 	addr.sin_family      = AF_INET;
 	addr.sin_addr.s_addr = gethostid ();
 

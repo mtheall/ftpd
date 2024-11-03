@@ -117,7 +117,7 @@ private:
 	std::vector<UniqueFtpSession> m_sessions;
 
 	/// \brief Whether thread should quit
-	std::atomic<bool> m_quit;
+	std::atomic_bool m_quit = false;
 
 #ifndef CLASSIC
 	/// \brief Log upload cURL context
@@ -152,7 +152,7 @@ private:
 	std::string m_passSetting;
 
 	/// \brief Port setting
-	std::uint16_t m_portSetting;
+	std::uint16_t m_portSetting = 0;
 
 #ifdef __3DS__
 	/// \brief getMTime setting
@@ -161,7 +161,7 @@ private:
 
 #ifdef __SWITCH__
 	/// \brief Whether an error occurred enabling access point
-	std::atomic<bool> m_apError = false;
+	std::atomic_bool m_apError = false;
 
 	/// \brief Enable access point setting
 	bool m_enableAPSetting;

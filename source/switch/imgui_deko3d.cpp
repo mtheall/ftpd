@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,7 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
+using stat_t = struct stat;
 
 #include <array>
 #include <cerrno>
@@ -123,7 +124,7 @@ void loadShaders (dk::UniqueDevice &device_)
 		/// \param path_ Path to file
 		static std::size_t getSize (char const *const path_)
 		{
-			struct stat st;
+			stat_t st;
 			auto const rc = ::stat (path_, &st);
 			if (rc != 0)
 			{

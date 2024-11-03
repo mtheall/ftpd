@@ -58,44 +58,46 @@ public:
 	SockAddr &operator= (SockAddr &&that_);
 
 	/// \brief Parameterized constructor
-	/// \param addr_ Address
-	SockAddr (struct sockaddr_in const &addr_);
+	/// \param addr_ Address (network byte order)
+	SockAddr (sockaddr_in const &addr_);
 
 #ifndef NO_IPV6
 	/// \brief Parameterized constructor
-	/// \param addr_ Address
-	SockAddr (struct sockaddr_in6 const &addr_);
+	/// \param addr_ Address (network byte order)
+	SockAddr (sockaddr_in6 const &addr_);
 #endif
 
 	/// \brief Parameterized constructor
-	/// \param addr_ Address
-	SockAddr (struct sockaddr_storage const &addr_);
+	/// \param addr_ Address (network byte order)
+	SockAddr (sockaddr_storage const &addr_);
 
-	/// \brief sockaddr_in cast operator
-	operator struct sockaddr_in const & () const;
+	/// \brief sockaddr_in cast operator (network byte order)
+	operator sockaddr_in const & () const;
 
 #ifndef NO_IPV6
-	/// \brief sockaddr_in6 cast operator
-	operator struct sockaddr_in6 const & () const;
+	/// \brief sockaddr_in6 cast operator (network byte order)
+	operator sockaddr_in6 const & () const;
 #endif
 
-	/// \brief sockaddr_storage cast operator
-	operator struct sockaddr_storage const & () const;
+	/// \brief sockaddr_storage cast operator (network byte order)
+	operator sockaddr_storage const & () const;
 
-	/// \brief sockaddr* cast operator
-	operator struct sockaddr * ();
-	/// \brief sockaddr const* cast operator
-	operator struct sockaddr const * () const;
+	/// \brief sockaddr* cast operator (network byte order)
+	operator sockaddr * ();
+
+	/// \brief sockaddr const* cast operator (network byte order)
+	operator sockaddr const * () const;
+
 
 	/// \brief sockaddr size
 	socklen_t size () const;
 
-	/// \brief Address port
+	/// \brief Address port (host byte order)
 	std::uint16_t port () const;
 
 	/// \brief Set address port
-	/// \param port_ Port to set
-	bool setPort (std::uint16_t port_);
+	/// \param port_ Port to set (host byte order)
+	void setPort (std::uint16_t port_);
 
 	/// \brief Address name
 	/// \param buffer_ Buffer to hold name
@@ -110,6 +112,6 @@ public:
 	char const *name () const;
 
 private:
-	/// \brief Address storage
-	struct sockaddr_storage m_addr = {};
+	/// \brief Address storage (network byte order)
+	sockaddr_storage m_addr = {};
 };

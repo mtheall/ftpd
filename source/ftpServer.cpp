@@ -21,9 +21,12 @@
 #include "ftpServer.h"
 
 #include "fs.h"
+#include "ftpConfig.h"
+#include "ftpSession.h"
 #include "licenses.h"
 #include "log.h"
 #include "platform.h"
+#include "sockAddr.h"
 #include "socket.h"
 
 #include "imgui.h"
@@ -32,22 +35,38 @@
 #include <dswifi9.h>
 #endif
 
-#ifndef CLASSIC
-#include <jansson.h>
+#ifdef __3DS__
+#include <citro3d.h>
 #endif
 
-#include <arpa/inet.h>
+#ifndef CLASSIC
+#include <jansson.h>
+
+#include <curl/easy.h>
+#include <curl/multi.h>
+#ifndef NDEBUG
+#include <curl/curl.h>
+#endif
+#endif
+
 #include <sys/statvfs.h>
-#include <unistd.h>
+using statvfs_t = struct statvfs;
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
+#include <functional>
 #include <mutex>
+#include <string>
 #include <string_view>
-#include <thread>
+#include <utility>
+#include <vector>
 using namespace std::chrono_literals;
 
 #ifdef __NDS__
@@ -81,21 +100,33 @@ std::string s_freeSpace;
 
 #ifndef CLASSIC
 #ifndef NDEBUG
-std::string printable (char *const data_, std::size_t const size_)
+std::string printable (std::string_view const data_)
 {
-	std::string result;
-	result.reserve (size_);
-
-	for (std::size_t i = 0; i < size_; ++i)
+	unsigned count = 0;
+	for (auto const &c : data_)
 	{
-		if (std::isprint (data_[i]) || std::isspace (data_[i]))
-			result.push_back (data_[i]);
+		if (c != '%' && (std::isprint (c) || std::isspace (c)))
+			++count;
+		else
+			count += 3;
+	}
+
+	std::string result;
+	result.reserve (count);
+
+	for (auto const &c : data_)
+	{
+		if (c != '%' && (std::isprint (c) || std::isspace (c)))
+			result.push_back (c);
 		else
 		{
-			char buffer[5];
-			std::snprintf (
-			    buffer, sizeof (buffer), "%%%02u", static_cast<unsigned char> (data_[i]));
-			result += buffer;
+			result.push_back ('%');
+
+			auto const upper = (static_cast<unsigned char> (c) >> 4u) & 0xF;
+			auto const lower = (static_cast<unsigned char> (c) >> 0u) & 0xF;
+
+			result.push_back (gsl::narrow_cast<char> (upper < 10 ? upper + '0' : upper + 'A' - 10));
+			result.push_back (gsl::narrow_cast<char> (lower < 10 ? lower + '0' : lower + 'A' - 10));
 		}
 	}
 
@@ -111,7 +142,7 @@ int curlDebug (CURL *const handle_,
 	(void)handle_;
 	(void)user_;
 
-	auto const text = printable (data_, size_);
+	auto const text = printable (std::string_view (data_, size_));
 
 	switch (type_)
 	{
@@ -190,7 +221,8 @@ FtpServer::~FtpServer ()
 #endif
 }
 
-FtpServer::FtpServer (UniqueFtpConfig config_) : m_config (std::move (config_)), m_quit (false)
+FtpServer::FtpServer (UniqueFtpConfig config_)
+    : m_config (std::move (config_))
 {
 #ifndef __NDS__
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
@@ -279,17 +311,17 @@ void FtpServer::draw ()
 	ImGui::SetNextWindowSize (ImVec2 (width, height));
 #endif
 	{
-		char title[64];
+		std::array<char, 64> title{};
 
 		{
 			auto const serverLock = std::scoped_lock (m_lock);
-			std::snprintf (title,
-			    sizeof (title),
+			std::snprintf (title.data (),
+			    title.size (),
 			    STATUS_STRING " %s###ftpd",
 			    m_socket ? m_name.c_str () : "Waiting for WiFi...");
 		}
 
-		ImGui::Begin (title,
+		ImGui::Begin (title.data (),
 		    nullptr,
 		    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
 #ifndef __3DS__
@@ -361,7 +393,7 @@ std::string FtpServer::getFreeSpace ()
 
 void FtpServer::updateFreeSpace ()
 {
-	struct statvfs st;
+	statvfs_t st = {};
 #if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__)
 	if (::statvfs ("sdmc:/", &st) != 0)
 #else
@@ -440,8 +472,9 @@ void FtpServer::handleNetworkLost ()
 	}
 
 	{
-		// destroy command socket
 		UniqueSocket sock;
+
+		// destroy command socket
 		LOCKED (sock = std::move (m_socket));
 	}
 

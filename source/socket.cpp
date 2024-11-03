@@ -23,6 +23,7 @@
 #include "log.h"
 
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -65,7 +66,7 @@ Socket::Socket (int const fd_, SockAddr const &sockName_, SockAddr const &peerNa
 UniqueSocket Socket::accept ()
 {
 	SockAddr addr;
-	socklen_t addrLen = sizeof (struct sockaddr_storage);
+	socklen_t addrLen = sizeof (sockaddr_storage);
 
 	auto const fd = ::accept (m_fd, addr, &addrLen);
 	if (fd < 0)
@@ -104,7 +105,7 @@ bool Socket::bind (SockAddr const &addr_)
 	if (addr_.port () == 0)
 	{
 		// get socket name due to request for ephemeral port
-		socklen_t addrLen = sizeof (struct sockaddr_storage);
+		socklen_t addrLen = sizeof (sockaddr_storage);
 		if (::getsockname (m_fd, m_sockName, &addrLen) != 0)
 			error ("getsockname: %s\n", std::strerror (errno));
 	}
@@ -166,7 +167,7 @@ bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 	errno = ENOSYS;
 	return -1;
 #else
-	struct linger linger;
+	linger linger;
 	linger.l_onoff  = enable_;
 	linger.l_linger = time_.count ();
 
@@ -330,7 +331,7 @@ int Socket::poll (PollInfo *const info_,
 	if (count_ == 0)
 		return 0;
 
-	auto const pfd = std::make_unique<struct pollfd[]> (count_);
+	auto const pfd = std::make_unique<pollfd[]> (count_);
 	for (std::size_t i = 0; i < count_; ++i)
 	{
 		pfd[i].fd      = info_[i].socket.get ().m_fd;
@@ -352,7 +353,7 @@ int Socket::poll (PollInfo *const info_,
 }
 
 #ifdef __NDS__
-extern "C" int poll (struct pollfd *const fds_, nfds_t const nfds_, int const timeout_)
+extern "C" int poll (pollfd *const fds_, nfds_t const nfds_, int const timeout_)
 {
 	fd_set readFds;
 	fd_set writeFds;
@@ -370,7 +371,7 @@ extern "C" int poll (struct pollfd *const fds_, nfds_t const nfds_, int const ti
 			FD_SET (fds_[i].fd, &writeFds);
 	}
 
-	struct timeval tv;
+	timeval tv;
 	tv.tv_sec     = timeout_ / 1000;
 	tv.tv_usec    = (timeout_ % 1000) * 1000;
 	auto const rc = ::select (nfds_, &readFds, &writeFds, &exceptFds, &tv);

@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,11 +19,24 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "fs.h"
+#include "ioBuffer.h"
 
+#include <gsl/pointers>
+#include <gsl/util>
+
+#include <array>
 #include <cassert>
+#include <cerrno>
 #include <cinttypes>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <dirent.h>
+#include <memory>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 
 #if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__)
 #define getline __getline
@@ -38,7 +51,7 @@ std::string fs::printSize (std::uint64_t const size_)
 	constexpr std::uint64_t const PiB = 1024 * TiB;
 	constexpr std::uint64_t const EiB = 1024 * PiB;
 
-	char buffer[64] = {};
+	std::array<char, 64> buffer{};
 
 	for (auto const &[name, bin] : {
 	         // clang-format off
@@ -56,30 +69,32 @@ std::string fs::printSize (std::uint64_t const size_)
 		if (size_ >= 100 * bin)
 		{
 			// >= 100, print xxxXiB
-			std::sprintf (buffer, "%" PRIu64 "%s", whole, name);
-			return buffer;
+			std::size_t const size = std::sprintf (buffer.data (), "%" PRIu64 "%s", whole, name);
+			return {buffer.data (), size};
 		}
 
 		// get the fractional portion of the number
-		auto const frac = size_ - whole * bin;
+		auto const frac = size_ - (whole * bin);
 		if (size_ >= 10 * bin)
 		{
 			// >= 10, print xx.xXiB
-			std::sprintf (buffer, "%" PRIu64 ".%" PRIu64 "%s", whole, frac * 10 / bin, name);
-			return buffer;
+			std::size_t const size = std::sprintf (
+			    buffer.data (), "%" PRIu64 ".%" PRIu64 "%s", whole, frac * 10 / bin, name);
+			return {buffer.data (), size};
 		}
 
 		if (size_ >= 1000 * (bin / KiB))
 		{
 			// >= 1000 of lesser bin, print x.xxXiB
-			std::sprintf (buffer, "%" PRIu64 ".%02" PRIu64 "%s", whole, frac * 100 / bin, name);
-			return buffer;
+			std::size_t const size = std::sprintf (
+			    buffer.data (), "%" PRIu64 ".%02" PRIu64 "%s", whole, frac * 100 / bin, name);
+			return {buffer.data (), size};
 		}
 	}
 
 	// < 1KiB, just print the number
-	std::sprintf (buffer, "%" PRIu64 "B", size_);
-	return buffer;
+	std::size_t const size = std::sprintf (buffer.data (), "%" PRIu64 "B", size_);
+	return {buffer.data (), size};
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -106,26 +121,24 @@ fs::File::operator FILE * () const
 
 void fs::File::setBufferSize (std::size_t const size_)
 {
-	if (m_bufferSize != size_)
-	{
-		m_buffer     = std::make_unique<char[]> (size_);
-		m_bufferSize = size_;
-	}
+	if (m_buffer.size () != size_)
+		m_buffer.resize (size_);
 
 	if (m_fp)
-		std::setvbuf (m_fp.get (), m_buffer.get (), _IOFBF, m_bufferSize);
+		(void)std::setvbuf (m_fp.get (), m_buffer.data (), _IOFBF, m_buffer.size ());
 }
 
-bool fs::File::open (char const *const path_, char const *const mode_)
+bool fs::File::open (gsl::not_null<char const *> const path_,
+    gsl::not_null<char const *> const mode_)
 {
-	auto const fp = std::fopen (path_, mode_);
+	gsl::owner<FILE *> fp = std::fopen (path_, mode_);
 	if (!fp)
 		return false;
 
 	m_fp = std::unique_ptr<std::FILE, int (*) (std::FILE *)> (fp, &std::fclose);
 
-	if (m_buffer)
-		std::setvbuf (m_fp.get (), m_buffer.get (), _IOFBF, m_bufferSize);
+	if (!m_buffer.empty ())
+		(void)std::setvbuf (m_fp.get (), m_buffer.data (), _IOFBF, m_buffer.size ());
 
 	return true;
 }
@@ -135,17 +148,27 @@ void fs::File::close ()
 	m_fp.reset ();
 }
 
-std::make_signed_t<std::size_t> fs::File::seek (std::size_t const pos_, int const origin_)
+std::make_signed_t<std::size_t> fs::File::seek (std::make_signed_t<std::size_t> const pos_,
+    int const origin_)
 {
 	return std::fseek (m_fp.get (), pos_, origin_);
 }
 
-std::make_signed_t<std::size_t> fs::File::read (void *const buffer_, std::size_t const size_)
+std::make_signed_t<std::size_t> fs::File::read (gsl::not_null<void *> const buffer_,
+    std::size_t const size_)
 {
 	assert (buffer_);
 	assert (size_ > 0);
 
-	return std::fread (buffer_, 1, size_, m_fp.get ());
+	auto const rc = std::fread (buffer_, 1, size_, m_fp.get ());
+	if (rc == 0)
+	{
+		if (std::feof (m_fp.get ()))
+			return 0;
+		return -1;
+	}
+
+	return gsl::narrow_cast<std::make_signed_t<std::size_t>> (rc);
 }
 
 std::make_signed_t<std::size_t> fs::File::read (IOBuffer &buffer_)
@@ -176,37 +199,41 @@ std::string_view fs::File::readLine ()
 		}
 
 		if (rc > 0)
-			return std::string_view (m_lineBuffer, rc);
+			return {m_lineBuffer, gsl::narrow_cast<std::size_t> (rc)};
 	}
 }
 
-bool fs::File::readAll (void *const buffer_, std::size_t const size_)
+bool fs::File::readAll (gsl::not_null<void *> const buffer_, std::size_t const size_)
 {
 	assert (buffer_);
 	assert (size_ > 0);
 
-	auto p = static_cast<char *> (buffer_);
+	auto const p = static_cast<char *> (buffer_.get ());
 
 	std::size_t bytes = 0;
 	while (bytes < size_)
 	{
-		auto const rc = read (p, size_ - bytes);
+		auto const rc = read (p + bytes, size_ - bytes);
 		if (rc <= 0)
 			return false;
 
-		p += rc;
 		bytes += rc;
 	}
 
 	return true;
 }
 
-std::make_signed_t<std::size_t> fs::File::write (void const *const buffer_, std::size_t const size_)
+std::make_signed_t<std::size_t> fs::File::write (gsl::not_null<void const *> const buffer_,
+    std::size_t const size_)
 {
 	assert (buffer_);
 	assert (size_ > 0);
 
-	return std::fwrite (buffer_, 1, size_, m_fp.get ());
+	auto const rc = std::fwrite (buffer_, 1, size_, m_fp.get ());
+	if (rc == 0)
+		return -1;
+
+	return gsl::narrow_cast<std::make_signed_t<std::size_t>> (rc);
 }
 
 std::make_signed_t<std::size_t> fs::File::write (IOBuffer &buffer_)
@@ -220,21 +247,20 @@ std::make_signed_t<std::size_t> fs::File::write (IOBuffer &buffer_)
 	return rc;
 }
 
-bool fs::File::writeAll (void const *const buffer_, std::size_t const size_)
+bool fs::File::writeAll (gsl::not_null<void const *> const buffer_, std::size_t const size_)
 {
 	assert (buffer_);
 	assert (size_ > 0);
 
-	auto p = static_cast<char const *> (buffer_);
+	auto const p = static_cast<char const *> (buffer_.get ());
 
 	std::size_t bytes = 0;
 	while (bytes < size_)
 	{
-		auto const rc = write (p, size_ - bytes);
+		auto const rc = write (p + bytes, size_ - bytes);
 		if (rc <= 0)
 			return false;
 
-		p += rc;
 		bytes += rc;
 	}
 
@@ -260,7 +286,7 @@ fs::Dir::operator DIR * () const
 	return m_dp.get ();
 }
 
-bool fs::Dir::open (char const *const path_)
+bool fs::Dir::open (gsl::not_null<char const *> const path_)
 {
 	auto const dp = ::opendir (path_);
 	if (!dp)
@@ -275,7 +301,7 @@ void fs::Dir::close ()
 	m_dp.reset ();
 }
 
-struct dirent *fs::Dir::read ()
+dirent *fs::Dir::read ()
 {
 	errno = 0;
 	return ::readdir (m_dp.get ());

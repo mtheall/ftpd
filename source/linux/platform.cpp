@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,7 +29,10 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+#include <unistd.h>
+
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -193,7 +196,7 @@ bool platform::networkVisible ()
 
 bool platform::networkAddress (SockAddr &addr_)
 {
-	struct sockaddr_in addr;
+	sockaddr_in addr;
 	addr.sin_family      = AF_INET;
 	addr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
 

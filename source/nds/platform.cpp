@@ -3,7 +3,7 @@
 // - RFC 3659 (https://tools.ietf.org/html/rfc3659)
 // - suggested implementation details from https://cr.yp.to/ftp/filesystem.html
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ PrintConsole g_sessionConsole;
 namespace
 {
 /// \brief Host address
-struct in_addr s_addr = {0};
+in_addr s_addr = {0};
 /// \brief Which side of double-buffer we're on
 bool s_backBuffer = false;
 /// \brief Whether to power backlight
@@ -75,7 +75,7 @@ bool platform::networkVisible ()
 
 bool platform::networkAddress (SockAddr &addr_)
 {
-	struct sockaddr_in addr;
+	sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_addr   = Wifi_GetIPInfo (nullptr, nullptr, nullptr, nullptr);
 
