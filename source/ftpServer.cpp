@@ -815,6 +815,12 @@ void FtpServer::showAbout ()
 		ImGui::Text ("Platform: %s", io.BackendPlatformName);
 		ImGui::Text ("Renderer: %s", io.BackendRendererName);
 
+#ifdef __3DS__
+		ImGui::Text ("Command Buffer Usage: %.1f%%", 100.0f * C3D_GetCmdBufUsage ());
+		ImGui::Text ("GPU Processing Usage: %.1f%%", 6.0f * C3D_GetProcessingTime ());
+		ImGui::Text ("GPU Drawing Usage: %.1f%%", 6.0f * C3D_GetDrawingTime ());
+#endif
+
 		if (ImGui::Button ("OK", ImVec2 (100, 0)))
 		{
 			m_showAbout = false;

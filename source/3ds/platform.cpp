@@ -47,6 +47,7 @@
 #include <ctime>
 #include <mutex>
 #include <random>
+#include <span>
 #include <vector>
 
 #ifdef CLASSIC
@@ -88,9 +89,6 @@ aptHookCookie s_aptHookCookie;
 /// \brief Host address
 in_addr_t s_addr = 0;
 #else
-/// \brief Clear color
-constexpr auto CLEAR_COLOR = 0x204B7AFF;
-
 /// \brief Screen width
 constexpr auto SCREEN_WIDTH = 400.0f;
 /// \brief Screen height
@@ -125,11 +123,16 @@ C3D_RenderTarget *s_topLeft = nullptr;
 C3D_RenderTarget *s_topRight = nullptr;
 /// \brief Bottom screen render target
 C3D_RenderTarget *s_bottom = nullptr;
+/// \brief Depth/Stencil buffer
+void *s_depthStencil = nullptr;
 
 /// \brief Texture atlas
 C3D_Tex s_gfxTexture;
 /// \brief Texture atlas metadata
 Tex3DS_Texture s_gfxT3x;
+
+/// \brief Performance timer
+TickCounter s_timer;
 #endif
 
 /// \brief Enable backlight
@@ -323,23 +326,18 @@ std::vector<Bubble> &getBubbles ()
 		bubble.y     = 240.0f * dist (eng);
 		bubble.z     = std::floor (-5.0f * dist (eng));
 		bubble.scale = std::max (dist (eng) / 8.0f, 0.0625f);
-		bubble.dy    = std::max (1.5f * dist (eng), 0.25f);
+		bubble.dy    = 20.0f * std::max (1.5f * dist (eng), 0.25f);
 	}
 
-	std::ranges::sort (
-	    bubbles, [] (auto const &lhs_, auto const &rhs_) { return lhs_.z < rhs_.z; });
+	std::ranges::sort (bubbles, {}, [] (auto const &bubble_) { return bubble_.z; });
 
 	return bubbles;
 }
 #endif
 
-void drawBubbles ()
-{
 #ifndef CLASSIC
-	// only draw in stereoscopy
-	if (!osGet3DSliderState ())
-		return;
-
+void drawBubbles (ImDrawList *const drawList_, std::span<Bubble> const bubbles_, float const dt_)
+{
 	auto const &io = ImGui::GetIO ();
 
 	auto const screenHeight = io.DisplaySize.y / 2.0f;
@@ -351,16 +349,15 @@ void drawBubbles ()
 
 	float lastZ = 0.0f;
 
-	auto const drawList = ImGui::GetBackgroundDrawList ();
-	for (auto &bubble : getBubbles ())
+	for (auto &bubble : bubbles_)
 	{
 		if (bubble.z != lastZ)
 		{
 			lastZ = bubble.z;
-			drawList->AddCallback (&imgui::citro3d::setZ, std::bit_cast<void *> (lastZ));
+			drawList_->AddCallback (&imgui::citro3d::setZ, std::bit_cast<void *> (lastZ));
 		}
 
-		bubble.y -= bubble.dy;
+		bubble.y -= dt_ * bubble.dy;
 
 		if (bubble.y < 0.0f)
 			bubble.y = screenHeight;
@@ -372,11 +369,37 @@ void drawBubbles ()
 		    bubble.x + 100.0f * bubble.scale * std::sin (bubble.z + bubble.y / 40.0f), bubble.y);
 		auto const p2 = ImVec2 (p1.x + width, p1.y + height);
 
-		drawList->AddImage (&s_gfxTexture, p1, p2, uv1, uv2);
+		drawList_->AddImage (&s_gfxTexture, p1, p2, uv1, uv2);
 	}
 
 	if (lastZ != 0.0f)
-		drawList->AddCallback (&imgui::citro3d::setZ, std::bit_cast<void *> (0.0f));
+		drawList_->AddCallback (&imgui::citro3d::setZ, std::bit_cast<void *> (0.0f));
+}
+#endif
+
+void drawBubbles ()
+{
+#ifndef CLASSIC
+	osTickCounterUpdate (&s_timer);
+	auto const ticks = osTickCounterRead (&s_timer);
+	osTickCounterStart (&s_timer);
+
+	// only draw in stereoscopy
+	if (!osGet3DSliderState ())
+		return;
+
+	auto const dt = ticks / 1000.0f;
+
+	auto &bubbles = getBubbles ();
+
+	auto const split = std::ranges::upper_bound (
+	    bubbles, 0.0f, {}, [] (auto const &bubble_) { return bubble_.z; });
+
+	auto const back  = std::span (std::begin (bubbles), split);
+	auto const front = std::span (split, std::end (bubbles));
+
+	drawBubbles (ImGui::GetBackgroundDrawList (), back, dt);
+	drawBubbles (ImGui::GetForegroundDrawList (), front, dt);
 #endif
 }
 
@@ -484,7 +507,7 @@ bool platform::init ()
 #ifndef CLASSIC
 	romfsInit ();
 #endif
-	gfxInitDefault ();
+	gfxInit (GSP_BGR8_OES, GSP_BGR8_OES, false);
 
 #ifdef CLASSIC
 	gfxSet3D (false);
@@ -512,19 +535,26 @@ bool platform::init ()
 	C3D_Init (4 * C3D_DEFAULT_CMDBUF_SIZE);
 
 	// create top left screen render target
-	s_topLeft =
-	    C3D_RenderTargetCreate (FB_HEIGHT * 0.5f, FB_WIDTH, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	s_topLeft = C3D_RenderTargetCreate (FB_HEIGHT * 0.5f, FB_WIDTH, GPU_RB_RGBA8, -1);
 	C3D_RenderTargetSetOutput (s_topLeft, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
 
 	// create top right screen render target
-	s_topRight =
-	    C3D_RenderTargetCreate (FB_HEIGHT * 0.5f, FB_WIDTH, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	s_topRight = C3D_RenderTargetCreate (FB_HEIGHT * 0.5f, FB_WIDTH, GPU_RB_RGBA8, -1);
 	C3D_RenderTargetSetOutput (s_topRight, GFX_TOP, GFX_RIGHT, DISPLAY_TRANSFER_FLAGS);
 
 	// create bottom screen render target
-	s_bottom = C3D_RenderTargetCreate (
-	    FB_HEIGHT * 0.5f, FB_WIDTH * 0.8f, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	s_bottom = C3D_RenderTargetCreate (FB_HEIGHT * 0.5f, FB_WIDTH * 0.8f, GPU_RB_RGBA8, -1);
 	C3D_RenderTargetSetOutput (s_bottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+
+	// create and attach depth/stencil buffer
+	{
+		auto const size =
+		    C3D_CalcDepthBufSize (FB_HEIGHT * 0.5f, FB_WIDTH, GPU_RB_DEPTH24_STENCIL8);
+		s_depthStencil = vramAlloc (size);
+		C3D_FrameBufDepth (&s_topLeft->frameBuf, s_depthStencil, GPU_RB_DEPTH24_STENCIL8);
+		C3D_FrameBufDepth (&s_topRight->frameBuf, s_depthStencil, GPU_RB_DEPTH24_STENCIL8);
+		C3D_FrameBufDepth (&s_bottom->frameBuf, s_depthStencil, GPU_RB_DEPTH24_STENCIL8);
+	}
 
 	if (!imgui::ctru::init ())
 		return false;
@@ -537,7 +567,7 @@ bool platform::init ()
 		if (!file.open ("romfs:/gfx.t3x"))
 			svcBreak (USERBREAK_PANIC);
 
-		s_gfxT3x = Tex3DS_TextureImportStdio (file, &s_gfxTexture, nullptr, true);
+		s_gfxT3x = Tex3DS_TextureImportStdio (file, &s_gfxTexture, nullptr, false);
 		if (!s_gfxT3x)
 			svcBreak (USERBREAK_PANIC);
 
@@ -652,11 +682,6 @@ void platform::render ()
 
 	C3D_FrameBegin (C3D_FRAME_SYNCDRAW);
 
-	// clear frame/depth buffers
-	C3D_RenderTargetClear (s_topLeft, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
-	C3D_RenderTargetClear (s_topRight, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
-	C3D_RenderTargetClear (s_bottom, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
-
 	imgui::citro3d::render (s_topLeft, s_topRight, s_bottom);
 
 	C3D_FrameEnd (0);
@@ -676,6 +701,9 @@ void platform::exit ()
 	C3D_RenderTargetDelete (s_bottom);
 	C3D_RenderTargetDelete (s_topRight);
 	C3D_RenderTargetDelete (s_topLeft);
+
+	// free depth/stencil buffer
+	vramFree (s_depthStencil);
 
 	// deinitialize citro3d
 	C3D_Fini ();

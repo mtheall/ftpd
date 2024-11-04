@@ -43,6 +43,9 @@
 
 namespace
 {
+/// \brief Clear color
+constexpr auto CLEAR_COLOR = 0x204B7AFF;
+
 /// \brief Slider value
 float s_slider;
 /// \brief Z offset (for stereoscopic effect)
@@ -522,6 +525,9 @@ void imgui::citro3d::render (C3D_RenderTarget *const topLeft_,
 	{
 		if (!target)
 			continue;
+
+		// clear frame/depth buffers
+		C3D_RenderTargetClear (target, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
 
 		if (target == topLeft_)
 			s_slider = slider;
