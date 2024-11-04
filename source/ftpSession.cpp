@@ -25,7 +25,9 @@
 #include "mdns.h"
 #include "platform.h"
 
-#include "imgui.h"
+#ifndef CLASSIC
+#include <imgui.h>
+#endif
 
 #include <arpa/inet.h>
 #include <sys/stat.h>
@@ -36,6 +38,7 @@
 #endif
 
 #include <algorithm>
+#include <cassert>
 #include <cerrno>
 #include <chrono>
 #include <cinttypes>

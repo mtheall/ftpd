@@ -28,9 +28,8 @@
 #ifndef CLASSIC
 #include "imgui_nx.h"
 
-#include "imgui.h"
-
-#include "../imgui/imgui_internal.h"
+#include <imgui.h>
+#include <imgui_internal.h>
 
 #include "fs.h"
 #include "platform.h"
@@ -1335,19 +1334,19 @@ void handleAppletHook (AppletHookType const hook_, void *const param_)
 }
 
 /// \brief Get clipboard text callback
-/// \param userData_ User data
-char const *getClipboardText (void *const userData_)
+/// \param context_ ImGui context
+char const *getClipboardText (ImGuiContext *const context_)
 {
-	(void)userData_;
+	(void)context_;
 	return s_clipboard.c_str ();
 }
 
 /// \brief Set clipboard text callback
-/// \param userData_ User data
+/// \param context_ ImGui context
 /// \param text_ Clipboard text
-void setClipboardText (void *const userData_, char const *const text_)
+void setClipboardText (ImGuiContext *const context_, char const *const text_)
 {
-	(void)userData_;
+	(void)context_;
 	s_clipboard = text_;
 }
 
@@ -1664,10 +1663,12 @@ bool imgui::nx::init ()
 	// initially disable mouse cursor
 	io.MouseDrawCursor = false;
 
+	auto &platformIO = ImGui::GetPlatformIO ();
+
 	// clipboard callbacks
-	io.SetClipboardTextFn = setClipboardText;
-	io.GetClipboardTextFn = getClipboardText;
-	io.ClipboardUserData  = nullptr;
+	platformIO.Platform_SetClipboardTextFn = &setClipboardText;
+	platformIO.Platform_GetClipboardTextFn = &getClipboardText;
+	platformIO.Platform_ClipboardUserData  = nullptr;
 
 	return true;
 }

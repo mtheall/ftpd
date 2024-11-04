@@ -30,7 +30,7 @@
 
 #include "fs.h"
 
-#include "imgui.h"
+#include <imgui.h>
 
 #include <deko3d.hpp>
 
@@ -497,7 +497,7 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 				        (unsigned int)(clip.w - clip.y)});
 
 				// get texture handle
-				auto const textureHandle = reinterpret_cast<std::uintptr_t> (cmd.TextureId);
+				auto const textureHandle = cmd.TextureId;
 
 				// check if we need to bind a new texture
 				if (!boundTextureHandle || textureHandle != *boundTextureHandle)

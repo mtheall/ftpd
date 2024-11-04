@@ -22,9 +22,9 @@
 
 #include "ftpServer.h"
 
-#include "imgui.h"
-
 #ifndef CLASSIC
+#include <imgui.h>
+
 #include <curl/curl.h>
 #endif
 

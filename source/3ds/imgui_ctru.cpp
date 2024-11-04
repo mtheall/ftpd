@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2023 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,9 +28,9 @@
 #ifndef CLASSIC
 #include "imgui_ctru.h"
 
-#include "imgui.h"
+#include <imgui.h>
 
-#include "../imgui/imgui_internal.h"
+#include <imgui_internal.h>
 
 #include "fs.h"
 #include "platform.h"
@@ -51,19 +51,19 @@ namespace
 std::string s_clipboard;
 
 /// \brief Get clipboard text callback
-/// \param userData_ User data
-char const *getClipboardText (void *const userData_)
+/// \param context_ ImGui context
+char const *getClipboardText (ImGuiContext *const context_)
 {
-	(void)userData_;
+	(void)context_;
 	return s_clipboard.c_str ();
 }
 
 /// \brief Set clipboard text callback
-/// \param userData_ User data
+/// \param context_ ImGui context
 /// \param text_ Clipboard text
-void setClipboardText (void *const userData_, char const *const text_)
+void setClipboardText (ImGuiContext *const context_, char const *const text_)
 {
-	(void)userData_;
+	(void)context_;
 	s_clipboard = text_;
 }
 
@@ -216,10 +216,12 @@ bool imgui::ctru::init ()
 	// disable mouse cursor
 	io.MouseDrawCursor = false;
 
+	auto &platformIO = ImGui::GetPlatformIO ();
+
 	// clipboard callbacks
-	io.SetClipboardTextFn = setClipboardText;
-	io.GetClipboardTextFn = getClipboardText;
-	io.ClipboardUserData  = nullptr;
+	platformIO.Platform_SetClipboardTextFn = &setClipboardText;
+	platformIO.Platform_GetClipboardTextFn = &getClipboardText;
+	platformIO.Platform_ClipboardUserData  = nullptr;
 
 	return true;
 }

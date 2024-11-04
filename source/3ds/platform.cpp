@@ -27,12 +27,12 @@
 #include "imgui_citro3d.h"
 #include "imgui_ctru.h"
 
-#include "imgui.h"
-
 #include <citro3d.h>
 #include <tex3ds.h>
 
 #ifndef CLASSIC
+#include <imgui.h>
+
 #include "gfx.h"
 #endif
 

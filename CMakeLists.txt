@@ -8,11 +8,18 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 include(FetchContent)
+
 FetchContent_Declare(gsl
 	GIT_REPOSITORY https://github.com/microsoft/GSL.git
 	GIT_TAG v4.0.0
 )
 FetchContent_Populate(gsl)
+
+FetchContent_Declare(imgui
+	GIT_REPOSITORY https://github.com/ocornut/imgui.git
+	GIT_TAG v1.91.4
+)
+FetchContent_Populate(imgui)
 
 option(FTPD_CLASSIC "Build ${PROJECT_NAME} classic" OFF)
 
@@ -35,6 +42,7 @@ target_include_directories(${FTPD_TARGET} PRIVATE include)
 target_compile_definitions(${FTPD_TARGET} PRIVATE
 	STATUS_STRING="${PROJECT_NAME} v${PROJECT_VERSION}"
 	IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
+	IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS=1
 )
 
 target_compile_options(${FTPD_TARGET} PRIVATE -Wall -Wextra -Werror)
@@ -92,19 +100,22 @@ if(NOT NINTENDO_DS)
 endif()
 
 if(NOT FTPD_CLASSIC AND NOT NINTENDO_DS)
+	target_include_directories(${FTPD_TARGET} PRIVATE ${imgui_SOURCE_DIR})
+
 	target_sources(${FTPD_TARGET} PRIVATE
-		include/imconfig.h
-		include/imgui.h
 		include/licenses.h
-		source/imgui/imgui.cpp
-		source/imgui/imgui_draw.cpp
-		source/imgui/imgui_internal.h
-		source/imgui/imgui_tables.cpp
-		source/imgui/imgui_widgets.cpp
-		source/imgui/imstb_rectpack.h
-		source/imgui/imstb_textedit.h
-		source/imgui/imstb_truetype.h
 		source/licenses.cpp
+
+		${imgui_SOURCE_DIR}/imconfig.h
+		${imgui_SOURCE_DIR}/imgui.h
+		${imgui_SOURCE_DIR}/imgui.cpp
+		${imgui_SOURCE_DIR}/imgui_draw.cpp
+		${imgui_SOURCE_DIR}/imgui_internal.h
+		${imgui_SOURCE_DIR}/imgui_tables.cpp
+		${imgui_SOURCE_DIR}/imgui_widgets.cpp
+		${imgui_SOURCE_DIR}/imstb_rectpack.h
+		${imgui_SOURCE_DIR}/imstb_textedit.h
+		${imgui_SOURCE_DIR}/imstb_truetype.h
 	)
 endif()
 
@@ -155,6 +166,12 @@ if(NINTENDO_SWITCH)
 		source/switch/imgui_nx.cpp
 		source/switch/imgui_nx.h
 	)
+
+	target_compile_definitions(${FTPD_TARGET} PRIVATE
+		ImTextureID=DkResHandle
+	)
+
+	target_compile_options(${FTPD_TARGET} PRIVATE -include deko3d.h)
 
 	dkp_add_asset_target(${PROJECT_NAME}_romfs ${CMAKE_CURRENT_BINARY_DIR}/romfs)
 
@@ -243,9 +260,13 @@ elseif(NINTENDO_3DS)
 		return()
 	endif()
 
+
 	target_compile_definitions(${FTPD_TARGET} PRIVATE
 		ANTI_ALIAS=0
+		ImTextureID=C3D_Tex*
 	)
+
+	target_compile_options(${FTPD_TARGET} PRIVATE -include citro3d.h)
 
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(CURL libcurl IMPORTED_TARGET)
@@ -337,11 +358,12 @@ else()
 	)
 
 	target_sources(${FTPD_TARGET} PRIVATE
-		source/linux/imgui_impl_glfw.cpp
-		source/linux/imgui_impl_glfw.h
-		source/linux/imgui_impl_opengl3.cpp
-		source/linux/imgui_impl_opengl3.h
-		source/linux/imgui_impl_opengl3_loader.h
 		source/linux/platform.cpp
+
+		${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+		${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h
+		${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+		${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
+		${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3_loader.h
 	)
 endif()

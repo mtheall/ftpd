@@ -5,7 +5,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2024 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,8 @@
 #pragma once
 
 #ifndef CLASSIC
+#include <imgui.h>
+
 #include <deko3d.hpp>
 
 #include <cstdint>
@@ -67,9 +69,9 @@ void render (dk::UniqueDevice &device_,
 
 /// \brief Make ImGui texture id from deko3d texture handle
 /// \param handle_ Texture handle
-inline void *makeTextureID (DkResHandle handle_)
+inline ImTextureID makeTextureID (DkResHandle handle_)
 {
-	return reinterpret_cast<void *> (static_cast<std::uintptr_t> (handle_));
+	return static_cast<ImTextureID> (handle_);
 }
 
 /// \brief Align power-of-two value

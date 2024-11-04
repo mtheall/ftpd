@@ -27,9 +27,9 @@
 #include "imgui_deko3d.h"
 #include "imgui_nx.h"
 
-#include "imgui.h"
-
 #ifndef CLASSIC
+#include <imgui.h>
+
 #include <zstd.h>
 #endif
 

@@ -20,7 +20,7 @@
 
 #include "licenses.h"
 
-#include "imgui.h"
+#include <imgui.h>
 
 #ifdef __SWITCH__
 #include <zstd.h>

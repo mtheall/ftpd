@@ -33,8 +33,6 @@
 #include "mdns.h"
 #endif
 
-#include "imgui.h"
-
 #ifdef __NDS__
 #include <dswifi9.h>
 #endif
@@ -44,6 +42,8 @@
 #endif
 
 #ifndef CLASSIC
+#include <imgui.h>
+
 #include <jansson.h>
 
 #include <curl/easy.h>

@@ -32,7 +32,7 @@
 
 #include "vshader_shbin.h"
 
-#include "imgui.h"
+#include <imgui.h>
 
 #include <algorithm>
 #include <bit>
@@ -660,7 +660,7 @@ void imgui::citro3d::render (C3D_RenderTarget *const topLeft_,
 					}
 
 					// check if we need to update texture binding
-					auto tex = static_cast<C3D_Tex *> (cmd.TextureId);
+					auto tex = cmd.TextureId;
 					if (tex == s_fontTextures.data ())
 					{
 						assert (cmd.ElemCount % 3 == 0);
