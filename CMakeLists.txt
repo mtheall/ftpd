@@ -232,7 +232,7 @@ if(NINTENDO_SWITCH)
 
 	nx_generate_nacp(${FTPD_TARGET}.nacp
 		NAME "${PROJECT_NAME} pro"
-		AUTHOR "(c) 2023 Michael Theall, Dave Murphy, TuxSH"
+		AUTHOR "(c) 2024 Michael Theall, Dave Murphy, TuxSH"
 		VERSION ${PROJECT_VERSION}
 	)
 
@@ -250,7 +250,7 @@ elseif(NINTENDO_3DS)
 		ctr_generate_smdh(${FTPD_TARGET}.smdh
 			NAME "${PROJECT_NAME} classic"
 			DESCRIPTION "v${PROJECT_VERSION}"
-			AUTHOR "(c) 2023 Michael Theall, Dave Murphy, TuxSH"
+			AUTHOR "(c) 2024 Michael Theall, Dave Murphy, TuxSH"
 			ICON meta/icon.png
 		)
 
@@ -320,7 +320,7 @@ elseif(NINTENDO_3DS)
 	ctr_generate_smdh(${FTPD_TARGET}.smdh
 		NAME "${PROJECT_NAME} pro"
 		DESCRIPTION "v${PROJECT_VERSION}"
-		AUTHOR "(c) 2023 Michael Theall, Dave Murphy, TuxSH"
+		AUTHOR "(c) 2024 Michael Theall, Dave Murphy, TuxSH"
 		ICON meta/icon.png
 	)
 
@@ -341,7 +341,7 @@ elseif(NINTENDO_DS)
 	nds_create_rom(${FTPD_TARGET}
 		NAME "${PROJECT_NAME} classic"
 		SUBTITLE1 "v${PROJECT_VERSION}"
-		SUBTITLE2 "(c) 2023 mtheall"
+		SUBTITLE2 "(c) 2024 mtheall"
 		ICON nds/icon.bmp
 	)
 else()

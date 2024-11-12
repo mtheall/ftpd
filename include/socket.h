@@ -34,8 +34,7 @@ struct pollfd
 	int revents;
 };
 
-using socklen_t = int;
-using nfds_t    = unsigned int;
+using nfds_t = unsigned int;
 
 extern "C" int poll (pollfd *fds_, nfds_t nfds_, int timeout_);
 

@@ -52,13 +52,11 @@ bool platform::networkVisible ()
 	switch (Wifi_AssocStatus ())
 	{
 	case ASSOCSTATUS_DISCONNECTED:
-	case ASSOCSTATUS_CANNOTCONNECT:
 		s_addr.s_addr = 0;
 		Wifi_AutoConnect ();
 		break;
 
 	case ASSOCSTATUS_SEARCHING:
-	case ASSOCSTATUS_AUTHENTICATING:
 	case ASSOCSTATUS_ASSOCIATING:
 	case ASSOCSTATUS_ACQUIRINGDHCP:
 		s_addr.s_addr = 0;
@@ -85,7 +83,8 @@ bool platform::networkAddress (SockAddr &addr_)
 
 bool platform::init ()
 {
-	sassert (fatInitDefault (), "Failed to initialize fat");
+	fatInitDefault ();
+	defaultExceptionHandler ();
 
 	// turn off unused arm7 hardware
 	powerOff (PM_SOUND_AMP);
@@ -119,6 +118,9 @@ bool platform::init ()
 
 bool platform::loop ()
 {
+	if (!pmMainLoop ())
+		return false;
+
 	scanKeys ();
 
 	// check if the user wants to exit
