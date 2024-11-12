@@ -167,7 +167,10 @@ Build `switch/ftpd.nro`:
 - Set username: SITE USER <NAME>
 - Set password: SITE PASS <PASS>
 - Set port:     SITE PORT <PORT>
-- Set getMTime*: SITE MTIME [0|1]
+- Set hostname<sup>1</sup>: SITE HOST <HOSTNAME>
+- Set getMTime<sup>2</sup>: SITE MTIME [0|1]
 - Save config:  SITE SAVE
 
-*getMTime only on 3DS. Enabling will give timestamps at the expense of slow listings.
+<sup>1</sup>mDNS hostname not available on NDS
+
+<sup>2</sup>getMTime only on 3DS. Enabling will give timestamps at the expense of slow listings.
