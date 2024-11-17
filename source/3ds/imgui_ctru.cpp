@@ -173,8 +173,8 @@ void updateKeyboard (ImGuiIO &io_)
 		swkbdInit (&kbd, SWKBD_TYPE_NORMAL, 2, -1);
 		swkbdSetButton (&kbd, SWKBD_BUTTON_LEFT, "Cancel", false);
 		swkbdSetButton (&kbd, SWKBD_BUTTON_RIGHT, "OK", true);
-		swkbdSetInitialText (
-		    &kbd, std::string (textState.InitialTextA.Data, textState.InitialTextA.Size).c_str ());
+		swkbdSetInitialText (&kbd,
+		    std::string (textState.TextToRevertTo.Data, textState.TextToRevertTo.Size).c_str ());
 
 		if (textState.Flags & ImGuiInputTextFlags_Password)
 			swkbdSetPasswordMode (&kbd, SWKBD_PASSWORD_HIDE_DELAY);

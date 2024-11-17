@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(ftpd VERSION 3.2.0)
+project(ftpd VERSION 3.2.1)
 
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
 	list(APPEND CMAKE_C_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES})
@@ -8,16 +8,20 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 include(FetchContent)
+cmake_policy(SET CMP0169 OLD)
 
 FetchContent_Declare(gsl
-	GIT_REPOSITORY https://github.com/microsoft/GSL.git
-	GIT_TAG v4.0.0
+	URL https://github.com/microsoft/GSL/archive/refs/tags/v4.1.0.tar.gz
+	URL_HASH MD5=7e6883a254e73a8b2368a0d26efe68a7
+	DOWNLOAD_EXTRACT_TIMESTAMP FALSE
 )
 FetchContent_Populate(gsl)
 
 FetchContent_Declare(imgui
-	GIT_REPOSITORY https://github.com/ocornut/imgui.git
-	GIT_TAG v1.91.4
+	URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.5.tar.gz
+	URL_HASH MD5=264b2c35eaa1ab1595eb9afe080b4e1a
+	DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+	PATCH_COMMAND patch -i ${CMAKE_CURRENT_SOURCE_DIR}/imgui.patch
 )
 FetchContent_Populate(imgui)
 

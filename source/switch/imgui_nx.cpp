@@ -1571,8 +1571,8 @@ void updateKeyboard (HidKeyboardState const &kbState_, ImGuiIO &io_)
 		SwkbdConfig kbd;
 		swkbdCreate (&kbd, 0);
 		swkbdConfigMakePresetDefault (&kbd);
-		swkbdConfigSetInitialText (
-		    &kbd, std::string (textState.InitialTextA.Data, textState.InitialTextA.Size).c_str ());
+		swkbdConfigSetInitialText (&kbd,
+		    std::string (textState.TextToRevertTo.Data, textState.TextToRevertTo.Size).c_str ());
 
 		char buffer[32];
 		if (R_SUCCEEDED (swkbdShow (&kbd, buffer, sizeof (buffer))))

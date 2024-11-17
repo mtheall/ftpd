@@ -1,0 +1,16 @@
+--- imgui.cpp
++++ imgui.cpp
+@@ -13711,7 +13711,13 @@
+         g.NavWindowingListWindow = FindWindowByName("###NavWindowingList");
+     const ImGuiViewport* viewport = GetMainViewport();
+     SetNextWindowSizeConstraints(ImVec2(viewport->Size.x * 0.20f, viewport->Size.y * 0.20f), ImVec2(FLT_MAX, FLT_MAX));
++#ifdef __3DS__
++    // center on top screen
++    ImVec2 center = viewport->GetCenter();
++    SetNextWindowPos(ImVec2(center.x, center.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
++#else
+     SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
++#endif
+     PushStyleVar(ImGuiStyleVar_WindowPadding, g.Style.WindowPadding * 2.0f);
+     Begin("###NavWindowingList", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+     if (g.ContextName[0] != 0)
