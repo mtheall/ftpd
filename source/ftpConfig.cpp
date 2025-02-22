@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2025 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -152,6 +152,8 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 			config->m_user = val;
 		else if (key == "pass")
 			config->m_pass = val;
+		else if (key == "hostname")
+			config->m_hostname = val;
 		else if (key == "port")
 			parseInt (port, val);
 		else if (key == "deflateLevel")
@@ -214,6 +216,8 @@ bool FtpConfig::save (gsl::not_null<gsl::czstring> const path_)
 		(void)std::fprintf (fp, "user=%s\n", m_user.c_str ());
 	if (!m_pass.empty ())
 		(void)std::fprintf (fp, "pass=%s\n", m_pass.c_str ());
+	if (!m_hostname.empty ())
+		(void)std::fprintf (fp, "hostname=%s\n", m_hostname.c_str ());
 	(void)std::fprintf (fp, "port=%u\n", m_port);
 	(void)std::fprintf (fp, "deflateLevel=%u", m_deflateLevel);
 
