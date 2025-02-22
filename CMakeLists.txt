@@ -18,8 +18,8 @@ FetchContent_Declare(gsl
 FetchContent_Populate(gsl)
 
 FetchContent_Declare(imgui
-	URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.5.tar.gz
-	URL_HASH MD5=264b2c35eaa1ab1595eb9afe080b4e1a
+	URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.8.tar.gz
+	URL_HASH MD5=208c0884011db9e177d1f44a5054c85c
 	DOWNLOAD_EXTRACT_TIMESTAMP FALSE
 	PATCH_COMMAND patch -i ${CMAKE_CURRENT_SOURCE_DIR}/imgui.patch
 )
