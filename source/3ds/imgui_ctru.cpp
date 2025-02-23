@@ -7,7 +7,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2025 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -175,8 +175,7 @@ void updateKeyboard (ImGuiIO &io_)
 		swkbdInit (&kbd, SWKBD_TYPE_NORMAL, 2, -1);
 		swkbdSetButton (&kbd, SWKBD_BUTTON_LEFT, "Cancel", false);
 		swkbdSetButton (&kbd, SWKBD_BUTTON_RIGHT, "OK", true);
-		swkbdSetInitialText (&kbd,
-		    std::string (textState.TextToRevertTo.Data, textState.TextToRevertTo.Size).c_str ());
+		swkbdSetInitialText (&kbd, textState.TextToRevertTo.Data);
 
 		if (textState.Flags & ImGuiInputTextFlags_Password)
 			swkbdSetPasswordMode (&kbd, SWKBD_PASSWORD_HIDE_DELAY);
@@ -184,14 +183,25 @@ void updateKeyboard (ImGuiIO &io_)
 		char buffer[32]   = {0};
 		auto const button = swkbdInputText (&kbd, buffer, sizeof (buffer));
 		if (button == SWKBD_BUTTON_RIGHT)
-			io_.AddInputCharactersUTF8 (buffer);
+		{
+			if (!buffer[0])
+			{
+				io_.AddKeyEvent (ImGuiKey_Backspace, true);
+				io_.AddKeyEvent (ImGuiKey_Backspace, false);
+			}
+			else
+				io_.AddInputCharactersUTF8 (buffer);
+		}
 
 		state = KEYBOARD;
 		break;
 	}
 
 	case KEYBOARD:
-		// need to skip a frame for active id to really be cleared
+		// need to wait until input events are completed
+		if (io_.Ctx->InputEventsQueue.Size > 0)
+			break;
+
 		ImGui::ClearActiveID ();
 		state = CLEARED;
 		break;
