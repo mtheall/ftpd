@@ -85,7 +85,7 @@ void updateTouch (ImGuiIO &io_)
 	if (!(hidKeysHeld () & KEY_TOUCH))
 	{
 		// set mouse cursor off-screen
-		io_.AddMousePosEvent (-10.0f, -10.0f);
+		io_.AddMousePosEvent (-FLT_MAX, -FLT_MAX);
 		io_.AddMouseButtonEvent (0, false);
 		return;
 	}
@@ -227,6 +227,9 @@ bool imgui::ctru::init ()
 
 	// disable mouse cursor
 	io.MouseDrawCursor = false;
+
+	// we only support touchscreen as mouse source
+	io.AddMouseSourceEvent (ImGuiMouseSource_TouchScreen);
 
 	auto &platformIO = ImGui::GetPlatformIO ();
 
