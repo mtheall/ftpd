@@ -85,7 +85,7 @@ void updateTouch (ImGuiIO &io_)
 	if (!(hidKeysHeld () & KEY_TOUCH))
 	{
 		// set mouse cursor off-screen
-		io_.AddMousePosEvent (-10.0f, -10.0f);
+		io_.AddMousePosEvent (-FLT_MAX, -FLT_MAX);
 		io_.AddMouseButtonEvent (0, false);
 		return;
 	}
@@ -105,8 +105,8 @@ void updateGamepads (ImGuiIO &io_)
 {
 	auto const buttonMapping = {
 	    // clang-format off
-	    std::make_pair (KEY_A,      ImGuiKey_GamepadFaceDown),  // A and B are swapped
-	    std::make_pair (KEY_B,      ImGuiKey_GamepadFaceRight), // this is more intuitive
+	    std::make_pair (KEY_A,      ImGuiKey_GamepadFaceRight),
+	    std::make_pair (KEY_B,      ImGuiKey_GamepadFaceDown),
 	    std::make_pair (KEY_X,      ImGuiKey_GamepadFaceUp),
 	    std::make_pair (KEY_Y,      ImGuiKey_GamepadFaceLeft),
 	    std::make_pair (KEY_L,      ImGuiKey_GamepadL1),
@@ -225,8 +225,14 @@ bool imgui::ctru::init ()
 	io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 	io.BackendPlatformName = "3DS";
 
+	// enable Nintendo button layout
+	io.ConfigNavSwapGamepadButtons = true;
+
 	// disable mouse cursor
 	io.MouseDrawCursor = false;
+
+	// we only support touchscreen as mouse source
+	io.AddMouseSourceEvent (ImGuiMouseSource_TouchScreen);
 
 	auto &platformIO = ImGui::GetPlatformIO ();
 
