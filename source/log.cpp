@@ -243,16 +243,19 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 		return;
 #endif
 
-#ifndef __NDS__
-	thread_local
+#if HAVE_MUTEX
+	auto const lock = std::scoped_lock (s_lock);
 #endif
-	    static char buffer[1024];
-
-	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
 
 #ifndef __NDS__
 	auto const lock = std::scoped_lock (s_lock);
+	#define BUFFER_SIZE 1024
+#else
+	#define BUFFER_SIZE 256
 #endif
+	static char buffer[BUFFER_SIZE];
+	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
+
 #ifndef NDEBUG
 	// std::fprintf (stderr, "%s", s_prefix[level_]);
 	// std::fputs (buffer, stderr);

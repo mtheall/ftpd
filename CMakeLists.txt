@@ -158,6 +158,7 @@ if(NINTENDO_SWITCH)
 	target_sources(${FTPD_TARGET} PRIVATE
 		source/switch/init.c
 		source/switch/platform.cpp
+		source/common/thread.cpp
 	)
 
 	if(FTPD_CLASSIC)
