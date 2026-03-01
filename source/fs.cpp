@@ -40,7 +40,7 @@
 #include <type_traits>
 #include <utility>
 
-#if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__)
+#if defined(__NDS__) || defined(__3DS__) || defined(__SWITCH__) || defined(__wii__) || defined (__gamecube__)
 #define getline __getline
 #endif
 

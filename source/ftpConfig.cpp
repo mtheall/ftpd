@@ -43,6 +43,7 @@ using stat_t = struct stat;
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <limits>
 
 namespace
 {
@@ -196,7 +197,7 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 	return config;
 }
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 std::scoped_lock<platform::Mutex> FtpConfig::lockGuard ()
 {
 	return std::scoped_lock<platform::Mutex> (m_lock);

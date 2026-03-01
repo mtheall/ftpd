@@ -98,7 +98,7 @@ private:
 	/// \brief Thread entry point
 	void threadFunc ();
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	/// \brief Thread
 	platform::Thread m_thread;
 

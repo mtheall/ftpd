@@ -75,7 +75,7 @@ struct Message
 /// \brief Log messages
 std::vector<Message> s_messages;
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 /// \brief Log lock
 platform::Mutex s_lock;
 #endif
@@ -83,7 +83,7 @@ platform::Mutex s_lock;
 
 void drawLog ()
 {
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 
@@ -157,10 +157,9 @@ void drawLog ()
 #ifndef CLASSIC
 std::string getLog ()
 {
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (s_lock);
 #endif
-
 	if (s_messages.empty ())
 		return {};
 
@@ -244,18 +243,21 @@ void addLog (LogLevel const level_, char const *const fmt_, va_list ap_)
 #endif
 
 #ifndef __NDS__
-	thread_local
+	#define BUFFER_SIZE 1024
+#else
+	#define BUFFER_SIZE 256
 #endif
-	    static char buffer[1024];
 
-	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (s_lock);
 #endif
+	static char buffer[BUFFER_SIZE];
+	std::vsnprintf (buffer, sizeof (buffer), fmt_, ap_);
+
 #ifndef NDEBUG
-	// std::fprintf (stderr, "%s", s_prefix[level_]);
-	// std::fputs (buffer, stderr);
+	std::fprintf (stderr, "%s", s_prefix[level_]);
+	std::fputs (buffer, stderr);
 #endif
 	s_messages.emplace_back (level_, buffer);
 #ifdef CLASSIC
@@ -278,12 +280,13 @@ void addLog (LogLevel const level_, std::string_view const message_)
 			c = '?';
 	}
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (s_lock);
 #endif
+
 #ifndef NDEBUG
-	// std::fprintf (stderr, "%s", s_prefix[level_]);
-	// std::fwrite (msg.data (), 1, msg.size (), stderr);
+	std::fprintf (stderr, "%s", s_prefix[level_]);
+	std::fwrite (msg.data (), 1, msg.size (), stderr);
 #endif
 	s_messages.emplace_back (level_, msg);
 #ifdef CLASSIC

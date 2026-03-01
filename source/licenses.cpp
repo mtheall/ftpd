@@ -28,7 +28,7 @@
 #include <zstd.h>
 #endif
 
-#if !defined(__NDS__) && !defined(__3DS__) && !defined(__SWITCH__)
+#if !defined(__NDS__) && !defined(__3DS__) && !defined(__SWITCH__) && !defined (__wii__) && !defined(__gamecube__)
 #include <GLFW/glfw3.h>
 #endif
 

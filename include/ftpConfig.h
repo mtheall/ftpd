@@ -48,10 +48,9 @@ public:
 	/// \param path_ Path to config file
 	static UniqueFtpConfig load (gsl::not_null<gsl::czstring> path_);
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	std::scoped_lock<platform::Mutex> lockGuard ();
 #endif
-
 	/// \brief Save config
 	/// \param path_ Path to config file
 	bool save (gsl::not_null<gsl::czstring> path_);
@@ -139,11 +138,10 @@ public:
 private:
 	FtpConfig ();
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	/// \brief Mutex
 	mutable platform::Mutex m_lock;
 #endif
-
 	/// \brief Username
 	std::string m_user;
 

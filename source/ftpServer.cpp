@@ -75,15 +75,15 @@ using statvfs_t = struct statvfs;
 #include <vector>
 using namespace std::chrono_literals;
 
-#ifdef __NDS__
-#define LOCKED(x) x
-#else
+#if HAVE_MUTEX
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
 		auto const lock = std::scoped_lock (m_lock);                                               \
 		x;                                                                                         \
 	} while (0)
+#else
+#define LOCKED(x) x
 #endif
 
 namespace
@@ -96,11 +96,10 @@ auto const s_startTime = std::time (nullptr);
 int s_tzOffset = 0;
 #endif
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 /// \brief Mutex for s_freeSpace
 platform::Mutex s_lock;
 #endif
-
 /// \brief Free space string
 std::string s_freeSpace;
 
@@ -210,7 +209,7 @@ FtpServer::~FtpServer ()
 {
 	m_quit = true;
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	m_thread.join ();
 #endif
 
@@ -234,9 +233,12 @@ FtpServer::FtpServer (UniqueFtpConfig config_)
       m_hostnameSetting (m_config->hostname ())
 #endif
 {
+
 #ifndef __NDS__
 	mdns::setHostname (m_config->hostname ());
+#endif
 
+#if HAVE_MUTEX
 	m_thread = platform::Thread (std::bind (&FtpServer::threadFunc, this));
 #endif
 
@@ -249,14 +251,15 @@ FtpServer::FtpServer (UniqueFtpConfig config_)
 
 void FtpServer::draw ()
 {
-#ifdef __NDS__
-	loop ();
+#if HAVE_MUTEX
+#else
+	loop();
 #endif
 
 #ifdef CLASSIC
 	{
 		char port[7];
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = std::scoped_lock (m_lock);
 #endif
 		if (m_socket)
@@ -281,7 +284,7 @@ void FtpServer::draw ()
 	}
 
 	{
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = std::scoped_lock (s_lock);
 #endif
 		if (!s_freeSpace.empty ())
@@ -295,7 +298,7 @@ void FtpServer::draw ()
 	}
 
 	{
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = std::scoped_lock (m_lock);
 #endif
 		consoleSelect (&g_sessionConsole);
@@ -397,7 +400,7 @@ UniqueFtpServer FtpServer::create ()
 
 std::string FtpServer::getFreeSpace ()
 {
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 	return s_freeSpace;
@@ -415,7 +418,7 @@ void FtpServer::updateFreeSpace ()
 
 	auto freeSpace = fs::printSize (static_cast<std::uint64_t> (st.f_bsize) * st.f_bfree);
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (s_lock);
 #endif
 	if (freeSpace != s_freeSpace)
@@ -443,7 +446,7 @@ void FtpServer::handleNetworkFound ()
 	std::uint16_t port;
 
 	{
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = m_config->lockGuard ();
 #endif
 		port = m_config->port ();
@@ -525,7 +528,7 @@ void FtpServer::showMenu ()
 
 			if (ImGui::MenuItem ("Upload Log"))
 			{
-#ifndef __NDS__
+#if HAVE_MUTEX
 				auto const lock = std::scoped_lock (m_lock);
 #endif
 				if (!m_uploadLogCurlM)
@@ -589,10 +592,10 @@ void FtpServer::showMenu ()
 	{
 		if (!prevShowSettings)
 		{
-#ifndef __NDS__
+
+#if HAVE_MUTEX
 			auto const lock = m_config->lockGuard ();
 #endif
-
 			m_userSetting = m_config->user ();
 			m_userSetting.resize (32);
 
@@ -735,10 +738,9 @@ void FtpServer::showSettings ()
 			m_showSettings = false;
 			ImGui::CloseCurrentPopup ();
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config->lockGuard ();
 #endif
-
 			m_config->setUser (m_userSetting);
 			m_config->setPass (m_passSetting);
 			m_config->setHostname (m_hostnameSetting);
@@ -764,7 +766,7 @@ void FtpServer::showSettings ()
 
 		if (save)
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config->lockGuard ();
 #endif
 			if (!m_config->save (FTPDCONFIG))
@@ -852,7 +854,7 @@ void FtpServer::showAbout ()
 			ImGui::TreePop ();
 		}
 
-#if defined(__NDS__)
+#if defined(__NDS__) || defined(__wii__) || defined(__gamecube__)
 #elif defined(__3DS__)
 		if (ImGui::TreeNode (g_libctruVersion))
 		{
@@ -1043,7 +1045,7 @@ void FtpServer::loop ()
 		std::vector<UniqueFtpSession> deadSessions;
 		{
 			// remove dead sessions
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = std::scoped_lock (m_lock);
 #endif
 			auto it = std::begin (m_sessions);
@@ -1067,7 +1069,7 @@ void FtpServer::loop ()
 		if (!FtpSession::poll (m_sessions))
 			handleNetworkLost ();
 	}
-#ifndef __NDS__
+#if HAVE_MUTEX
 	// avoid busy polling in background thread
 	else
 		platform::Thread::sleep (16ms);

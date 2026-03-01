@@ -83,7 +83,7 @@ UniqueSocket Socket::accept ()
 
 int Socket::atMark ()
 {
-#ifdef __NDS__
+#if defined(__NDS__) || defined(__wii__) || defined(__gamecube__)
 	errno = ENOSYS;
 	return -1;
 #else
@@ -163,7 +163,7 @@ bool Socket::shutdown (int const how_)
 
 bool Socket::setLinger (bool const enable_, std::chrono::seconds const time_)
 {
-#ifdef __NDS__
+#if defined(__NDS__) || defined(__wii__) || defined(__gamecube__)
 	(void)enable_;
 	(void)time_;
 	errno = ENOSYS;
@@ -195,7 +195,7 @@ bool Socket::setNonBlocking (bool const nonBlocking_)
 	auto const rc = ::ioctl (m_fd, FIONBIO, &enable);
 	if (rc != 0)
 	{
-		error ("fcntl(FIONBIO, %d): %s\n", nonBlocking_, std::strerror (errno));
+		error ("iocntl(FIONBIO, %d): %s\n", nonBlocking_, std::strerror (errno));
 		return false;
 	}
 #else

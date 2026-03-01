@@ -27,6 +27,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 
 #ifdef __3DS__
 static_assert (sizeof (sockaddr_storage) == 0x1c);
@@ -370,13 +371,16 @@ char const *SockAddr::name (char *buffer_, std::size_t size_) const
 
 char const *SockAddr::name () const
 {
-#ifdef __NDS__
-	return inet_ntoa (reinterpret_cast<sockaddr_in const *> (&m_addr)->sin_addr);
+#if defined(__NDS__)
+	return inet_ntoa (reinterpret_cast<struct sockaddr_in const *> (&m_addr)->sin_addr);
 #else
+#if HAVE_TLS
+thread_local
+#endif
 #ifdef NO_IPV6
-	thread_local static char buffer[INET_ADDRSTRLEN];
+	static char buffer[INET_ADDRSTRLEN];
 #else
-	thread_local static char buffer[INET6_ADDRSTRLEN];
+	static char buffer[INET6_ADDRSTRLEN];
 #endif
 
 	return name (buffer, sizeof (buffer));

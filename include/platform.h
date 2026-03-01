@@ -32,13 +32,19 @@
 #include <switch.h>
 #endif
 
+#if defined (__wii__) || defined(__gamecube__)
+#include <ogcsys.h>
+#include <gccore.h>
+#include <ogc/console.h>
+#endif
+
 #include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
 
-#ifdef CLASSIC
+#if defined(CLASSIC)
 extern PrintConsole g_statusConsole;
 extern PrintConsole g_logConsole;
 extern PrintConsole g_sessionConsole;
@@ -113,7 +119,7 @@ struct steady_clock
 using steady_clock = std::chrono::steady_clock;
 #endif
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 /// \brief Platform thread
 class Thread
 {

@@ -55,15 +55,15 @@ using namespace std::chrono_literals;
 #define lstat stat
 #endif
 
-#ifdef __NDS__
-#define LOCKED(x) x
-#else
+#if HAVE_MUTEX
 #define LOCKED(x)                                                                                  \
 	do                                                                                             \
 	{                                                                                              \
 		auto const lock = std::scoped_lock (m_lock);                                               \
 		x;                                                                                         \
 	} while (0)
+#else
+#define LOCKED(x) x
 #endif
 
 namespace
@@ -400,7 +400,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_devZero (false)
 {
 	{
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = m_config.lockGuard ();
 #endif
 		if (m_config.user ().empty ())
@@ -423,7 +423,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
 
 bool FtpSession::dead ()
 {
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (m_lock);
 #endif
 	if (m_commandSocket || m_pasvSocket || m_dataSocket)
@@ -434,7 +434,7 @@ bool FtpSession::dead ()
 
 void FtpSession::draw ()
 {
-#ifndef __NDS__
+#if HAVE_MUTEX
 	auto const lock = std::scoped_lock (m_lock);
 #endif
 
@@ -693,7 +693,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 				if (i.revents & (POLLIN | POLLPRI))
 					session->readCommand (i.revents);
 
-				if (i.revents & (POLLERR | POLLHUP))
+				if (i.revents & POLLERR)
 					session->closeCommand ();
 			}
 
@@ -711,7 +711,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 					if (i.revents & ~(POLLIN | POLLPRI | POLLOUT))
 						debug ("Data revents 0x%X\n", i.revents);
 
-					if (i.revents & (POLLERR | POLLHUP))
+					if (i.revents & POLLERR)
 					{
 						session->sendResponse ("426 Data connection failed\r\n");
 						session->setState (State::COMMAND, true, true);
@@ -737,7 +737,7 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 						debug ("Data revents 0x%X\n", i.revents);
 
 					// we need to transfer data
-					if (i.revents & (POLLERR | POLLHUP))
+					if (i.revents & POLLERR)
 					{
 						session->sendResponse ("426 Data connection failed\r\n");
 						session->setState (State::COMMAND, true, true);
@@ -784,10 +784,9 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 	if (state_ == State::COMMAND)
 	{
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = std::scoped_lock (m_lock);
 #endif
-
 			m_restartPosition = 0;
 			m_fileSize        = 0;
 			m_filePosition    = 0;
@@ -1008,7 +1007,7 @@ int FtpSession::fillDirent (stat_t const &st_, std::string_view const path_, cha
 					type_ = "file";
 				else if (S_ISDIR (st_.st_mode))
 					type_ = "dir";
-#if !defined(__3DS__) && !defined(__SWITCH__)
+#if !defined(__3DS__) && !defined(__SWITCH__) && !defined (__wii__) && !defined (__gamecube__)
 				else if (S_ISLNK (st_.st_mode))
 					type_ = "os.unix=symlink";
 				else if (S_ISCHR (st_.st_mode))
@@ -1191,6 +1190,12 @@ int FtpSession::fillDirent (stat_t const &st_, std::string_view const path_, cha
 #elif defined(__SWITCH__)
 		auto const owner = "Switch";
 		auto const group = "Switch";
+#elif defined (__gamecube__)
+		auto const owner = "gamecube";
+		auto const group = "gamecube";
+#elif defined (__wii__)
+		auto const owner = "wii";
+		auto const group = "wii";
 #else
 		char owner[32];
 		char group[32];
@@ -1645,7 +1650,7 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 
 void FtpSession::readCommand (int const events_)
 {
-#ifndef __NDS__
+#if !defined(__NDS__) && !defined (__wii__) && !defined(__gamecube__)
 	// check out-of-band data
 	if (events_ & POLLPRI)
 	{
@@ -2791,7 +2796,7 @@ void FtpSession::PASS (char const *args_)
 	std::string pass;
 
 	{
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = m_config.lockGuard ();
 #endif
 		user = m_config.user ();
@@ -3194,7 +3199,7 @@ void FtpSession::SITE (char const *args_)
 	if (compare (command, "USER") == 0)
 	{
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
 #endif
 			m_config.setUser (std::string (arg));
@@ -3206,7 +3211,7 @@ void FtpSession::SITE (char const *args_)
 	else if (compare (command, "PASS") == 0)
 	{
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
 #endif
 			m_config.setPass (std::string (arg));
@@ -3220,7 +3225,7 @@ void FtpSession::SITE (char const *args_)
 		bool error = false;
 
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
 #endif
 			error = !m_config.setPort (arg);
@@ -3250,7 +3255,9 @@ void FtpSession::SITE (char const *args_)
 	else if (compare (command, "HOST") == 0)
 	{
 		{
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
+#endif
 			m_config.setHostname (std::string (arg));
 			mdns::setHostname (std::string (arg));
 		}
@@ -3262,14 +3269,14 @@ void FtpSession::SITE (char const *args_)
 	{
 		if (arg == "0")
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
 #endif
 			m_config.setGetMTime (false);
 		}
 		else if (arg == "1")
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
 #endif
 			m_config.setGetMTime (true);
@@ -3286,7 +3293,7 @@ void FtpSession::SITE (char const *args_)
 		bool error;
 
 		{
-#ifndef __NDS__
+#if HAVE_MUTEX
 			auto const lock = m_config.lockGuard ();
 #endif
 			error = !m_config.save (FTPDCONFIG);
@@ -3451,7 +3458,7 @@ void FtpSession::USER (char const *args_)
 	std::string pass;
 
 	{
-#ifndef __NDS__
+#if HAVE_MUTEX
 		auto const lock = m_config.lockGuard ();
 #endif
 		user = m_config.user ();

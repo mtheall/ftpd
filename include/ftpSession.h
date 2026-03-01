@@ -85,6 +85,12 @@ private:
 
 	/// \brief Transfer buffersize
 	constexpr static auto XFER_BUFFERSIZE = 8192;
+#elif defined (__wii__) || defined (__gamecube__)
+	/// \brief Response buffer size
+	constexpr static auto RESPONSE_BUFFERSIZE = 8192;
+
+	/// \brief Transfer buffersize
+	constexpr static auto XFER_BUFFERSIZE = 16384;
 #else
 	/// \brief Response buffer size
 	constexpr static auto RESPONSE_BUFFERSIZE = 32768;
@@ -106,6 +112,11 @@ private:
 	/// \brief Socket buffer size
 	constexpr static auto SOCK_BUFFERSIZE = 32768;
 
+	/// \brief Amount of file position history to keep
+	constexpr static auto POSITION_HISTORY = 100;
+#elif defined(__wii__) || defined(__gamecube__)
+	/// \brief Socket buffer size
+	constexpr static auto SOCK_BUFFERSIZE = 16384;
 	/// \brief Amount of file position history to keep
 	constexpr static auto POSITION_HISTORY = 100;
 #else
@@ -246,11 +257,10 @@ private:
 	/// \brief Transfer upload
 	bool storeTransfer ();
 
-#ifndef __NDS__
+#if HAVE_MUTEX
 	/// \brief Mutex
 	platform::Mutex m_lock;
 #endif
-
 	/// \brief FTP config
 	FtpConfig &m_config;
 

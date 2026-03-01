@@ -30,6 +30,8 @@
 #include <netinet/in.h>
 
 #include <cstring>
+#include <mutex>
+#include <thread>
 
 #ifndef CLASSIC
 #error "NDS must be built in classic mode"
@@ -168,3 +170,4 @@ void platform::exit ()
 {
 	powerOn (POWER_LCD);
 }
+
