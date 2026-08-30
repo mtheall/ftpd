@@ -101,6 +101,9 @@ bool platform::init ()
 	vramSetBankA (VRAM_A_MAIN_BG);
 	vramSetBankC (VRAM_C_SUB_BG);
 
+	std::memset (BG_MAP_RAM (4), 0, 0x1000);
+	std::memset (BG_MAP_RAM_SUB (4), 0, 0x1000);
+
 	consoleInit (&g_statusConsole, 0, BgType_Text4bpp, BgSize_T_256x256, 4, 0, true, true);
 	g_logConsole = g_statusConsole;
 	consoleInit (&g_sessionConsole, 0, BgType_Text4bpp, BgSize_T_256x256, 4, 0, false, true);
