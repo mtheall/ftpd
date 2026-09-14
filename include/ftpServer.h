@@ -71,6 +71,13 @@ public:
 #endif
 
 private:
+	/// \brief How long accept() may keep failing on transient errors before the
+	/// network is declared lost
+	constexpr static auto ACCEPT_FAILURE_TIMEOUT = std::chrono::seconds (10);
+
+	/// \brief Delay between accept() retries on transient errors
+	constexpr static auto ACCEPT_RETRY_DELAY = std::chrono::milliseconds (50);
+
 	/// \brief Paramterized constructor
 	/// \param config_ FTP config
 	FtpServer (UniqueFtpConfig config_);
@@ -111,6 +118,14 @@ private:
 
 	/// \brief Listen socket
 	UniqueSocket m_socket;
+
+	/// \brief When the current run of transient accept() failures started
+	/// \note Default-constructed (zero) while accept() is not failing
+	std::chrono::steady_clock::time_point m_acceptFailureStart;
+
+	/// \brief Earliest time to attempt accept() again after a transient failure
+	/// \note Lets loop() keep servicing existing sessions instead of sleeping
+	std::chrono::steady_clock::time_point m_acceptRetryTime;
 
 #ifndef __NDS__
 	/// \brief mDNS socket
