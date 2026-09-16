@@ -73,7 +73,10 @@ UniqueSocket Socket::accept ()
 	auto const fd = ::accept (m_fd, addr, &addrLen);
 	if (fd < 0)
 	{
-		error ("accept: %s\n", std::strerror (errno));
+		// preserve errno for the caller: error() may clobber it
+		auto const err = errno;
+		error ("accept: %s\n", std::strerror (err));
+		errno = err;
 		return nullptr;
 	}
 
