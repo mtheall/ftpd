@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -1363,8 +1363,6 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 				return;
 			}
 		}
-
-		LOCKED (m_filePosition = m_restartPosition);
 	}
 	else
 	{
@@ -1397,8 +1395,20 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 				return;
 			}
 		}
+	}
 
-		LOCKED (m_filePosition = m_restartPosition);
+	{
+#ifndef __NDS__
+		auto const lock = std::scoped_lock (m_lock);
+#endif
+
+		// start progress and rate history at the resume offset for all file transfers
+		m_filePosition = m_restartPosition;
+
+		for (auto &pos : m_filePositionHistory)
+			pos = m_filePosition;
+
+		m_xferRate = -1.0f;
 	}
 
 	if (!m_port && !m_pasv)
@@ -3323,6 +3333,13 @@ void FtpSession::SIZE (char const *args_)
 	if (path.empty ())
 	{
 		sendResponse ("553 %s\r\n", std::strerror (errno));
+		return;
+	}
+
+	// an endless stream has no size to report
+	if (path == "/devZero")
+	{
+		sendResponse ("502 SIZE not supported for /devZero\r\n");
 		return;
 	}
 

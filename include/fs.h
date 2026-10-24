@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -81,8 +81,8 @@ public:
 
 	/// \brief Seek to file position
 	/// \param pos_ File position
-	/// \param origin_ Reference position (\sa std::fseek)
-	std::make_signed_t<std::size_t> seek (std::make_signed_t<std::size_t> pos_, int origin_);
+	/// \param origin_ Reference position (\sa ::fseeko)
+	int seek (std::int64_t pos_, int origin_);
 
 	/// \brief Read data
 	/// \param buffer_ Output buffer

@@ -16,7 +16,7 @@ FTP Server for 3DS/Switch/Linux.
 - Toggle backlight on Switch with MINUS button
 
 - Emulation of a /dev/zero (/devZero) device for network performance testing
-  - Example retrieve `curl ftp://192.168.1.115:5000/devZero -o /dev/zero`
+  - Example retrieve `curl ftp://192.168.1.115:5000/devZero -o /dev/null`
   - Example send `curl -T /dev/zero ftp://192.168.1.115:5000/devZero`
 
 ## Dear ImGui

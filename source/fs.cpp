@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -150,10 +150,10 @@ void fs::File::close ()
 	m_fp.reset ();
 }
 
-std::make_signed_t<std::size_t> fs::File::seek (std::make_signed_t<std::size_t> const pos_,
-    int const origin_)
+int fs::File::seek (std::int64_t const pos_, int const origin_)
 {
-	return std::fseek (m_fp.get (), pos_, origin_);
+	static_assert (sizeof (off_t) == 8);
+	return ::fseeko (m_fp.get (), pos_, origin_);
 }
 
 std::make_signed_t<std::size_t> fs::File::read (gsl::not_null<void *> const buffer_,
