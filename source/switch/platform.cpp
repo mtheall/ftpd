@@ -636,36 +636,11 @@ bool platform::networkVisible ()
 	if (s_activeAP)
 		return true;
 
-	static NifmInternetConnectionType lastType;
-	static std::uint32_t lastWifi;
-	static NifmInternetConnectionStatus lastStatus;
-	static Result lastResult;
-
 	NifmInternetConnectionType type;
 	std::uint32_t wifi;
 	NifmInternetConnectionStatus status;
 
 	auto const result = nifmGetInternetConnectionStatus (&type, &wifi, &status);
-	if (result != lastResult)
-		info ("nifmGetInternetConnectionStatus: result 0x%x -> 0x%x\n", lastResult, result);
-	lastResult = result;
-
-	if (R_SUCCEEDED (result))
-	{
-		if (type != lastType)
-			info ("nifmGetInternetConnectionStatus: type 0x%x -> 0x%x\n", lastType, type);
-
-		if (wifi != lastWifi)
-			info ("nifmGetInternetConnectionStatus: wifi 0x%x -> 0x%x\n", lastWifi, wifi);
-
-		if (status != lastStatus)
-			info ("nifmGetInternetConnectionStatus: status 0x%x -> 0x%x\n", lastStatus, status);
-
-		lastType   = type;
-		lastWifi   = wifi;
-		lastStatus = status;
-	}
-
 	if (R_FAILED (result))
 		return false;
 
