@@ -2539,8 +2539,6 @@ void FtpSession::LIST (char const *args_)
 
 void FtpSession::MDTM (char const *args_)
 {
-	(void)args_;
-
 	setState (State::COMMAND, false, false);
 
 	if (!authorized ())
@@ -2549,7 +2547,53 @@ void FtpSession::MDTM (char const *args_)
 		return;
 	}
 
-	sendResponse ("502 Command not implemented\r\n");
+	// build the path to stat
+	auto const path = buildResolvedPath (m_cwd, args_);
+	if (path.empty ())
+	{
+		sendResponse ("553 %s\r\n", std::strerror (errno));
+		return;
+	}
+
+	stat_t st;
+#ifdef __3DS__
+	{
+		std::uint64_t mtime = 0;
+		auto const rc       = archive_getmtime (path.c_str (), &mtime);
+		if (rc != 0)
+		{
+			error ("sdmc_getmtime %s 0x%lx\n", path.c_str (), rc);
+			sendResponse ("550 error 0x%lx\r\n", rc);
+			return;
+		}
+		else
+			st.st_mtime = mtime - FtpServer::tzOffset ();
+	}
+#else
+	auto const rc = ::lstat (path.c_str (), &st);
+	if (rc != 0)
+	{
+		sendResponse ("550 %s\r\n", std::strerror (errno));
+		return;
+	}
+#endif
+
+	// MDTM timestamps are reported in UTC
+	auto const tm = std::gmtime (&st.st_mtime);
+	if (!tm)
+	{
+		sendResponse ("550 Cannot convert modification time\r\n");
+		return;
+	}
+
+	char timestamp[15];
+	if (std::strftime (timestamp, sizeof (timestamp), "%Y%m%d%H%M%S", tm) != 14)
+	{
+		sendResponse ("550 Cannot format modification time\r\n");
+		return;
+	}
+
+	sendResponse ("213 %s\r\n", timestamp);
 }
 
 void FtpSession::MKD (char const *args_)
