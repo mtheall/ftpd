@@ -74,6 +74,11 @@ static_assert (SOCU_BUFFERSIZE % SOCU_ALIGN == 0);
 /// \brief Whether ndm:u is locked
 bool s_ndmuLocked = false;
 
+/// \brief AC event handle
+Handle s_acEventHandle = 0;
+/// \brief Whether AC event handle was signaled
+bool s_acEventSignaled = false;
+
 /// \brief Whether soc:u is active
 std::atomic_bool s_socuActive = false;
 /// \brief soc:u buffer
@@ -184,25 +189,74 @@ bool getNetworkVisibility ()
 	// serialize ac:u access from multiple threads
 	auto const lock = std::scoped_lock (s_acuFence);
 
-	// get wifi status
-	static std::uint32_t lastWifi = 0;
-	static Result lastResult      = 0;
-
-	std::uint32_t wifi = 0;
-	auto const result  = ACU_GetWifiStatus (&wifi);
-	if (result != lastResult)
-		info ("ACU_GetWifiStatus: result 0x%lx -> 0x%lx\n", lastResult, result);
-	lastResult = result;
-
-	if (R_SUCCEEDED (result))
+	if (!s_acEventSignaled)
 	{
-		if (wifi != lastWifi)
-			info ("ACU_GetWifiStatus: wifi 0x%lx -> 0x%lx\n", lastWifi, wifi);
-		lastWifi = wifi;
+		if (!s_acEventHandle)
+		{
+			Result result;
+			if (R_FAILED (result = svcCreateEvent (&s_acEventHandle, RESET_STICKY)))
+			{
+				error ("svcCreateEvent(acEventHandle): result 0x%lx\n", result);
+				return false;
+			}
+
+			acuConfig config;
+			if (R_FAILED (result = ACU_CreateDefaultConfig (&config)))
+			{
+				error ("ACU_CreateDefaultConfig: result 0x%lx\n", result);
+				return false;
+			}
+
+			if (R_FAILED (result = ACU_SetNetworkArea (&config, 2)))
+			{
+				error ("ACU_SetNetworkArea: result 0x%lx\n", result);
+				return false;
+			}
+
+			if (R_FAILED (result = ACU_SetAllowApType (&config, static_cast<u8> (AC_AP_TYPE_ALL))))
+			{
+				error ("ACU_SetAllowApType: result 0x%lx\n", result);
+				return false;
+			}
+
+			if (R_FAILED (result = ACU_SetRequestEulaVersion (&config)))
+			{
+				error ("ACU_SetRequestEulaVersion: result 0x%lx\n", result);
+				return false;
+			}
+
+			if (R_FAILED (result = ACU_ConnectAsync (&config, s_acEventHandle)))
+			{
+				error ("ACU_ConnectAsync: result 0x%lx\n", result);
+				return false;
+			}
+		}
+		else
+		{
+			auto const result = svcWaitSynchronization (s_acEventHandle, 0);
+			if (result == MAKERESULT (RL_INFO, RS_STATUSCHANGED, RM_OS, RD_TIMEOUT))
+				return false;
+
+			if (R_FAILED (result))
+			{
+				error ("svcWaitSynchronization(acEventHandle): result 0x%lx\n", result);
+				return false;
+			}
+
+			s_acEventSignaled = true;
+			svcCloseHandle (s_acEventHandle);
+			s_acEventHandle = 0;
+		}
 	}
 
+	// get wifi status
+	std::uint32_t wifi = 0;
+	auto const result  = ACU_GetWifiStatus (&wifi);
 	if (R_FAILED (result) || !wifi)
 	{
+		if (R_FAILED (result))
+			error ("ACU_GetWifiStatus: result 0x%lx\n", result);
+
 #ifdef CLASSIC
 		s_addr = 0;
 #endif
