@@ -11,19 +11,15 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 	list(APPEND CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(GSL_TARBALL ${CMAKE_CURRENT_BINARY_DIR}/v4.2.0.tar.gz)
-set(GSL_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/gsl-src/GSL-4.2.0)
+include(FetchContent)
+cmake_policy(SET CMP0169 OLD)
 
-if(NOT EXISTS ${GSL_TARBALL})
-	file(DOWNLOAD
-		https://github.com/microsoft/GSL/archive/refs/tags/v4.2.0.tar.gz
-		${GSL_TARBALL}
-	)
-	file(ARCHIVE_EXTRACT
-		INPUT ${GSL_TARBALL}
-		DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/gsl-src
-	)
-endif()
+FetchContent_Declare(gsl
+	URL https://github.com/microsoft/GSL/archive/refs/tags/v4.1.0.tar.gz
+	URL_HASH MD5=7e6883a254e73a8b2368a0d26efe68a7
+	DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+)
+FetchContent_Populate(gsl)
 
 FetchContent_Declare(imgui
 	URL https://github.com/ocornut/imgui/archive/refs/tags/v1.93.0.tar.gz
@@ -45,7 +41,7 @@ endif()
 
 add_executable(${FTPD_TARGET})
 
-target_include_directories(${FTPD_TARGET} PRIVATE ${GSL_SOURCE_DIR}/include)
+target_include_directories(${FTPD_TARGET} PRIVATE ${gsl_SOURCE_DIR}/include)
 
 target_link_libraries(${FTPD_TARGET} PRIVATE ZLIB::ZLIB)
 
@@ -116,22 +112,22 @@ if(NOT NINTENDO_DS)
 endif()
 
 if(NOT FTPD_CLASSIC AND NOT NINTENDO_DS)
-	target_include_directories(${FTPD_TARGET} PRIVATE ${IMGUI_SOURCE_DIR})
+	target_include_directories(${FTPD_TARGET} PRIVATE ${imgui_SOURCE_DIR})
 
 	target_sources(${FTPD_TARGET} PRIVATE
 		include/licenses.h
 		source/licenses.cpp
 
-		${IMGUI_SOURCE_DIR}/imconfig.h
-		${IMGUI_SOURCE_DIR}/imgui.h
-		${IMGUI_SOURCE_DIR}/imgui.cpp
-		${IMGUI_SOURCE_DIR}/imgui_draw.cpp
-		${IMGUI_SOURCE_DIR}/imgui_internal.h
-		${IMGUI_SOURCE_DIR}/imgui_tables.cpp
-		${IMGUI_SOURCE_DIR}/imgui_widgets.cpp
-		${IMGUI_SOURCE_DIR}/imstb_rectpack.h
-		${IMGUI_SOURCE_DIR}/imstb_textedit.h
-		${IMGUI_SOURCE_DIR}/imstb_truetype.h
+		${imgui_SOURCE_DIR}/imconfig.h
+		${imgui_SOURCE_DIR}/imgui.h
+		${imgui_SOURCE_DIR}/imgui.cpp
+		${imgui_SOURCE_DIR}/imgui_draw.cpp
+		${imgui_SOURCE_DIR}/imgui_internal.h
+		${imgui_SOURCE_DIR}/imgui_tables.cpp
+		${imgui_SOURCE_DIR}/imgui_widgets.cpp
+		${imgui_SOURCE_DIR}/imstb_rectpack.h
+		${imgui_SOURCE_DIR}/imstb_textedit.h
+		${imgui_SOURCE_DIR}/imstb_truetype.h
 	)
 endif()
 
@@ -359,10 +355,10 @@ else()
 	target_sources(${FTPD_TARGET} PRIVATE
 		source/linux/platform.cpp
 
-		${IMGUI_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-		${IMGUI_SOURCE_DIR}/backends/imgui_impl_glfw.h
-		${IMGUI_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-		${IMGUI_SOURCE_DIR}/backends/imgui_impl_opengl3.h
-		${IMGUI_SOURCE_DIR}/backends/imgui_impl_opengl3_loader.h
+		${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+		${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h
+		${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+		${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
+		${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3_loader.h
 	)
 endif()
