@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 
+#include <array>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -88,19 +89,17 @@ enum TextureIndex
 };
 
 /// \brief deko3d logo width
-constexpr auto LOGO_WIDTH = 504;
+constexpr auto LOGO_WIDTH = 300;
 /// \brief deko3d logo height
-constexpr auto LOGO_HEIGHT = 504;
+constexpr auto LOGO_HEIGHT = 296;
 
 /// \brief icon width
 constexpr auto ICON_WIDTH = 24;
 /// \brief icon height
 constexpr auto ICON_HEIGHT = 24;
 
-/// \brief Maximum number of samplers
-constexpr auto MAX_SAMPLERS = 2;
-/// \brief Maximum number of images
-constexpr auto MAX_IMAGES = MAX_TEXTURE;
+/// \brief Caller-owned images registered with ImGui
+std::array<ImTextureData, MAX_TEXTURE> s_textures;
 
 /// \brief Number of framebuffers
 constexpr auto FB_NUM = 2u;
@@ -137,16 +136,6 @@ dk::Image s_frameBuffers[FB_NUM];
 dk::UniqueMemBlock s_cmdMemBlock[FB_NUM];
 /// \brief Command buffers
 dk::UniqueCmdBuf s_cmdBuf[FB_NUM];
-
-/// \brief Image memblock
-dk::UniqueMemBlock s_imageMemBlock;
-
-/// \brief Image/Sampler descriptor memblock
-dk::UniqueMemBlock s_descriptorMemBlock;
-/// \brief Sample descriptors
-dk::SamplerDescriptor *s_samplerDescriptors = nullptr;
-/// \brief Image descriptors
-dk::ImageDescriptor *s_imageDescriptors = nullptr;
 
 /// \brief deko3d queue
 dk::UniqueQueue s_queue;
@@ -247,36 +236,8 @@ void deko3dInit ()
 		s_cmdBuf[i].addMemory (s_cmdMemBlock[i], 0, s_cmdMemBlock[i].getSize ());
 	}
 
-	// create image/sampler memblock
-	static_assert (sizeof (dk::ImageDescriptor) == DK_IMAGE_DESCRIPTOR_ALIGNMENT);
-	static_assert (sizeof (dk::SamplerDescriptor) == DK_SAMPLER_DESCRIPTOR_ALIGNMENT);
-	static_assert (DK_IMAGE_DESCRIPTOR_ALIGNMENT == DK_SAMPLER_DESCRIPTOR_ALIGNMENT);
-	s_descriptorMemBlock = dk::MemBlockMaker{s_device,
-	    imgui::deko3d::align (
-	        (MAX_SAMPLERS + MAX_IMAGES) * sizeof (dk::ImageDescriptor), DK_MEMBLOCK_ALIGNMENT)}
-	                           .setFlags (DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached)
-	                           .create ();
-
-	// get cpu address for descriptors
-	s_samplerDescriptors =
-	    static_cast<dk::SamplerDescriptor *> (s_descriptorMemBlock.getCpuAddr ());
-	s_imageDescriptors =
-	    reinterpret_cast<dk::ImageDescriptor *> (&s_samplerDescriptors[MAX_SAMPLERS]);
-
 	// create queue
 	s_queue = dk::QueueMaker{s_device}.setFlags (DkQueueFlags_Graphics).create ();
-
-	auto &cmdBuf = s_cmdBuf[0];
-
-	// bind image/sampler descriptors
-	cmdBuf.bindSamplerDescriptorSet (s_descriptorMemBlock.getGpuAddr (), MAX_SAMPLERS);
-	cmdBuf.bindImageDescriptorSet (
-	    s_descriptorMemBlock.getGpuAddr () + MAX_SAMPLERS * sizeof (dk::SamplerDescriptor),
-	    MAX_IMAGES);
-	s_queue.submitCommands (cmdBuf.finishList ());
-	s_queue.waitIdle ();
-
-	cmdBuf.clear ();
 }
 
 /// \brief Load textures
@@ -284,61 +245,32 @@ void loadTextures ()
 {
 	struct TextureInfo
 	{
-		TextureInfo (char const *const path_,
-		    DkImageFormat const format_,
-		    unsigned const width_,
-		    unsigned const height_)
-		    : path (path_), format (format_), width (width_), height (height_)
+		TextureInfo (char const *const path_, unsigned const width_, unsigned const height_)
+		    : path (path_), width (width_), height (height_)
 		{
 		}
 
 		char const *const path;
-		DkImageFormat const format;
 		unsigned const width;
 		unsigned const height;
 	};
 
 	TextureInfo textureInfos[] = {
 	    // clang-format off
-	    TextureInfo (
-	        "romfs:/deko3d.12x12.astc.zst", DkImageFormat_RGBA_ASTC_12x12, LOGO_WIDTH, LOGO_HEIGHT),
-	    TextureInfo (
-	        "romfs:/battery_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/charging_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/eth_none_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/eth_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/airplane_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/wifi_none_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/wifi1_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/wifi2_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT),
-	    TextureInfo (
-	        "romfs:/wifi3_icon.rgba.zst", DkImageFormat_RGBA8_Unorm, ICON_WIDTH, ICON_HEIGHT)
+	    TextureInfo ("romfs:/deko3d.rgba.zst",         LOGO_WIDTH, LOGO_HEIGHT),
+	    TextureInfo ("romfs:/battery_icon.rgba.zst",   ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/charging_icon.rgba.zst",  ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/eth_none_icon.rgba.zst",  ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/eth_icon.rgba.zst",       ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/airplane_icon.rgba.zst",  ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/wifi_none_icon.rgba.zst", ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/wifi1_icon.rgba.zst",     ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/wifi2_icon.rgba.zst",     ICON_WIDTH, ICON_HEIGHT),
+	    TextureInfo ("romfs:/wifi3_icon.rgba.zst",     ICON_WIDTH, ICON_HEIGHT)
 	    // clang-format on
 	};
 
-	// create memblock for transfer (large enough for the largest source file)
-	dk::UniqueMemBlock memBlock =
-	    dk::MemBlockMaker{s_device, imgui::deko3d::align (1048576, DK_MEMBLOCK_ALIGNMENT)}
-	        .setFlags (DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached)
-	        .create ();
-
-	// create image memblock (large enough to hold all the images)
-	s_imageMemBlock = dk::MemBlockMaker{s_device,
-	    imgui::deko3d::align (1048576 + (MAX_TEXTURE - 2) * 4096, DK_MEMBLOCK_ALIGNMENT)}
-	                      .setFlags (DkMemBlockFlags_GpuCached | DkMemBlockFlags_Image)
-	                      .create ();
-
-	auto &cmdBuf = s_cmdBuf[0];
-
-	unsigned imageIndex  = 1;
-	unsigned imageOffset = 0;
+	unsigned imageIndex = DEKO3D_LOGO;
 	for (auto const &textureInfo : textureInfos)
 	{
 		stat_t st;
@@ -365,70 +297,47 @@ void loadTextures ()
 
 		// get uncompressed size
 		auto const size = ZSTD_getFrameContentSize (buffer.data (), buffer.size ());
-		if (ZSTD_isError (size))
+		auto const expectedSize =
+		    static_cast<std::size_t> (textureInfo.width) * textureInfo.height * 4;
+		if (size == ZSTD_CONTENTSIZE_ERROR || size == ZSTD_CONTENTSIZE_UNKNOWN ||
+		    size != expectedSize)
 		{
-			std::fprintf (stderr, "ZSTD_getFrameContentSize: %s\n", ZSTD_getErrorName (size));
+			std::fprintf (stderr,
+			    "Invalid RGBA texture size for %s: expected %zu, got %llu\n",
+			    textureInfo.path,
+			    expectedSize,
+			    size);
 			std::abort ();
 		}
-		assert (size <= memBlock.getSize ());
 
-		// wait for previous transfer to complete
-		s_queue.waitIdle ();
+		auto &texture = s_textures[imageIndex++];
+		texture.Create (ImTextureFormat_RGBA32, textureInfo.width, textureInfo.height);
 
-		// decompress into transfer memblock
 		auto const decoded =
-		    ZSTD_decompress (memBlock.getCpuAddr (), size, buffer.data (), buffer.size ());
+		    ZSTD_decompress (texture.GetPixels (), expectedSize, buffer.data (), buffer.size ());
 		if (ZSTD_isError (decoded))
 		{
 			std::fprintf (stderr, "ZSTD_decompress: %s\n", ZSTD_getErrorName (decoded));
 			std::abort ();
 		}
 
-		// initialize texture image layout
-		dk::ImageLayout layout;
-		dk::ImageLayoutMaker{s_device}
-		    .setFlags (0)
-		    .setFormat (textureInfo.format)
-		    .setDimensions (textureInfo.width, textureInfo.height)
-		    .initialize (layout);
+		if (decoded != expectedSize)
+		{
+			std::fprintf (stderr, "Incomplete RGBA texture: %s\n", textureInfo.path);
+			std::abort ();
+		}
 
-		// calculate image offset
-		imageOffset = imgui::deko3d::align (imageOffset, layout.getAlignment ());
-		assert (imageOffset < s_imageMemBlock.getSize ());
-		assert (s_imageMemBlock.getSize () - imageOffset >= layout.getSize ());
+		texture.UseColors = true;
+		texture.SetStatus (ImTextureStatus_WantCreate);
 
-		// initialize image descriptor
-		dk::Image image;
-		image.initialize (layout, s_imageMemBlock, imageOffset);
-		s_imageDescriptors[imageIndex++].initialize (image);
-
-		// copy texture to image
-		dk::ImageView imageView (image);
-		cmdBuf.copyBufferToImage ({memBlock.getGpuAddr (), 0, 0},
-		    imageView,
-		    {0, 0, 0, textureInfo.width, textureInfo.height, 1});
-		s_queue.submitCommands (cmdBuf.finishList ());
-
-		imageOffset += imgui::deko3d::align (layout.getSize (), layout.getAlignment ());
+		imgui::deko3d::updateTexture (s_device, s_queue, s_cmdBuf[0], texture);
 	}
-
-	// initialize sampler descriptor
-	s_samplerDescriptors[1].initialize (
-	    dk::Sampler{}
-	        .setFilter (DkFilter_Linear, DkFilter_Linear)
-	        .setWrapMode (DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge));
-
-	// wait for commands to complete before releasing memblocks
-	s_queue.waitIdle ();
 }
 
 /// \brief Deinitialize deko3d
 void deko3dExit ()
 {
 	// clean up all of the deko3d objects
-	s_imageMemBlock      = nullptr;
-	s_descriptorMemBlock = nullptr;
-
 	for (unsigned i = 0; i < FB_NUM; ++i)
 	{
 		s_cmdBuf[i]      = nullptr;
@@ -483,8 +392,7 @@ void drawStatus ()
 
 		// draw battery/charging icon
 		pos.x -= ICON_WIDTH + style.FramePadding.x;
-		ImGui::GetForegroundDrawList ()->AddImage (
-		    imgui::deko3d::makeTextureID (dkMakeTextureHandle (powerIcon, 1)),
+		ImGui::GetForegroundDrawList ()->AddImage (s_textures[powerIcon].GetTexRef (),
 		    pos,
 		    ImVec2 (pos.x + ICON_WIDTH, pos.y + ICON_HEIGHT),
 		    ImVec2 (0, 0),
@@ -540,8 +448,7 @@ void drawStatus ()
 
 		// draw network icon
 		pos.x -= ICON_WIDTH + style.FramePadding.x;
-		ImGui::GetForegroundDrawList ()->AddImage (
-		    imgui::deko3d::makeTextureID (dkMakeTextureHandle (netIcon, 1)),
+		ImGui::GetForegroundDrawList ()->AddImage (s_textures[netIcon].GetTexRef (),
 		    pos,
 		    ImVec2 (pos.x + ICON_WIDTH, pos.y + ICON_HEIGHT),
 		    ImVec2 (0, 0),
@@ -605,14 +512,8 @@ bool platform::init ()
 		return false;
 
 	deko3dInit ();
+	imgui::deko3d::init (s_device, FB_NUM);
 	loadTextures ();
-	imgui::deko3d::init (s_device,
-	    s_queue,
-	    s_cmdBuf[0],
-	    s_samplerDescriptors[0],
-	    s_imageDescriptors[0],
-	    dkMakeTextureHandle (0, 0),
-	    FB_NUM);
 #endif
 
 	appletHook (&s_appletHookCookie, handleAppletHook, nullptr);
@@ -840,9 +741,7 @@ bool platform::loop ()
 	auto const y2 = y1 + LOGO_HEIGHT;
 
 	ImGui::GetBackgroundDrawList ()->AddImage (
-	    imgui::deko3d::makeTextureID (dkMakeTextureHandle (1, 1)),
-	    ImVec2 (x1, y1),
-	    ImVec2 (x2, y2));
+	    s_textures[DEKO3D_LOGO].GetTexRef (), ImVec2 (x1, y1), ImVec2 (x2, y2));
 #endif
 
 	drawStatus ();
@@ -902,10 +801,11 @@ void platform::exit ()
 #else
 	imgui::nx::exit ();
 
-	// wait for queue to be idle
-	s_queue.waitIdle ();
+	imgui::deko3d::exit (s_queue);
 
-	imgui::deko3d::exit ();
+	for (auto &texture : s_textures)
+		texture.DestroyPixels ();
+
 	deko3dExit ();
 #endif
 

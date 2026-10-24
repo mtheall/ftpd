@@ -7,7 +7,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2025 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -247,11 +247,6 @@ bool imgui::ctru::init ()
 void imgui::ctru::newFrame ()
 {
 	auto &io = ImGui::GetIO ();
-
-	// check that font was built
-	IM_ASSERT (io.Fonts->IsBuilt () &&
-	           "Font atlas not built! It is generally built by the renderer back-end. Missing call "
-	           "to renderer _NewFrame() function?");
 
 	// time step
 	static auto const start = platform::steady_clock::now ();

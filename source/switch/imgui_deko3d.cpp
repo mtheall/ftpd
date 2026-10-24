@@ -7,7 +7,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,13 +46,16 @@
 #include <unistd.h>
 using stat_t = struct stat;
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <numeric>
 #include <optional>
+#include <ranges>
 #include <vector>
 
 namespace
@@ -72,8 +75,8 @@ struct VertUBO
 /// \brief Fragment shader UBO
 struct FragUBO
 {
-	/// \brief Whether drawing a font or not
-	std::uint32_t font;
+	/// \brief Whether the image contains only alpha
+	std::uint32_t alphaOnly;
 };
 
 /// \brief Vertex attribute state
@@ -103,12 +106,221 @@ std::vector<dk::UniqueMemBlock> s_vtxMemBlock;
 /// \brief Index data memblock
 std::vector<dk::UniqueMemBlock> s_idxMemBlock;
 
-/// \brief Font image memblock
-dk::UniqueMemBlock s_fontImageMemBlock;
-/// \brief Font texture handle
-DkResHandle s_fontTextureHandle;
+/// \brief Sampler indices
+enum SamplerIndex : unsigned
+{
+	LINEAR,  /// \brief Linear sampler
+	NEAREST, /// \brief Nearest sampler
+	SAMPLER_COUNT,
+};
+
+// These callbacks act as identifiers handled directly by the render loop.
+void resetRenderState (ImDrawList const *, ImDrawCmd const *)
+{
+}
+
+void setSamplerLinear (ImDrawList const *, ImDrawCmd const *)
+{
+}
+
+void setSamplerNearest (ImDrawList const *, ImDrawCmd const *)
+{
+}
+
+/// \brief Maximum number of image descriptors
+constexpr unsigned MAX_IMAGE_DESCRIPTORS = 1u << 20;
+/// \brief Maximum texture size
+constexpr int MAX_TEXTURE_SIZE = 16384;
+
+/// \brief Texture metadata
+struct Texture
+{
+	dk::UniqueMemBlock memory; ///< Memory block for the texture
+	dk::Image image;           ///< Image object for the texture
+	ImTextureData *data;       ///< Pointer to ImGui texture data
+	ImTextureFormat format;    ///< Texture format
+	unsigned slot;             ///< Texture slot
+	int width;                 ///< Texture width
+	int height;                ///< Texture height
+};
+
+/// \brief Descriptor memory block for samplers and images
+dk::UniqueMemBlock s_descriptorMemBlock;
+/// \brief Texture metadata for all loaded textures
+std::vector<std::unique_ptr<Texture>> s_textures;
+
+/// \brief Handle texture-related errors
+/// \param message_ Error message
+[[noreturn]] void textureError (char const *const message_)
+{
+	std::fprintf (stderr, "deko3d texture: %s\n", message_);
+	std::abort ();
+}
+
+/// \brief Get pointer to image descriptors
+/// \param index_ Index of the image descriptor to retrieve
+dk::ImageDescriptor *imageDescriptors (unsigned const index_)
+{
+	return reinterpret_cast<dk::ImageDescriptor *> (
+	           static_cast<std::uint8_t *> (s_descriptorMemBlock.getCpuAddr ()) +
+	           SAMPLER_COUNT * sizeof (dk::SamplerDescriptor)) +
+	       index_;
+}
+
+/// \brief Bind sampler and image descriptor sets to the command buffer
+/// \param cmdBuf_ Command buffer to bind the descriptor sets to
+void bindDescriptors (dk::UniqueCmdBuf &cmdBuf_)
+{
+	cmdBuf_.bindSamplerDescriptorSet (s_descriptorMemBlock.getGpuAddr (), SAMPLER_COUNT);
+	cmdBuf_.bindImageDescriptorSet (
+	    s_descriptorMemBlock.getGpuAddr () + SAMPLER_COUNT * sizeof (dk::SamplerDescriptor),
+	    s_textures.size ());
+}
+
+/// \brief Grow the descriptor memory block to accommodate more textures
+/// \param device_ Device used to create the new memory block
+/// \param queue_ Queue used to submit commands
+/// \param cmdBuf_ Command buffer used for binding and barriers
+void growDescriptors (dk::UniqueDevice &device_, dk::UniqueQueue &queue_, dk::UniqueCmdBuf &cmdBuf_)
+{
+	auto const oldCount = s_textures.size ();
+	if (oldCount == MAX_IMAGE_DESCRIPTORS)
+		textureError ("image descriptor limit reached");
+
+	auto const count = oldCount ? std::min<std::size_t> (oldCount * 2, MAX_IMAGE_DESCRIPTORS) : 16;
+
+	queue_.submitCommands (cmdBuf_.finishList ());
+	queue_.waitIdle ();
+
+	auto memory = dk::MemBlockMaker{device_,
+	    imgui::deko3d::align (
+	        SAMPLER_COUNT * sizeof (dk::SamplerDescriptor) + count * sizeof (dk::ImageDescriptor),
+	        DK_MEMBLOCK_ALIGNMENT)}
+	                  .setFlags (DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached)
+	                  .create ();
+	if (!memory)
+		textureError ("cannot allocate image descriptors");
+
+	std::memset (memory.getCpuAddr (), 0, memory.getSize ());
+
+	if (s_descriptorMemBlock)
+	{
+		// copy existing sampler and image descriptors to the new memory block
+		std::memcpy (memory.getCpuAddr (),
+		    s_descriptorMemBlock.getCpuAddr (),
+		    SAMPLER_COUNT * sizeof (dk::SamplerDescriptor) +
+		        oldCount * sizeof (dk::ImageDescriptor));
+	}
+	else
+	{
+		// initialize sampler descriptors
+		auto const samplers = static_cast<dk::SamplerDescriptor *> (memory.getCpuAddr ());
+
+		samplers[LINEAR].initialize (
+		    dk::Sampler{}
+		        .setFilter (DkFilter_Linear, DkFilter_Linear)
+		        .setWrapMode (
+		            DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge));
+
+		samplers[NEAREST].initialize (
+		    dk::Sampler{}
+		        .setFilter (DkFilter_Nearest, DkFilter_Nearest)
+		        .setWrapMode (
+		            DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge));
+	}
+
+	s_descriptorMemBlock = std::move (memory);
+
+	s_textures.resize (count);
+
+	bindDescriptors (cmdBuf_);
+
+	cmdBuf_.barrier (DkBarrier_Full, DkInvalidateFlags_Descriptors);
+	queue_.submitCommands (cmdBuf_.finishList ());
+	queue_.waitIdle ();
+}
+
+/// \brief Retrieve a texture by its ImTextureID
+/// \param id_ ImTextureID of the texture to retrieve
+Texture &getTexture (ImTextureID const id_)
+{
+	auto const slot = static_cast<unsigned> (id_);
+	if (id_ != dkMakeTextureHandle (slot, LINEAR) || slot == 0 || slot >= s_textures.size () ||
+	    !s_textures[slot])
+		textureError ("unknown texture handle");
+
+	return *s_textures[slot];
+}
+
+/// \brief Destroy a texture
+/// \param texture_ ImTextureData of the texture to destroy
+void destroyTexture (ImTextureData &texture_)
+{
+	if (texture_.BackendUserData)
+	{
+		auto &backend = getTexture (texture_.GetTexID ());
+		if (&backend != texture_.BackendUserData || backend.data != &texture_)
+			textureError ("texture ownership mismatch");
+
+		s_textures[backend.slot].reset ();
+	}
+
+	texture_.BackendUserData = nullptr;
+	texture_.SetTexID (ImTextureID_Invalid);
+	texture_.SetStatus (ImTextureStatus_Destroyed);
+}
+
+/// \brief Upload a texture to the GPU
+/// \param device_ UniqueDevice used for allocation
+/// \param queue_ UniqueQueue used for command submission
+/// \param cmdBuf_ UniqueCmdBuf used for recording commands
+/// \param texture_ ImTextureData containing the texture data
+/// \param backend_ Backend Texture object
+/// \param create_ Whether this is a new texture creation or updates an existing one
+void uploadTexture (dk::UniqueDevice &device_,
+    dk::UniqueQueue &queue_,
+    dk::UniqueCmdBuf &cmdBuf_,
+    ImTextureData &texture_,
+    Texture &backend_,
+    bool const create_)
+{
+	auto const rect = create_ ? ImTextureRect{0,
+	                                0,
+	                                static_cast<unsigned short> (texture_.Width),
+	                                static_cast<unsigned short> (texture_.Height)}
+	                          : texture_.UpdateRect;
+
+	if (!rect.w || !rect.h || rect.x + rect.w > texture_.Width || rect.y + rect.h > texture_.Height)
+		textureError ("invalid upload rectangle");
+
+	auto const rowSize    = static_cast<std::size_t> (rect.w) * texture_.BytesPerPixel;
+	auto const uploadSize = rowSize * rect.h;
+
+	dk::UniqueMemBlock uploadMemBlock =
+	    dk::MemBlockMaker{device_, imgui::deko3d::align (uploadSize, DK_MEMBLOCK_ALIGNMENT)}
+	        .setFlags (DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached)
+	        .create ();
+	if (!uploadMemBlock)
+		textureError ("cannot allocate texture staging buffer");
+
+	auto *const uploadPixels = static_cast<std::uint8_t *> (uploadMemBlock.getCpuAddr ());
+	auto const *sourcePixels = static_cast<std::uint8_t *> (texture_.GetPixelsAt (rect.x, rect.y));
+
+	for (std::size_t y = 0; y < rect.h; ++y)
+		std::memcpy (uploadPixels + y * rowSize, sourcePixels + y * texture_.GetPitch (), rowSize);
+
+	dk::ImageView imageView{backend_.image};
+
+	cmdBuf_.copyBufferToImage (
+	    {uploadMemBlock.getGpuAddr (), 0, 0}, imageView, {rect.x, rect.y, 0, rect.w, rect.h, 1});
+
+	cmdBuf_.barrier (DkBarrier_Full, DkInvalidateFlags_Image | DkInvalidateFlags_Descriptors);
+	queue_.submitCommands (cmdBuf_.finishList ());
+	queue_.waitIdle ();
+}
 
 /// \brief Load shader code
+/// \param device_ UniqueDevice used for shader creation
 void loadShaders (dk::UniqueDevice &device_)
 {
 	/// \brief Shader file descriptor
@@ -241,23 +453,27 @@ DkCmdList setupRenderState (dk::UniqueCmdBuf &cmdBuf_,
 	cmdBuf_.bindVtxAttribState (VERTEX_ATTRIB_STATE);
 	cmdBuf_.bindVtxBufferState (VERTEX_BUFFER_STATE);
 
+	bindDescriptors (cmdBuf_);
+
 	return cmdBuf_.finishList ();
 }
 }
 
-void imgui::deko3d::init (dk::UniqueDevice &device_,
-    dk::UniqueQueue &queue_,
-    dk::UniqueCmdBuf &cmdBuf_,
-    dk::SamplerDescriptor &samplerDescriptor_,
-    dk::ImageDescriptor &imageDescriptor_,
-    DkResHandle fontTextureHandle_,
-    unsigned const imageCount_)
+void imgui::deko3d::init (dk::UniqueDevice &device_, unsigned const imageCount_)
 {
 	auto &io = ImGui::GetIO ();
 
 	// setup back-end capabilities flags
 	io.BackendRendererName = "deko3d";
-	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+	io.BackendFlags |=
+	    ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
+
+	auto &platformIO                          = ImGui::GetPlatformIO ();
+	platformIO.Renderer_TextureMaxWidth       = MAX_TEXTURE_SIZE;
+	platformIO.Renderer_TextureMaxHeight      = MAX_TEXTURE_SIZE;
+	platformIO.DrawCallback_ResetRenderState  = resetRenderState;
+	platformIO.DrawCallback_SetSamplerLinear  = setSamplerLinear;
+	platformIO.DrawCallback_SetSamplerNearest = setSamplerNearest;
 
 	// load shader code
 	loadShaders (device_);
@@ -285,72 +501,132 @@ void imgui::deko3d::init (dk::UniqueDevice &device_,
 		        .setFlags (DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached)
 		        .create ());
 	}
-
-	// get texture atlas
-	io.Fonts->SetTexID (makeTextureID (fontTextureHandle_));
-	s_fontTextureHandle = fontTextureHandle_;
-	unsigned char *pixels;
-	int width;
-	int height;
-	io.Fonts->GetTexDataAsAlpha8 (&pixels, &width, &height);
-
-	// create memblock for transfer
-	dk::UniqueMemBlock memBlock =
-	    dk::MemBlockMaker{device_, align (width * height, DK_MEMBLOCK_ALIGNMENT)}
-	        .setFlags (DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached)
-	        .create ();
-	std::memcpy (memBlock.getCpuAddr (), pixels, width * height);
-
-	// initialize sampler descriptor
-	samplerDescriptor_.initialize (
-	    dk::Sampler{}
-	        .setFilter (DkFilter_Linear, DkFilter_Linear)
-	        .setWrapMode (DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge, DkWrapMode_ClampToEdge));
-
-	// initialize texture atlas image layout
-	dk::ImageLayout layout;
-	dk::ImageLayoutMaker{device_}
-	    .setFlags (0)
-	    .setFormat (DkImageFormat_R8_Unorm)
-	    .setDimensions (width, height)
-	    .initialize (layout);
-
-	auto const fontAlign = layout.getAlignment ();
-	auto const fontSize  = layout.getSize ();
-
-	// create image memblock
-	s_fontImageMemBlock = dk::MemBlockMaker{device_,
-	    align (fontSize, std::max<unsigned> (fontAlign, DK_MEMBLOCK_ALIGNMENT))}
-	                          .setFlags (DkMemBlockFlags_GpuCached | DkMemBlockFlags_Image)
-	                          .create ();
-
-	// initialize font texture atlas image descriptor
-	dk::Image fontTexture;
-	fontTexture.initialize (layout, s_fontImageMemBlock, 0);
-	imageDescriptor_.initialize (fontTexture);
-
-	// copy font texture atlas to image view
-	dk::ImageView imageView{fontTexture};
-	cmdBuf_.copyBufferToImage ({memBlock.getGpuAddr (), 0, 0},
-	    imageView,
-	    {0, 0, 0, (unsigned int)width, (unsigned int)height, 1});
-
-	// submit commands to transfer font texture
-	queue_.submitCommands (cmdBuf_.finishList ());
-
-	// wait for commands to complete before releasing memblock
-	queue_.waitIdle ();
 }
 
-void imgui::deko3d::exit ()
+void imgui::deko3d::updateTexture (dk::UniqueDevice &device_,
+    dk::UniqueQueue &queue_,
+    dk::UniqueCmdBuf &cmdBuf_,
+    ImTextureData &texture_)
 {
-	s_fontImageMemBlock = nullptr;
+	switch (texture_.Status)
+	{
+	case ImTextureStatus_OK:
+	case ImTextureStatus_Destroyed:
+		break;
 
+	case ImTextureStatus_WantCreate:
+	{
+		if (texture_.BackendUserData || texture_.GetTexID () != ImTextureID_Invalid)
+			textureError ("create requested for an existing texture");
+
+		if (texture_.Width <= 0 || texture_.Height <= 0 || texture_.Width > MAX_TEXTURE_SIZE ||
+		    texture_.Height > MAX_TEXTURE_SIZE || !texture_.Pixels)
+			textureError ("invalid texture dimensions or pixels");
+
+		auto const alphaOnly = texture_.Format == ImTextureFormat_Alpha8;
+		if ((!alphaOnly && texture_.Format != ImTextureFormat_RGBA32) ||
+		    texture_.BytesPerPixel != (alphaOnly ? 1 : 4))
+			textureError ("unsupported texture format or pixel size");
+
+		auto const available = std::ranges::find_if (
+		    s_textures | std::views::drop (1), [] (auto const &texture_) { return !texture_; });
+		auto const slot =
+		    std::max<std::size_t> (1, std::ranges::distance (s_textures.begin (), available));
+
+		if (slot >= s_textures.size ())
+			growDescriptors (device_, queue_, cmdBuf_);
+
+		queue_.waitIdle ();
+
+		auto backend = std::make_unique<Texture> ();
+
+		backend->data   = &texture_;
+		backend->format = texture_.Format;
+		backend->slot   = slot;
+		backend->width  = texture_.Width;
+		backend->height = texture_.Height;
+
+		dk::ImageLayout layout;
+		dk::ImageLayoutMaker{device_}
+		    .setFlags (0)
+		    .setFormat (alphaOnly ? DkImageFormat_R8_Unorm : DkImageFormat_RGBA8_Unorm)
+		    .setDimensions (texture_.Width, texture_.Height)
+		    .initialize (layout);
+
+		backend->memory = dk::MemBlockMaker{device_,
+		    imgui::deko3d::align (layout.getSize (),
+		        std::max<unsigned> (layout.getAlignment (), DK_MEMBLOCK_ALIGNMENT))}
+		                      .setFlags (DkMemBlockFlags_GpuCached | DkMemBlockFlags_Image)
+		                      .create ();
+
+		if (!backend->memory)
+			textureError ("cannot allocate texture image");
+
+		backend->image.initialize (layout, backend->memory, 0);
+
+		imageDescriptors (slot)->initialize (backend->image);
+
+		uploadTexture (device_, queue_, cmdBuf_, texture_, *backend, true);
+
+		texture_.BackendUserData = backend.get ();
+		texture_.SetTexID (dkMakeTextureHandle (slot, LINEAR));
+		texture_.SetStatus (ImTextureStatus_OK);
+
+		s_textures[slot] = std::move (backend);
+		break;
+	}
+
+	case ImTextureStatus_WantUpdates:
+	{
+		auto &backend = getTexture (texture_.GetTexID ());
+		if (&backend != texture_.BackendUserData || backend.data != &texture_ || !texture_.Pixels ||
+		    backend.format != texture_.Format || backend.width != texture_.Width ||
+		    backend.height != texture_.Height ||
+		    texture_.BytesPerPixel != (backend.format == ImTextureFormat_Alpha8 ? 1 : 4))
+			textureError ("update changed texture ownership, dimensions or format");
+
+		queue_.waitIdle ();
+		uploadTexture (device_, queue_, cmdBuf_, texture_, backend, false);
+
+		texture_.SetStatus (ImTextureStatus_OK);
+		break;
+	}
+
+	case ImTextureStatus_WantDestroy:
+		std::fprintf (stderr, "Destroying texture\n");
+		queue_.waitIdle ();
+		destroyTexture (texture_);
+		break;
+	}
+}
+
+void imgui::deko3d::exit (dk::UniqueQueue &queue_)
+{
+	queue_.waitIdle ();
+
+	for (auto &backend : s_textures)
+		if (backend)
+			destroyTexture (*backend->data);
+
+	s_textures.clear ();
+	s_descriptorMemBlock = nullptr;
 	s_idxMemBlock.clear ();
 	s_vtxMemBlock.clear ();
 
 	s_uboMemBlock  = nullptr;
 	s_codeMemBlock = nullptr;
+
+	auto &io               = ImGui::GetIO ();
+	io.BackendRendererName = nullptr;
+	io.BackendFlags &=
+	    ~(ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures);
+
+	auto &platformIO                          = ImGui::GetPlatformIO ();
+	platformIO.Renderer_TextureMaxWidth       = 0;
+	platformIO.Renderer_TextureMaxHeight      = 0;
+	platformIO.DrawCallback_ResetRenderState  = nullptr;
+	platformIO.DrawCallback_SetSamplerLinear  = nullptr;
+	platformIO.DrawCallback_SetSamplerNearest = nullptr;
 }
 
 void imgui::deko3d::render (dk::UniqueDevice &device_,
@@ -360,7 +636,15 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 {
 	// get ImGui draw data
 	auto const drawData = ImGui::GetDrawData ();
-	if (drawData->CmdListsCount <= 0)
+
+	// update textures
+	if (drawData->Textures)
+	{
+		for (auto const texture : *drawData->Textures)
+			updateTexture (device_, queue_, cmdBuf_, *texture);
+	}
+
+	if (drawData->CmdLists.empty ())
 		return;
 
 	// get framebuffer dimensions
@@ -375,6 +659,8 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 
 	// currently bound texture
 	std::optional<DkResHandle> boundTextureHandle;
+	std::optional<bool> boundAlphaOnly;
+	auto sampler = LINEAR;
 
 	// will project scissor/clipping rectangles into framebuffer space
 	// (0,0) unless using multi-viewports
@@ -426,9 +712,9 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 	// render command lists
 	std::size_t offsetVtx = 0;
 	std::size_t offsetIdx = 0;
-	for (int i = 0; i < drawData->CmdListsCount; ++i)
+	for (auto const *const drawList : drawData->CmdLists)
 	{
-		auto const &cmdList = *drawData->CmdLists[i];
+		auto const &cmdList = *drawList;
 
 		auto const vtxSize = cmdList.VtxBuffer.Size * sizeof (ImDrawVert);
 		auto const idxSize = cmdList.IdxBuffer.Size * sizeof (ImDrawIdx);
@@ -460,13 +746,25 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 				// submit commands to preserve ordering
 				queue_.submitCommands (cmdBuf_.finishList ());
 
-				// user callback, registered via ImDrawList::AddCallback()
-				// (ImDrawCallback_ResetRenderState is a special callback value used by the user to
-				// request the renderer to reset render state.)
-				if (cmd.UserCallback == ImDrawCallback_ResetRenderState)
+				if (cmd.UserCallback == resetRenderState)
+				{
 					queue_.submitCommands (setupCmd);
+					cmdBuf_.bindVtxBuffer (0, gpuVtx, sizeVtx);
+					cmdBuf_.bindIdxBuffer (DkIdxFormat_Uint16, gpuIdx);
+					sampler = LINEAR;
+				}
+				else if (cmd.UserCallback == setSamplerLinear)
+					sampler = LINEAR;
+				else if (cmd.UserCallback == setSamplerNearest)
+					sampler = NEAREST;
 				else
+				{
+					// user callback, registered via ImDrawList::AddCallback()
 					cmd.UserCallback (&cmdList, &cmd);
+				}
+
+				boundTextureHandle.reset ();
+				boundAlphaOnly.reset ();
 			}
 			else
 			{
@@ -499,28 +797,25 @@ void imgui::deko3d::render (dk::UniqueDevice &device_,
 				        (unsigned int)(clip.w - clip.y)});
 
 				// get texture handle
-				auto const textureHandle = cmd.TextureId;
+				auto const &texture      = getTexture (cmd.GetTexID ());
+				auto const textureHandle = dkMakeTextureHandle (texture.slot, sampler);
+				auto const alphaOnly     = texture.format == ImTextureFormat_Alpha8;
+				if (!boundAlphaOnly.has_value () || boundAlphaOnly.value () != alphaOnly)
+				{
+					FragUBO const fragUBO{alphaOnly ? 1u : 0u};
+					cmdBuf_.pushConstants (s_uboMemBlock.getGpuAddr () +
+					                           align (sizeof (VertUBO), DK_UNIFORM_BUF_ALIGNMENT),
+					    align (sizeof (FragUBO), DK_UNIFORM_BUF_ALIGNMENT),
+					    0,
+					    sizeof (FragUBO),
+					    &fragUBO);
+					boundAlphaOnly = alphaOnly;
+				}
 
 				// check if we need to bind a new texture
-				if (!boundTextureHandle || textureHandle != *boundTextureHandle)
+				if (!boundTextureHandle.has_value () ||
+				    textureHandle != boundTextureHandle.value ())
 				{
-					// check if this is the first draw or changing to or from the font texture
-					if (!boundTextureHandle || textureHandle == s_fontTextureHandle ||
-					    *boundTextureHandle == s_fontTextureHandle)
-					{
-						FragUBO fragUBO;
-						fragUBO.font = (textureHandle == s_fontTextureHandle);
-
-						// update fragment shader UBO
-						cmdBuf_.pushConstants (
-						    s_uboMemBlock.getGpuAddr () +
-						        align (sizeof (VertUBO), DK_UNIFORM_BUF_ALIGNMENT),
-						    align (sizeof (FragUBO), DK_UNIFORM_BUF_ALIGNMENT),
-						    0,
-						    sizeof (FragUBO),
-						    &fragUBO);
-					}
-
 					boundTextureHandle = textureHandle;
 
 					// bind the new texture

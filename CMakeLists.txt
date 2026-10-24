@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(ftpd VERSION 3.2.1)
+project(ftpd VERSION 3.2.2)
 
-set(FTPD_PATCH "-2")
+set(FTPD_PATCH "")
 
 find_package(Patch REQUIRED)
 
@@ -25,23 +25,13 @@ if(NOT EXISTS ${GSL_TARBALL})
 	)
 endif()
 
-set(IMGUI_TARBALL ${CMAKE_CURRENT_BINARY_DIR}/v1.91.8.tar.gz)
-set(IMGUI_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/imgui-src/imgui-1.91.8)
-
-if(NOT EXISTS ${IMGUI_TARBALL})
-	file(DOWNLOAD
-		https://github.com/ocornut/imgui/archive/refs/tags/v1.91.8.tar.gz
-		${IMGUI_TARBALL}
-	)
-	file(ARCHIVE_EXTRACT
-		INPUT ${IMGUI_TARBALL}
-		DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/imgui-src
-	)
-	execute_process(
-		COMMAND ${Patch_EXECUTABLE} -i "${CMAKE_CURRENT_SOURCE_DIR}/imgui.patch"
-		WORKING_DIRECTORY "${IMGUI_SOURCE_DIR}"
-	)
-endif()
+FetchContent_Declare(imgui
+	URL https://github.com/ocornut/imgui/archive/refs/tags/v1.93.0.tar.gz
+	URL_HASH SHA256=f7bf6bc76e5d79d40d751096663e6c5d18daf08129dd52e7f7b09e4251c8eeee
+	DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+	PATCH_COMMAND patch -i ${CMAKE_CURRENT_SOURCE_DIR}/imgui.patch
+)
+FetchContent_Populate(imgui)
 
 find_package(ZLIB REQUIRED)
 
@@ -163,7 +153,7 @@ if(NINTENDO_SWITCH)
 	if(FTPD_CLASSIC)
 		nx_generate_nacp(${FTPD_TARGET}.nacp
 			NAME "${PROJECT_NAME} classic"
-			AUTHOR "(c) 2025 Michael Theall, Dave Murphy, TuxSH"
+			AUTHOR "(c) 2026 Michael Theall, Dave Murphy, TuxSH"
 			VERSION "${PROJECT_VERSION}${FTPD_PATCH}"
 		)
 
@@ -193,10 +183,6 @@ if(NINTENDO_SWITCH)
 		source/switch/imgui_nx.h
 	)
 
-	target_compile_definitions(${FTPD_TARGET} PRIVATE
-		ImTextureID=DkResHandle
-	)
-
 	target_compile_options(${FTPD_TARGET} PRIVATE -include deko3d.h)
 
 	dkp_add_asset_target(${PROJECT_NAME}_romfs ${CMAKE_CURRENT_BINARY_DIR}/romfs)
@@ -208,6 +194,7 @@ if(NINTENDO_SWITCH)
 		airplane_icon.png
 		battery_icon.png
 		charging_icon.png
+		deko3d.png
 		eth_icon.png
 		eth_none_icon.png
 		wifi1_icon.png
@@ -219,28 +206,13 @@ if(NINTENDO_SWITCH)
 
 		add_custom_command(OUTPUT ${ZST}
 			COMMAND
-				convert ${CMAKE_CURRENT_SOURCE_DIR}/switch/gfx/${PNG} ${RGBA}
+				convert ${CMAKE_CURRENT_SOURCE_DIR}/switch/gfx/${PNG} -depth 8 RGBA:${RGBA}
 			COMMAND
 				zstd -f ${RGBA} -o ${ZST} --ultra -22
 			MAIN_DEPENDENCY
 				switch/gfx/${PNG}
 			BYPRODUCTS
 				${RGBA}
-		)
-		add_custom_target(${ZST}_target DEPENDS ${ZST})
-
-		dkp_set_target_file(${ZST}_target ${ZST})
-		dkp_install_assets(${PROJECT_NAME}_romfs TARGETS ${ZST}_target)
-	endforeach()
-
-	foreach(ASTC deko3d.12x12.astc)
-		string(REGEX REPLACE "[.]astc$" ".astc.zst" ZST ${ASTC})
-
-		add_custom_command(OUTPUT ${ZST}
-			COMMAND
-				zstd -f ${CMAKE_CURRENT_SOURCE_DIR}/switch/gfx/${ASTC} -o ${ZST} --ultra -22
-			MAIN_DEPENDENCY
-				switch/gfx/${ASTC}
 		)
 		add_custom_target(${ZST}_target DEPENDS ${ZST})
 
@@ -257,8 +229,8 @@ if(NINTENDO_SWITCH)
 	)
 
 	nx_generate_nacp(${FTPD_TARGET}.nacp
-		NAME "${PROJECT_NAME} 11th Anniversary Edition"
-		AUTHOR "(c) 2025 Michael Theall, Dave Murphy, TuxSH"
+		NAME "${PROJECT_NAME} pro"
+		AUTHOR "(c) 2026 Michael Theall, Dave Murphy, TuxSH"
 		VERSION "${PROJECT_VERSION}${FTPD_PATCH}"
 	)
 
@@ -276,7 +248,7 @@ elseif(NINTENDO_3DS)
 		ctr_generate_smdh(${FTPD_TARGET}.smdh
 			NAME "${PROJECT_NAME} classic"
 			DESCRIPTION "v${PROJECT_VERSION}${FTPD_PATCH}"
-			AUTHOR "(c) 2025 Michael Theall, Dave Murphy, TuxSH"
+			AUTHOR "(c) 2026 Michael Theall, Dave Murphy, TuxSH"
 			ICON meta/icon.png
 		)
 
@@ -289,7 +261,6 @@ elseif(NINTENDO_3DS)
 
 	target_compile_definitions(${FTPD_TARGET} PRIVATE
 		ANTI_ALIAS=0
-		ImTextureID=C3D_Tex*
 	)
 
 	target_compile_options(${FTPD_TARGET} PRIVATE -include citro3d.h)
@@ -309,6 +280,8 @@ elseif(NINTENDO_3DS)
 		source/3ds/imgui_citro3d.h
 		source/3ds/imgui_ctru.cpp
 		source/3ds/imgui_ctru.h
+		source/3ds/imgui_font.cpp
+		source/3ds/imgui_font.h
 	)
 
 	ctr_add_shader_library(vshader source/3ds/vshader.v.pica)
@@ -346,7 +319,7 @@ elseif(NINTENDO_3DS)
 	ctr_generate_smdh(${FTPD_TARGET}.smdh
 		NAME "${PROJECT_NAME} pro"
 		DESCRIPTION "v${PROJECT_VERSION}${FTPD_PATCH}"
-		AUTHOR "(c) 2025 Michael Theall, Dave Murphy, TuxSH"
+		AUTHOR "(c) 2026 Michael Theall, Dave Murphy, TuxSH"
 		ICON meta/icon.png
 	)
 
@@ -367,7 +340,7 @@ elseif(NINTENDO_DS)
 	nds_create_rom(${FTPD_TARGET}
 		NAME "${PROJECT_NAME} classic"
 		SUBTITLE1 "v${PROJECT_VERSION}${FTPD_PATCH}"
-		SUBTITLE2 "(c) 2025 mtheall"
+		SUBTITLE2 "(c) 2026 mtheall"
 		ICON nds/icon.bmp
 	)
 else()

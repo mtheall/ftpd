@@ -33,7 +33,7 @@
 #endif
 
 char const *const g_dearImGuiVersion   = "Dear ImGui " IMGUI_VERSION;
-char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2023 Omar Cornut";
+char const *const g_dearImGuiCopyright = "Copyright (C) 2014-2026 Omar Cornut";
 
 char const *const g_mitLicense =
     "The MIT License (MIT)\n"
@@ -66,8 +66,8 @@ char const *const g_libnxVersion  = "libnx";
 char const *const g_deko3dVersion = "deko3d";
 char const *const g_zstdVersion   = "zStandard " ZSTD_VERSION_STRING;
 
-char const *const g_libnxCopyright  = "Copyright (C) 2017-2021 libnx Authors";
-char const *const g_deko3dCopyright = "Copyright (C) 2018-2020 fincs\n";
+char const *const g_libnxCopyright  = "Copyright (C) 2017-2026 libnx Authors";
+char const *const g_deko3dCopyright = "Copyright (C) 2018-2023 fincs\n";
 char const *const g_zstdCopyright =
     "Copyright (C) 2016-present, Facebook, Inc. All rights reserved.";
 

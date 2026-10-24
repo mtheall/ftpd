@@ -7,7 +7,7 @@
 ; 
 ; The MIT License (MIT)
 ;
-; Copyright (C) 2025 Michael Theall
+; Copyright (C) 2026 Michael Theall
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 ; Projection matrix
 .fvec proj[4]
 .fvec z
+.fvec uvScale
 
 ; constants
 ; [1.0, 0.0, 1.0/255.0, 0.0]
@@ -62,8 +63,9 @@
 	dp4 outPos.z, proj[2], r0
 	dp4 outPos.w, proj[3], r0
 
-	; outUv = inUv
-	mov outUv, inUv
+	; account for power-of-two texture padding
+	mul outUv.xy, uvScale.xy, inUv.xy
+	mov outUv.zw, inUv.zw
 
 	; normalize inColor
 	mul r1, constants.zzzz, inColor

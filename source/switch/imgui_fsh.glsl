@@ -7,7 +7,7 @@
 // 
 // The MIT License (MIT)
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -35,15 +35,15 @@ layout (location = 1) in vec4 vtxColor;
 layout (binding = 0) uniform sampler2D tex;
 
 layout (std140, binding = 0) uniform FragUBO {
-	uint font;
+	uint alphaOnly;
 } ubo;
 
 layout (location = 0) out vec4 outColor;
 
 void main()
 {
-	// font texture is single-channel (alpha)
-	if (ubo.font != 0)
+	// A8 images store alpha in the red channel.
+	if (ubo.alphaOnly != 0)
 	    outColor = vtxColor * vec4 (vec3 (1.0), texture (tex, vtxUv).r);
 	else
 		outColor = vtxColor * texture (tex, vtxUv);

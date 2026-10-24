@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <mutex>
@@ -129,7 +131,7 @@ C3D_RenderTarget *s_bottom = nullptr;
 void *s_depthStencil = nullptr;
 
 /// \brief Texture atlas
-C3D_Tex s_gfxTexture;
+std::unique_ptr<ImTextureData> s_gfxTexture;
 /// \brief Texture atlas metadata
 Tex3DS_Texture s_gfxT3x;
 
@@ -285,11 +287,11 @@ void drawLogo ()
 
 	// draw to top screen
 	drawList->AddCallback (&imgui::citro3d::setZ, std::bit_cast<void *> (-5.0f));
-	drawList->AddImage (&s_gfxTexture, ImVec2 (x1, y1), ImVec2 (x2, y2), uv1, uv2);
+	drawList->AddImage (s_gfxTexture->GetTexRef (), ImVec2 (x1, y1), ImVec2 (x2, y2), uv1, uv2);
 	drawList->AddCallback (&imgui::citro3d::setZ, std::bit_cast<void *> (0.0f));
 
 	// draw to bottom screen
-	drawList->AddImage (&s_gfxTexture,
+	drawList->AddImage (s_gfxTexture->GetTexRef (),
 	    ImVec2 (x1, y1 + screenHeight * 0.5f),
 	    ImVec2 (x2, y2 + screenHeight * 0.5f),
 	    uv1,
@@ -371,7 +373,7 @@ void drawBubbles (ImDrawList *const drawList_, std::span<Bubble> const bubbles_,
 		    bubble.x + 100.0f * bubble.scale * std::sin (bubble.z + bubble.y / 40.0f), bubble.y);
 		auto const p2 = ImVec2 (p1.x + width, p1.y + height);
 
-		drawList_->AddImage (&s_gfxTexture, p1, p2, uv1, uv2);
+		drawList_->AddImage (s_gfxTexture->GetTexRef (), p1, p2, uv1, uv2);
 	}
 
 	if (lastZ != 0.0f)
@@ -457,7 +459,7 @@ void drawStatus ()
 
 	// draw battery icon
 	ImGui::GetForegroundDrawList ()->AddImage (
-	    &s_gfxTexture, p1, p2, uv1, uv2, ImGui::GetColorU32 (ImGuiCol_Text));
+	    s_gfxTexture->GetTexRef (), p1, p2, uv1, uv2, ImGui::GetColorU32 (ImGuiCol_Text));
 
 	// get wifi strength
 	auto const wifiStrength = osGetWifiStrength ();
@@ -477,7 +479,7 @@ void drawStatus ()
 
 	// draw wifi icon
 	ImGui::GetForegroundDrawList ()->AddImage (
-	    &s_gfxTexture, p3, p4, uv3, uv4, ImGui::GetColorU32 (ImGuiCol_Text));
+	    s_gfxTexture->GetTexRef (), p3, p4, uv3, uv4, ImGui::GetColorU32 (ImGuiCol_Text));
 
 	// draw current timestamp
 	char timeBuffer[16];
@@ -569,11 +571,18 @@ bool platform::init ()
 		if (!file.open ("romfs:/gfx.t3x"))
 			svcBreak (USERBREAK_PANIC);
 
-		s_gfxT3x = Tex3DS_TextureImportStdio (file, &s_gfxTexture, nullptr, false);
+		C3D_Tex imported{};
+		s_gfxT3x = Tex3DS_TextureImportStdio (file, &imported, nullptr, true);
 		if (!s_gfxT3x)
 			svcBreak (USERBREAK_PANIC);
 
-		C3D_TexSetFilter (&s_gfxTexture, GPU_LINEAR, GPU_LINEAR);
+		if (imported.fmt != GPU_RGBA8)
+		{
+			std::fprintf (stderr, "3DS graphics atlas must use RGBA8\n");
+			std::abort ();
+		}
+
+		s_gfxTexture = imgui::citro3d::importTexture (&imported);
 	}
 
 	auto &io    = ImGui::GetIO ();
@@ -697,7 +706,7 @@ void platform::exit ()
 
 	// free graphics
 	Tex3DS_TextureFree (s_gfxT3x);
-	C3D_TexDelete (&s_gfxTexture);
+	s_gfxTexture.reset ();
 
 	// free render targets
 	C3D_RenderTargetDelete (s_bottom);

@@ -7,7 +7,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,24 +29,34 @@
 
 #ifndef CLASSIC
 #include "imgui_citro3d.h"
-
-#include <citro3d.h>
+#include "imgui_font.h"
 
 #include "vshader_shbin.h"
+
+#include <citro3d.h>
 
 #include <imgui.h>
 
 #include <algorithm>
 #include <bit>
+#include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
+#include <memory>
+#include <tuple>
 #include <vector>
 
 namespace
 {
 /// \brief Clear color
 constexpr auto CLEAR_COLOR = 0x204B7AFF;
+/// \brief Maximum texture dimension
+constexpr int MAX_TEXTURE_SIZE = 1024;
+
+static_assert (sizeof (ImDrawIdx) == sizeof (std::uint16_t));
 
 /// \brief Slider value
 float s_slider;
@@ -55,32 +65,29 @@ float s_z;
 /// \brief Z offset uniform location
 int s_zLocation;
 
-/// \brief 3DS font glyph ranges
-std::vector<ImWchar> s_fontRanges;
-
 /// \brief Vertex shader
 DVLB_s *s_vsh = nullptr;
 /// \brief Vertex shader program
 shaderProgram_s s_program;
 
-/// \brief Projection matrix uniform location
-int s_projLocation;
 /// \brief Top screen projection matrix
 C3D_Mtx s_projTop;
 /// \brief Bottom screen projection matrix
 C3D_Mtx s_projBottom;
+/// \brief Projection matrix uniform location
+int s_projLocation;
 
-/// \brief System font textures
-std::vector<C3D_Tex> s_fontTextures;
-/// \brief Text scale
-float s_textScale;
+/// \brief UV scale uniform location
+int s_uvScaleLocation;
 
 /// \brief Scissor test bounds
 std::uint32_t s_boundScissor[4];
 /// \brief Currently bound vertex data
 ImDrawVert *s_boundVtxData;
 /// \brief Currently bound texture
-C3D_Tex *s_boundTexture;
+ImTextureID s_boundTexture = ImTextureID_Invalid;
+/// \brief Texture filter mode
+GPU_TEXTURE_FILTER_PARAM s_filter = GPU_LINEAR;
 
 /// \brief Vertex data buffer
 ImDrawVert *s_vtxData = nullptr;
@@ -91,44 +98,257 @@ ImDrawIdx *s_idxData = nullptr;
 /// \brief Size of index data buffer
 std::size_t s_idxSize = 0;
 
-/// \brief Get code point from glyph index
-/// \param font_ Font to search
-/// \param glyphIndex_ Glyph index
-std::uint32_t fontCodePointFromGlyphIndex (CFNT_s *const font_, int const glyphIndex_)
+/// \brief Texture metadata
+struct Texture
 {
-	for (auto cmap = fontGetInfo (font_)->cmap; cmap; cmap = cmap->next)
+	~Texture ()
 	{
-		switch (cmap->mappingMethod)
+		C3D_TexDelete (&image);
+	}
+
+	C3D_Tex image{};        ///< Texture image
+	ImTextureData *data;    ///< Texture data
+	ImTextureFormat format; ///< Texture format
+	int width;              ///< Texture width
+	int height;             ///< Texture height
+	bool fontAtlas = false; ///< Whether this texture is a font atlas
+};
+
+/// \brief List of all textures managed by the renderer
+std::vector<std::unique_ptr<Texture>> s_textures;
+
+/// \brief List of font sheet textures
+std::vector<C3D_Tex> s_fontSheets;
+
+/// \brief RAII helper for texture access within a frame
+/// FrameBegin waits for the previous GPU queue; FrameSync only waits for vblank.
+/// An existing frame is safe here only before the caller records GPU draws.
+struct TextureAccess
+{
+	/// \brief Whether this RAII instance owns the current frame
+	bool const ownsFrame = C3D_FrameBegin (0);
+
+	~TextureAccess ()
+	{
+		if (ownsFrame)
+			C3D_FrameEnd (0);
+	}
+};
+
+/// \brief Reports a renderer error and aborts the program
+/// \param message_ Error message to report
+[[noreturn]] void rendererError (char const *const message_)
+{
+	std::fprintf (stderr, "citro3d renderer: %s\n", message_);
+	std::abort ();
+}
+
+bool isVramAddr (void const *const addr_)
+{
+	return addr_ >= std::bit_cast<void const *> (static_cast<std::uintptr_t> (OS_VRAM_VADDR)) &&
+	       addr_ < std::bit_cast<void const *> (
+	                   static_cast<std::uintptr_t> (OS_VRAM_VADDR + OS_VRAM_SIZE));
+}
+
+/// \brief Computes the offset of a pixel within a tiled texture
+/// \param x_ X coordinate of the pixel
+/// \param y_ Y coordinate of the pixel
+/// \param width_ Width of the texture
+std::size_t tiledPixelOffset (unsigned const x_, unsigned const y_, unsigned const width_)
+{
+	// PICA200 textures store pixels in row-major 8x8 tiles, with Morton order within each tile
+	auto const tile = ((y_ / 8) * (width_ / 8) + x_ / 8) * 64;
+	auto const x    = x_ & 7;
+	auto const y    = y_ & 7;
+
+	return tile | (x & 1) | ((y & 1) << 1) | ((x & 2) << 1) | ((y & 2) << 2) | ((x & 4) << 2) |
+	       ((y & 4) << 3);
+}
+
+/// \brief Retrieves a texture by its ID
+/// \param id_ Texture ID to look up
+Texture &getTexture (ImTextureID const id_)
+{
+	auto const it = std::ranges::find_if (s_textures, [id_] (auto const &texture_) {
+		return static_cast<ImTextureID> (reinterpret_cast<std::uintptr_t> (texture_.get ())) == id_;
+	});
+
+	if (it == std::end (s_textures))
+		rendererError ("unknown texture handle");
+
+	return **it;
+}
+
+/// \brief Retrieves the font sheet tag for a given draw command and element
+/// \param list_ Draw list containing the command
+/// \param cmd_ Draw command
+/// \param element_ Element index within the command
+unsigned sheetTagFast (ImDrawList const &list_, ImDrawCmd const &cmd_, unsigned const element_)
+{
+	// iterate over the three vertices of the triangle to determine the font sheet tag
+	auto const index = cmd_.VtxOffset + list_.IdxBuffer[cmd_.IdxOffset + element_];
+	auto const v     = list_.VtxBuffer[index].uv.y;
+	auto const tag   = v >= 2.0f ? static_cast<unsigned> (std::floor (v)) : 0;
+
+	// validate the current font sheet tag against the previous one and the available sheets
+	if (tag >= s_fontSheets.size () + 2)
+		rendererError ("invalid system font sheet coordinates");
+
+	return tag;
+}
+
+/// \brief Retrieves the font sheet tag for a given draw command and element
+/// \param list_ Draw list containing the command
+/// \param cmd_ Draw command
+/// \param element_ Element index within the command
+unsigned sheetTagSafe (ImDrawList const &list_, ImDrawCmd const &cmd_, unsigned const element_)
+{
+	unsigned tag = 0;
+
+	// iterate over the three vertices of the triangle to determine the font sheet tag
+	for (unsigned i = 0; i < 3; ++i)
+	{
+		auto const current = sheetTagFast (list_, cmd_, element_ + i);
+
+		// validate the current font sheet tag against the previous one and the available sheets
+		if (i && current != tag)
+			rendererError ("invalid system font sheet coordinates");
+
+		tag = current;
+	}
+
+	return tag;
+}
+
+/// \brief Binds a texture for rendering
+/// \param image_ Texture to bind
+/// \param alphaOnly_ Whether to use alpha-only mode
+/// \param scaleX_ Horizontal scale factor
+/// \param scaleY_ Vertical scale factor
+void bindTexture (C3D_Tex &image_, bool const alphaOnly_, float const scaleX_, float const scaleY_)
+{
+	auto const id = reinterpret_cast<ImTextureID> (&image_);
+
+	if (id == s_boundTexture)
+		return;
+
+	// update the texture filter settings
+	C3D_TexSetFilter (&image_, s_filter, s_filter);
+
+	// bind the texture to the first texture unit
+	C3D_TexBind (0, &image_);
+
+	auto const env = C3D_GetTexEnv (0);
+	C3D_TexEnvInit (env);
+
+	// use texture color for RGBA8, and primary color for Alpha8
+	C3D_TexEnvSrc (env,
+	    C3D_RGB,
+	    alphaOnly_ ? GPU_PRIMARY_COLOR : GPU_TEXTURE0,
+	    GPU_PRIMARY_COLOR,
+	    GPU_PRIMARY_COLOR);
+	C3D_TexEnvFunc (env, C3D_RGB, alphaOnly_ ? GPU_REPLACE : GPU_MODULATE);
+
+	// set up alpha blending for the texture
+	C3D_TexEnvSrc (env, C3D_Alpha, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
+	C3D_TexEnvFunc (env, C3D_Alpha, GPU_MODULATE);
+
+	// update the UV scale uniform for the vertex shader
+	// scale GPU UVs in the vertex shader to match padded power-of-two dimensions
+	C3D_FVUnifSet (GPU_VERTEX_SHADER, s_uvScaleLocation, scaleX_, scaleY_, 0.0f, 0.0f);
+
+	s_boundTexture = id;
+}
+
+/// \brief Destroys a texture and releases its GPU resources
+/// \param data_ Texture data to destroy
+void destroyTexture (ImTextureData &data_)
+{
+	auto const it = std::ranges::find_if (
+	    s_textures, [&data_] (auto const &texture_) { return texture_->data == &data_; });
+
+	if (data_.BackendUserData || data_.GetTexID () != ImTextureID_Invalid)
+	{
+		if (it == std::end (s_textures) || it->get () != data_.BackendUserData ||
+		    reinterpret_cast<ImTextureID> (it->get ()) != data_.GetTexID ())
+			rendererError ("texture ownership mismatch");
+
+		s_textures.erase (it);
+	}
+	else if (it != std::end (s_textures))
+		rendererError ("texture lost its GPU handle");
+
+	data_.BackendUserData = nullptr;
+	data_.SetTexID (ImTextureID_Invalid);
+	data_.SetStatus (ImTextureStatus_Destroyed);
+
+	s_boundTexture = ImTextureID_Invalid;
+}
+
+/// \brief Uploads texture data to the GPU
+/// \param data_ Texture data to upload
+/// \param texture_ GPU texture to upload to
+/// \param create_ Whether this is a new texture or an update
+void uploadTexture (ImTextureData &data_, Texture &texture_, bool const create_)
+{
+	auto const rect = create_ ? ImTextureRect{0,
+	                                0,
+	                                static_cast<unsigned short> (data_.Width),
+	                                static_cast<unsigned short> (data_.Height)}
+	                          : data_.UpdateRect;
+
+	if (!rect.w || !rect.h || rect.x + rect.w > data_.Width || rect.y + rect.h > data_.Height)
+		rendererError ("invalid texture upload rectangle");
+
+	auto const output = static_cast<unsigned char *> (texture_.image.data);
+	if (isVramAddr (output))
+		rendererError ("cannot update vram textures");
+
+	// extend edge pixels through padding so linear filtering clamps to the logical image
+	unsigned const endX = rect.x + rect.w == data_.Width ? texture_.image.width : rect.x + rect.w;
+	unsigned const endY = rect.y + rect.h == data_.Height ? texture_.image.height : rect.y + rect.h;
+
+	for (unsigned y = rect.y; y < endY; ++y)
+	{
+		for (unsigned x = rect.x; x < endX; ++x)
 		{
-		case CMAP_TYPE_DIRECT:
-			assert (cmap->codeEnd >= cmap->codeBegin);
-			if (glyphIndex_ >= cmap->indexOffset &&
-			    glyphIndex_ <= cmap->codeEnd - cmap->codeBegin + cmap->indexOffset)
-				return glyphIndex_ - cmap->indexOffset + cmap->codeBegin;
-			break;
+			// PICA200 texture is bottom-left origin
+			auto const offset =
+			    tiledPixelOffset (x, texture_.image.height - 1 - y, texture_.image.width);
 
-		case CMAP_TYPE_TABLE:
-			for (int i = 0; i <= cmap->codeEnd - cmap->codeBegin; ++i)
-			{
-				if (cmap->indexTable[i] == glyphIndex_)
-					return cmap->codeBegin + i;
-			}
-			break;
+			auto const pixel = static_cast<unsigned char const *> (
+			    data_.GetPixelsAt (std::min (x, static_cast<unsigned> (data_.Width - 1)),
+			        std::min (y, static_cast<unsigned> (data_.Height - 1))));
 
-		case CMAP_TYPE_SCAN:
-			for (unsigned i = 0; i < cmap->nScanEntries; ++i)
+			if (data_.Format == ImTextureFormat_Alpha8)
+				output[offset] = pixel[0];
+			else
 			{
-				assert (cmap->scanEntries[i].code >= cmap->codeBegin);
-				assert (cmap->scanEntries[i].code <= cmap->codeEnd);
-				if (glyphIndex_ == cmap->scanEntries[i].glyphIndex)
-					return cmap->scanEntries[i].code;
+				// pixels in GPU_RGBA8 are byte-ordered ABGR on the little-endian CPU
+				for (unsigned channel = 0; channel < 4; ++channel)
+					output[offset * 4 + channel] = pixel[3 - channel];
 			}
-			break;
 		}
 	}
 
-	return 0;
+	C3D_TexFlush (&texture_.image);
 }
+
+/// \defgroup RenderState Render State Functions
+/// \brief Functions for managing the render state in ImGui Citro3D backend
+/// @{
+void resetRenderState (ImDrawList const *, ImDrawCmd const *)
+{
+}
+
+void setSamplerLinear (ImDrawList const *, ImDrawCmd const *)
+{
+}
+
+void setSamplerNearest (ImDrawList const *, ImDrawCmd const *)
+{
+}
+/// @}
 
 /// \brief Setup render state
 /// \param screen_ Whether top or bottom screen
@@ -147,7 +367,8 @@ void setupRenderState (gfxScreen_t const screen_)
 	// clear bindings
 	std::memset (s_boundScissor, 0xFF, sizeof (s_boundScissor));
 	s_boundVtxData = nullptr;
-	s_boundTexture = nullptr;
+	s_boundTexture = ImTextureID_Invalid;
+	s_filter       = GPU_LINEAR;
 
 	// bind program
 	C3D_BindProgram (&s_program);
@@ -164,273 +385,513 @@ void setupRenderState (gfxScreen_t const screen_)
 	    GPU_ONE_MINUS_SRC_ALPHA);
 
 	// apply projection matrix
-	if (screen_ == GFX_TOP)
-		C3D_FVUnifMtx4x4 (GPU_VERTEX_SHADER, s_projLocation, &s_projTop);
-	else
-		C3D_FVUnifMtx4x4 (GPU_VERTEX_SHADER, s_projLocation, &s_projBottom);
+	C3D_FVUnifMtx4x4 (
+	    GPU_VERTEX_SHADER, s_projLocation, screen_ == GFX_TOP ? &s_projTop : &s_projBottom);
+
+	C3D_FVUnifSet (GPU_VERTEX_SHADER, s_zLocation, s_slider * s_z, 0.0f, 0.0f, 0.0f);
 }
+
+/// \brief Update textures used by ImGui
+/// \param drawData_ Draw data containing textures to update
+void updateTextures (ImDrawData const &drawData_)
+{
+	for (auto const texture : *drawData_.Textures)
+	{
+		imgui::citro3d::updateTexture (*texture);
+
+		if (texture->Status == ImTextureStatus_OK)
+		{
+			// include retained atlas textures during growth, not application textures
+			auto const &atlasTextures = ImGui::GetIO ().Fonts->TexList;
+			getTexture (texture->GetTexID ()).fontAtlas =
+			    std::ranges::find (atlasTextures, texture) != std::end (atlasTextures);
+		}
+	}
+}
+
+/// \brief Setup projection matrices for ImGui
+/// \param drawData_ Draw data containing display size information
+void setupProjection (ImDrawData const &drawData_)
+{
+	// initialize projection matrices
+	Mtx_OrthoTilt (&s_projTop,
+	    0.0f,
+	    drawData_.DisplaySize.x,
+	    drawData_.DisplaySize.y * 0.5f,
+	    0.0f,
+	    -1.0f,
+	    1.0f,
+	    false);
+
+	Mtx_OrthoTilt (&s_projBottom,
+	    drawData_.DisplaySize.x * 0.1f,
+	    drawData_.DisplaySize.x * 0.9f,
+	    drawData_.DisplaySize.y,
+	    drawData_.DisplaySize.y * 0.5f,
+	    -1.0f,
+	    1.0f,
+	    false);
+}
+
+/// \brief Prepare vertex and index buffers for ImGui
+/// \param drawData_ Draw data containing vertex and index information
+void prepareBuffers (ImDrawData const &drawData_)
+{
+	// check if we need to grow vertex data buffer
+	if (s_vtxSize < static_cast<std::size_t> (drawData_.TotalVtxCount))
+	{
+		linearFree (s_vtxData);
+
+		// add 10% to avoid growing many frames in a row
+		s_vtxSize = drawData_.TotalVtxCount * 1.1f;
+		s_vtxData = static_cast<ImDrawVert *> (linearAlloc (sizeof (ImDrawVert) * s_vtxSize));
+		if (!s_vtxData)
+			rendererError ("cannot grow vertex buffer");
+	}
+
+	// check if we need to grow index data buffer
+	if (s_idxSize < static_cast<std::size_t> (drawData_.TotalIdxCount))
+	{
+		linearFree (s_idxData);
+
+		// add 10% to avoid growing many frames in a row
+		s_idxSize = drawData_.TotalIdxCount * 1.1f;
+		s_idxData = static_cast<ImDrawIdx *> (linearAlloc (sizeof (ImDrawIdx) * s_idxSize));
+		if (!s_idxData)
+			rendererError ("cannot grow index buffer");
+	}
+
+	std::size_t offsetVtx = 0;
+	std::size_t offsetIdx = 0;
+
+	for (auto const list : drawData_.CmdLists)
+	{
+		// copy vertex/index data into linear buffers
+		std::memcpy (s_vtxData + offsetVtx,
+		    list->VtxBuffer.Data,
+		    list->VtxBuffer.Size * sizeof (ImDrawVert));
+		std::memcpy (
+		    s_idxData + offsetIdx, list->IdxBuffer.Data, list->IdxBuffer.Size * sizeof (ImDrawIdx));
+
+		std::vector<bool> decoded (list->VtxBuffer.Size);
+
+		// adjust font UVs for retained atlas textures
+		for (auto const &cmd : list->CmdBuffer)
+		{
+			if (cmd.UserCallback || !cmd.ElemCount || !getTexture (cmd.GetTexID ()).fontAtlas)
+				continue;
+
+			if (cmd.ElemCount % 3)
+				rendererError ("font draw command is not a triangle list");
+
+			for (unsigned element = 0; element < cmd.ElemCount; element += 3)
+			{
+				auto const tag = sheetTagSafe (*list, cmd, element);
+
+				if (!tag)
+					continue;
+
+				for (unsigned i = 0; i < 3; ++i)
+				{
+					auto const index = cmd.VtxOffset + list->IdxBuffer[cmd.IdxOffset + element + i];
+
+					if (!decoded[index])
+					{
+						s_vtxData[offsetVtx + index].uv.y = list->VtxBuffer[index].uv.y - tag;
+
+						decoded[index] = true;
+					}
+				}
+			}
+		}
+
+		offsetVtx += list->VtxBuffer.Size;
+		offsetIdx += list->IdxBuffer.Size;
+	}
+}
+
+/// \brief Render ImGui draw data to a specified render target
+/// \param drawData_ Draw data to render
+/// \param target_ Render target to draw on
+/// \param screen Screen to render on
+/// \param slider_ Slider value for adjusting projection
+/// \param width Width of the render target
+/// \param height Height of the render target
+void renderTarget (ImDrawData const &drawData_,
+    C3D_RenderTarget *const target_,
+    gfxScreen_t const screen,
+    float const slider_,
+    unsigned const width,
+    unsigned const height)
+{
+	C3D_RenderTargetClear (target_, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
+
+	s_slider = slider_;
+	s_z      = 0.0f;
+
+	C3D_FrameDrawOn (target_);
+	setupRenderState (screen);
+
+	// will project scissor/clipping rectangles into framebuffer space
+	auto const clipOff   = drawData_.DisplayPos;       // (0,0) unless using multi-viewports
+	auto const clipScale = drawData_.FramebufferScale; // (1,1) unless using a high-DPI display
+
+	std::size_t offsetVtx = 0;
+	std::size_t offsetIdx = 0;
+
+	for (auto const list : drawData_.CmdLists)
+	{
+		for (auto const &cmd : list->CmdBuffer)
+		{
+			if (cmd.UserCallback)
+			{
+				if (cmd.UserCallback == resetRenderState)
+					setupRenderState (screen);
+				else if (cmd.UserCallback == setSamplerLinear ||
+				         cmd.UserCallback == setSamplerNearest)
+				{
+					s_filter = cmd.UserCallback == setSamplerLinear ? GPU_LINEAR : GPU_NEAREST;
+					s_boundTexture = ImTextureID_Invalid;
+				}
+				else
+					cmd.UserCallback (list, &cmd);
+
+				s_boundVtxData = nullptr;
+				s_boundTexture = ImTextureID_Invalid;
+				std::memset (s_boundScissor, 0xFF, sizeof (s_boundScissor));
+
+				continue;
+			}
+
+			if (!cmd.ElemCount)
+				continue;
+
+			ImVec4 clip{(cmd.ClipRect.x - clipOff.x) * clipScale.x,
+			    (cmd.ClipRect.y - clipOff.y) * clipScale.y,
+			    (cmd.ClipRect.z - clipOff.x) * clipScale.x,
+			    (cmd.ClipRect.w - clipOff.y) * clipScale.y};
+
+			// apply parallax based on slider and depth
+			if (s_slider && s_z && screen == GFX_TOP)
+			{
+				clip.x -= s_slider * s_z;
+				clip.z += s_slider * s_z;
+			}
+
+			// skip if the clip rectangle is completely outside the render target
+			if (clip.x >= width || clip.y >= height || clip.z <= 0 || clip.w <= 0)
+				continue;
+
+			// adjust clip rectangle to be within the render target
+			clip.x = std::max (0.0f, clip.x);
+			clip.y = std::max (0.0f, clip.y);
+			clip.z = std::min (static_cast<float> (width), clip.z);
+			clip.w = std::min (static_cast<float> (height), clip.w);
+
+			// skip if the clip rectangle is outside the specific screen region
+			if (screen == GFX_TOP
+			        ? clip.y >= height * 0.5f
+			        : clip.w <= height * 0.5f || clip.z <= width * 0.1f || clip.x >= width * 0.9f)
+				continue;
+
+			auto const bottom = screen == GFX_BOTTOM;
+			auto const right  = bottom ? width * 0.9f : static_cast<float> (width);
+			auto const maxY   = bottom ? width * 0.8f : static_cast<float> (width);
+			auto const base   = bottom ? static_cast<float> (height) : height * 0.5f;
+
+			// calculate scissor rectangle based on clip rectangle and screen region
+			std::uint32_t const scissor[] = {
+			    static_cast<std::uint32_t> (std::clamp (base - clip.w, 0.0f, height * 0.5f)),
+			    static_cast<std::uint32_t> (std::clamp (right - clip.z, 0.0f, maxY)),
+			    static_cast<std::uint32_t> (std::clamp (base - clip.y, 0.0f, height * 0.5f)),
+			    static_cast<std::uint32_t> (std::clamp (right - clip.x, 0.0f, maxY))};
+
+			// update scissor rectangle if it has changed
+			if (!std::ranges::equal (scissor, s_boundScissor))
+			{
+				std::ranges::copy (scissor, s_boundScissor);
+				C3D_SetScissor (GPU_SCISSOR_NORMAL, scissor[0], scissor[1], scissor[2], scissor[3]);
+			}
+
+			auto const vtxData = s_vtxData + cmd.VtxOffset + offsetVtx;
+
+			// bind vertex buffer if it has changed
+			if (vtxData != s_boundVtxData)
+			{
+				s_boundVtxData     = vtxData;
+				auto const bufInfo = C3D_GetBufInfo ();
+				BufInfo_Init (bufInfo);
+				BufInfo_Add (bufInfo, vtxData, sizeof (ImDrawVert), 3, 0x210);
+			}
+
+			auto &texture = getTexture (cmd.GetTexID ());
+
+			unsigned index = 0;
+			while (index < cmd.ElemCount)
+			{
+				auto end       = cmd.ElemCount;
+				auto const tag = texture.fontAtlas ? sheetTagFast (*list, cmd, index) : 0;
+
+				if (texture.fontAtlas)
+				{
+					// only draw elements that belong to the same font sheet
+					end = index + 3;
+					while (end < cmd.ElemCount && sheetTagFast (*list, cmd, end) == tag)
+						end += 3;
+				}
+
+				if (tag)
+					bindTexture (s_fontSheets[tag - 2], true, 1.0f, 1.0f);
+				else
+					bindTexture (texture.image,
+					    texture.format == ImTextureFormat_Alpha8,
+					    static_cast<float> (texture.width) / texture.image.width,
+					    static_cast<float> (texture.height) / texture.image.height);
+
+				C3D_DrawElements (GPU_TRIANGLES,
+				    end - index,
+				    C3D_UNSIGNED_SHORT,
+				    s_idxData + cmd.IdxOffset + offsetIdx + index);
+
+				index = end;
+			}
+		}
+
+		offsetVtx += list->VtxBuffer.Size;
+		offsetIdx += list->IdxBuffer.Size;
+	}
+}
+}
+
+void imgui::citro3d::updateTexture (ImTextureData &data_)
+{
+	switch (data_.Status)
+	{
+	case ImTextureStatus_OK:
+	case ImTextureStatus_Destroyed:
+		return;
+
+	case ImTextureStatus_WantCreate:
+	{
+		if (data_.BackendUserData || data_.GetTexID () != ImTextureID_Invalid)
+			rendererError ("create requested for an existing texture");
+
+		if (!data_.Pixels || data_.Width <= 0 || data_.Height <= 0 ||
+		    data_.Width > MAX_TEXTURE_SIZE || data_.Height > MAX_TEXTURE_SIZE ||
+		    (data_.Format != ImTextureFormat_Alpha8 && data_.Format != ImTextureFormat_RGBA32) ||
+		    data_.BytesPerPixel != (data_.Format == ImTextureFormat_Alpha8 ? 1 : 4))
+			rendererError ("invalid texture pixels, dimensions or format");
+
+		TextureAccess const access;
+
+		auto texture    = std::make_unique<Texture> ();
+		texture->data   = &data_;
+		texture->format = data_.Format;
+		texture->width  = data_.Width;
+		texture->height = data_.Height;
+
+		auto const width  = std::bit_ceil (std::max (8u, static_cast<unsigned> (data_.Width)));
+		auto const height = std::bit_ceil (std::max (8u, static_cast<unsigned> (data_.Height)));
+
+		if (!C3D_TexInit (&texture->image,
+		        width,
+		        height,
+		        data_.Format == ImTextureFormat_Alpha8 ? GPU_A8 : GPU_RGBA8))
+			rendererError ("cannot allocate texture");
+
+		C3D_TexSetFilter (&texture->image, GPU_LINEAR, GPU_LINEAR);
+		C3D_TexSetWrap (&texture->image, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+		std::memset (texture->image.data, 0, texture->image.size);
+		uploadTexture (data_, *texture, true);
+
+		data_.BackendUserData = texture.get ();
+		data_.SetTexID (reinterpret_cast<ImTextureID> (texture.get ()));
+		data_.SetStatus (ImTextureStatus_OK);
+
+		s_textures.push_back (std::move (texture));
+
+		break;
+	}
+
+	case ImTextureStatus_WantUpdates:
+	{
+		auto &texture = getTexture (data_.GetTexID ());
+
+		if (&texture != data_.BackendUserData || texture.data != &data_ || !data_.Pixels ||
+		    texture.format != data_.Format || texture.width != data_.Width ||
+		    texture.height != data_.Height ||
+		    data_.BytesPerPixel != (texture.format == ImTextureFormat_Alpha8 ? 1 : 4))
+			rendererError ("update changed texture ownership, dimensions or format");
+
+		TextureAccess const access;
+
+		uploadTexture (data_, texture, false);
+		data_.SetStatus (ImTextureStatus_OK);
+
+		break;
+	}
+
+	case ImTextureStatus_WantDestroy:
+	{
+		TextureAccess const access;
+
+		destroyTexture (data_);
+
+		break;
+	}
+	}
+}
+
+std::unique_ptr<ImTextureData> imgui::citro3d::importTexture (C3D_Tex *const tex_)
+{
+	if (C3D_TexGetType (tex_) != GPU_TEX_2D)
+	{
+		std::fprintf (stderr, "only 2D textures are supported");
+		return nullptr;
+	}
+
+	if (tex_->fmt != GPU_RGBA8 && tex_->fmt != GPU_A8)
+	{
+		std::fprintf (stderr, "3DS graphics atlas must use RGBA8 or A8\n");
+		return nullptr;
+	}
+
+	auto result = std::make_unique<ImTextureData> ();
+
+	result->Create (tex_->fmt == GPU_RGBA8 ? ImTextureFormat_RGBA32 : ImTextureFormat_Alpha8,
+	    tex_->width,
+	    tex_->height);
+	result->UseColors = tex_->fmt == GPU_RGBA8;
+
+	auto texture    = std::make_unique<Texture> ();
+	texture->data   = result.get ();
+	texture->format = result->Format;
+	texture->width  = result->Width;
+	texture->height = result->Height;
+	std::memcpy (&texture->image, tex_, sizeof (C3D_Tex));
+	std::memset (tex_, 0, sizeof (C3D_Tex));
+
+	C3D_TexSetFilter (&texture->image, GPU_LINEAR, GPU_LINEAR);
+	C3D_TexSetWrap (&texture->image, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+
+	result->BackendUserData = texture.get ();
+
+	result->SetTexID (reinterpret_cast<ImTextureID> (texture.get ()));
+	result->SetStatus (ImTextureStatus_OK);
+
+	s_textures.push_back (std::move (texture));
+
+	return result;
 }
 
 void imgui::citro3d::init ()
 {
 	// setup back-end capabilities flags
-	auto &io = ImGui::GetIO ();
+	auto &io         = ImGui::GetIO ();
+	auto &platformIO = ImGui::GetPlatformIO ();
 
 	io.BackendRendererName = "citro3d";
-	io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+	io.BackendFlags |=
+	    ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures;
+
+	platformIO.Renderer_TextureMaxWidth       = MAX_TEXTURE_SIZE;
+	platformIO.Renderer_TextureMaxHeight      = MAX_TEXTURE_SIZE;
+	platformIO.DrawCallback_ResetRenderState  = resetRenderState;
+	platformIO.DrawCallback_SetSamplerLinear  = setSamplerLinear;
+	platformIO.DrawCallback_SetSamplerNearest = setSamplerNearest;
 
 	// load vertex shader
 	s_vsh = DVLB_ParseFile (
 	    const_cast<std::uint32_t *> (reinterpret_cast<std::uint32_t const *> (vshader_shbin)),
 	    vshader_shbin_size);
 
+	if (!s_vsh)
+		rendererError ("cannot load vertex shader");
+
 	// initialize vertex shader program
 	shaderProgramInit (&s_program);
 	shaderProgramSetVsh (&s_program, &s_vsh->DVLE[0]);
 
-	// get projection matrix uniform location
-	s_zLocation = shaderInstanceGetUniformLocation (s_program.vertexShader, "z");
+	// get uniform locations
+	s_zLocation       = shaderInstanceGetUniformLocation (s_program.vertexShader, "z");
+	s_projLocation    = shaderInstanceGetUniformLocation (s_program.vertexShader, "proj");
+	s_uvScaleLocation = shaderInstanceGetUniformLocation (s_program.vertexShader, "uvScale");
 
-	// get projection matrix uniform location
-	s_projLocation = shaderInstanceGetUniformLocation (s_program.vertexShader, "proj");
+	s_vtxSize = s_idxSize = 65536;
 
 	// allocate vertex data buffer
-	s_vtxSize = 65536;
-	s_vtxData = reinterpret_cast<ImDrawVert *> (linearAlloc (sizeof (ImDrawVert) * s_vtxSize));
-	assert (s_vtxData);
+	s_vtxData = static_cast<ImDrawVert *> (linearAlloc (sizeof (ImDrawVert) * s_vtxSize));
 
 	// allocate index data buffer
-	s_idxSize = 65536;
-	s_idxData = reinterpret_cast<ImDrawIdx *> (linearAlloc (sizeof (ImDrawIdx) * s_idxSize));
-	assert (s_idxData);
+	s_idxData = static_cast<ImDrawIdx *> (linearAlloc (sizeof (ImDrawIdx) * s_idxSize));
 
-	// ensure the shared system font is mapped
-	if (R_FAILED (fontEnsureMapped ()))
-		assert (false);
+	if (!s_vtxData || !s_idxData)
+		rendererError ("cannot allocate vertex/index buffers");
 
-	// load the glyph texture sheets
-	auto const font      = fontGetSystemFont ();
-	auto const fontInfo  = fontGetInfo (font);
-	auto const glyphInfo = fontGetGlyphInfo (font);
-	assert (s_fontTextures.empty ());
-	s_fontTextures.resize (glyphInfo->nSheets + 1);
-	std::memset (s_fontTextures.data (), 0x00, s_fontTextures.size () * sizeof (s_fontTextures[0]));
-
-	s_textScale = 30.0f / glyphInfo->cellHeight;
+	// map the shared system font and initialize its glyph loader
+	imgui::ctru::initSystemFont ();
 
 	// use system font sheets as citro3d textures
-	for (unsigned i = 0; i < glyphInfo->nSheets; ++i)
+	auto const font   = fontGetSystemFont ();
+	auto const sheets = fontGetGlyphInfo (font);
+
+	s_fontSheets.resize (sheets->nSheets);
+
+	for (unsigned i = 0; i < s_fontSheets.size (); ++i)
 	{
-		auto &tex = s_fontTextures[i];
-		tex.data  = fontGetGlyphSheetTex (font, i);
-		assert (tex.data);
+		auto &image = s_fontSheets[i];
+		image.data  = fontGetGlyphSheetTex (font, i);
 
-		tex.fmt    = static_cast<GPU_TEXCOLOR> (glyphInfo->sheetFmt);
-		tex.size   = glyphInfo->sheetSize;
-		tex.width  = glyphInfo->sheetWidth;
-		tex.height = glyphInfo->sheetHeight;
-		tex.param  = GPU_TEXTURE_MAG_FILTER (GPU_LINEAR) | GPU_TEXTURE_MIN_FILTER (GPU_LINEAR) |
-		            GPU_TEXTURE_WRAP_S (GPU_REPEAT) | GPU_TEXTURE_WRAP_T (GPU_REPEAT);
-		tex.border   = 0xFFFFFFFF;
-		tex.lodParam = 0;
+		if (!image.data)
+			rendererError ("missing shared system font sheet");
+
+		image.fmt    = static_cast<GPU_TEXCOLOR> (sheets->sheetFmt);
+		image.size   = sheets->sheetSize;
+		image.width  = sheets->sheetWidth;
+		image.height = sheets->sheetHeight;
+
+		C3D_TexSetFilter (&image, GPU_LINEAR, GPU_LINEAR);
+		C3D_TexSetWrap (&image, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
 	}
-
-	{
-		// create texture for ImGui's white pixel
-		auto &tex = s_fontTextures[glyphInfo->nSheets];
-		C3D_TexInit (&tex, 8, 8, GPU_A4);
-
-		// fill texture with full alpha
-		std::uint32_t size;
-		auto data = C3D_Tex2DGetImagePtr (&tex, 0, &size);
-		assert (data);
-		assert (size);
-		std::memset (data, 0xFF, size);
-	}
-
-	// get alternate character glyph
-	ImWchar alterChar = fontCodePointFromGlyphIndex (font, fontInfo->alterCharIndex);
-	if (!alterChar)
-		alterChar = '?';
-
-	// collect character map
-	std::vector<ImWchar> charSet;
-	for (auto cmap = fontInfo->cmap; cmap; cmap = cmap->next)
-	{
-		switch (cmap->mappingMethod)
-		{
-		case CMAP_TYPE_DIRECT:
-			assert (cmap->codeEnd >= cmap->codeBegin);
-			charSet.reserve (charSet.size () + cmap->codeEnd - cmap->codeBegin + 1);
-			for (auto i = cmap->codeBegin; i <= cmap->codeEnd; ++i)
-			{
-				if (cmap->indexOffset + (i - cmap->codeBegin) == 0xFFFF)
-					break;
-
-				charSet.emplace_back (i);
-			}
-			break;
-
-		case CMAP_TYPE_TABLE:
-			assert (cmap->codeEnd >= cmap->codeBegin);
-			charSet.reserve (charSet.size () + cmap->codeEnd - cmap->codeBegin + 1);
-			for (auto i = cmap->codeBegin; i <= cmap->codeEnd; ++i)
-			{
-				if (cmap->indexTable[i - cmap->codeBegin] == 0xFFFF)
-					continue;
-
-				charSet.emplace_back (i);
-			}
-			break;
-
-		case CMAP_TYPE_SCAN:
-			charSet.reserve (charSet.size () + cmap->nScanEntries);
-			for (unsigned i = 0; i < cmap->nScanEntries; ++i)
-			{
-				assert (cmap->scanEntries[i].code >= cmap->codeBegin);
-				assert (cmap->scanEntries[i].code <= cmap->codeEnd);
-
-				if (cmap->scanEntries[i].glyphIndex == 0xFFFF)
-					continue;
-
-				charSet.emplace_back (cmap->scanEntries[i].code);
-			}
-			break;
-		}
-	}
-
-	assert (!charSet.empty ());
-
-	// deduplicate character map
-	std::sort (std::begin (charSet), std::end (charSet));
-	charSet.erase (std::unique (std::begin (charSet), std::end (charSet)), std::end (charSet));
-
-	// fill in font glyph ranges
-	auto it       = std::begin (charSet);
-	ImWchar start = *it++;
-	ImWchar prev  = start;
-	while (it != std::end (charSet))
-	{
-		if (*it != prev + 1)
-		{
-			s_fontRanges.emplace_back (start);
-			s_fontRanges.emplace_back (prev);
-
-			start = *it;
-		}
-
-		prev = *it++;
-	}
-	s_fontRanges.emplace_back (start);
-	s_fontRanges.emplace_back (prev);
-
-	// terminate glyph ranges
-	s_fontRanges.emplace_back (0);
-
-	// initialize font atlas
-	auto const atlas = ImGui::GetIO ().Fonts;
-	atlas->Clear ();
-	atlas->TexWidth        = glyphInfo->sheetWidth;
-	atlas->TexHeight       = glyphInfo->sheetHeight * glyphInfo->nSheets;
-	atlas->TexUvScale      = ImVec2 (1.0f / atlas->TexWidth, 1.0f / atlas->TexHeight);
-	atlas->TexUvWhitePixel = ImVec2 (0.5f * 0.125f, glyphInfo->nSheets + 0.5f * 0.125f);
-	atlas->TexPixelsAlpha8 = static_cast<unsigned char *> (IM_ALLOC (1)); // dummy allocation
-
-	// initialize font config
-	ImFontConfig config;
-	config.FontData             = nullptr;
-	config.FontDataSize         = 0;
-	config.FontDataOwnedByAtlas = true;
-	config.FontNo               = 0;
-	config.SizePixels           = 14.0f;
-	config.OversampleH          = 3;
-	config.OversampleV          = 1;
-	config.PixelSnapH           = false;
-	config.GlyphExtraSpacing    = ImVec2 (0.0f, 0.0f);
-	config.GlyphOffset          = ImVec2 (0.0f, fontInfo->ascent);
-	config.GlyphRanges          = s_fontRanges.data ();
-	config.GlyphMinAdvanceX     = 0.0f;
-	config.GlyphMaxAdvanceX     = std::numeric_limits<float>::max ();
-	config.MergeMode            = false;
-	config.FontBuilderFlags     = 0;
-	config.RasterizerMultiply   = 1.0f;
-	config.EllipsisChar         = 0x2026;
-	std::memset (config.Name, 0, sizeof (config.Name));
-
-	// create font
-	auto const imFont = IM_NEW (ImFont);
-	config.DstFont    = imFont;
-
-	// add config and font to atlas
-	atlas->ConfigData.push_back (config);
-	atlas->Fonts.push_back (imFont);
-	atlas->SetTexID (s_fontTextures.data ());
-
-	// initialize font
-	imFont->FallbackAdvanceX = fontInfo->defaultWidth.charWidth;
-	imFont->FontSize         = fontInfo->lineFeed;
-	imFont->ContainerAtlas   = atlas;
-	imFont->ConfigData       = &atlas->ConfigData[0];
-	imFont->ConfigDataCount  = 1;
-	imFont->FallbackChar     = alterChar;
-	imFont->EllipsisChar     = config.EllipsisChar;
-	imFont->Scale            = s_textScale * 0.5f;
-	imFont->Ascent           = fontInfo->ascent;
-	imFont->Descent          = 0.0f;
-
-	// add glyphs to font
-	fontGlyphPos_s glyphPos;
-	for (auto const &code : charSet)
-	{
-		auto const glyphIndex = fontGlyphIndexFromCodePoint (font, code);
-		assert (glyphIndex >= 0);
-		assert (glyphIndex < 0xFFFF);
-
-		// calculate glyph metrics
-		fontCalcGlyphPos (&glyphPos,
-		    font,
-		    glyphIndex,
-		    GLYPH_POS_CALC_VTXCOORD | GLYPH_POS_AT_BASELINE,
-		    1.0f,
-		    1.0f);
-
-		assert (glyphPos.sheetIndex >= 0);
-		assert (static_cast<std::size_t> (glyphPos.sheetIndex) < s_fontTextures.size ());
-
-		// add glyph to font
-		imFont->AddGlyph (&config,
-		    code,
-		    glyphPos.vtxcoord.left,
-		    glyphPos.vtxcoord.top + fontInfo->ascent,
-		    glyphPos.vtxcoord.right,
-		    glyphPos.vtxcoord.bottom + fontInfo->ascent,
-		    glyphPos.texcoord.left,
-		    glyphPos.sheetIndex + glyphPos.texcoord.top,
-		    glyphPos.texcoord.right,
-		    glyphPos.sheetIndex + glyphPos.texcoord.bottom,
-		    glyphPos.xAdvance);
-	}
-
-	// build lookup table
-	imFont->BuildLookupTable ();
-
-	// tell imgui it is ready
-	atlas->TexReady = true;
 }
 
 void imgui::citro3d::exit ()
 {
+	// free textures
+	{
+		TextureAccess const access;
+		while (!s_textures.empty ())
+			destroyTexture (*s_textures.back ()->data);
+		s_fontSheets.clear ();
+	}
+
 	// free vertex/index data buffers
 	linearFree (s_idxData);
 	linearFree (s_vtxData);
 
-	// delete ImGui white pixel texture
-	assert (!s_fontTextures.empty ());
-	C3D_TexDelete (&s_fontTextures.back ());
+	s_idxData = nullptr;
+	s_vtxData = nullptr;
+	s_idxSize = 0;
+	s_vtxSize = 0;
 
 	// free shader program
 	shaderProgramFree (&s_program);
 	DVLB_Free (s_vsh);
+	s_vsh = nullptr;
+
+	// uninitialize ImGui renderer backend
+	auto &io         = ImGui::GetIO ();
+	auto &platformIO = ImGui::GetPlatformIO ();
+
+	io.BackendRendererName = nullptr;
+	io.BackendFlags &=
+	    ~(ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures);
+
+	platformIO.Renderer_TextureMaxWidth       = 0;
+	platformIO.Renderer_TextureMaxHeight      = 0;
+	platformIO.DrawCallback_ResetRenderState  = nullptr;
+	platformIO.DrawCallback_SetSamplerLinear  = nullptr;
+	platformIO.DrawCallback_SetSamplerNearest = nullptr;
 }
 
 void imgui::citro3d::render (C3D_RenderTarget *const topLeft_,
@@ -439,352 +900,42 @@ void imgui::citro3d::render (C3D_RenderTarget *const topLeft_,
 {
 	// get draw data
 	auto const drawData = ImGui::GetDrawData ();
-	if (drawData->CmdListsCount <= 0)
+
+	updateTextures (*drawData);
+
+	if (drawData->CmdLists.empty ())
 		return;
 
-	// get framebuffer dimensions
-	unsigned width  = drawData->DisplaySize.x * drawData->FramebufferScale.x;
-	unsigned height = drawData->DisplaySize.y * drawData->FramebufferScale.y;
-	if (width <= 0 || height <= 0)
+	unsigned const width  = drawData->DisplaySize.x * drawData->FramebufferScale.x;
+	unsigned const height = drawData->DisplaySize.y * drawData->FramebufferScale.y;
+
+	if (!width || !height)
 		return;
 
-	// initialize projection matrices
-	Mtx_OrthoTilt (&s_projTop,
-	    0.0f,
-	    drawData->DisplaySize.x,
-	    drawData->DisplaySize.y * 0.5f,
-	    0.0f,
-	    -1.0f,
-	    1.0f,
-	    false);
-	Mtx_OrthoTilt (&s_projBottom,
-	    drawData->DisplaySize.x * 0.1f,
-	    drawData->DisplaySize.x * 0.9f,
-	    drawData->DisplaySize.y,
-	    drawData->DisplaySize.y * 0.5f,
-	    -1.0f,
-	    1.0f,
-	    false);
-
-	// check if we need to grow vertex data buffer
-	if (s_vtxSize < static_cast<std::size_t> (drawData->TotalVtxCount))
-	{
-		linearFree (s_vtxData);
-
-		// add 10% to avoid growing many frames in a row
-		s_vtxSize = drawData->TotalVtxCount * 1.1f;
-		s_vtxData = reinterpret_cast<ImDrawVert *> (linearAlloc (sizeof (ImDrawVert) * s_vtxSize));
-		assert (s_vtxData);
-	}
-
-	// check if we need to grow index data buffer
-	if (s_idxSize < static_cast<std::size_t> (drawData->TotalIdxCount))
-	{
-		// add 10% to avoid growing many frames in a row
-		s_idxSize = drawData->TotalIdxCount * 1.1f;
-		s_idxData = reinterpret_cast<ImDrawIdx *> (linearAlloc (sizeof (ImDrawIdx) * s_idxSize));
-		assert (s_idxData);
-	}
-
-	// will project scissor/clipping rectangles into framebuffer space
-	// (0,0) unless using multi-viewports
-	auto const clipOff = drawData->DisplayPos;
-	// (1,1) unless using retina display which are often (2,2)
-	auto const clipScale = drawData->FramebufferScale;
-
-	// copy data into vertex/index buffers
-	std::size_t offsetVtx = 0;
-	std::size_t offsetIdx = 0;
-	for (int i = 0; i < drawData->CmdListsCount; ++i)
-	{
-		auto const &cmdList = *drawData->CmdLists[i];
-
-		// double check that we don't overrun vertex/index data buffers
-		assert (s_vtxSize - offsetVtx >= static_cast<std::size_t> (cmdList.VtxBuffer.Size));
-		assert (s_idxSize - offsetIdx >= static_cast<std::size_t> (cmdList.IdxBuffer.Size));
-
-		// copy vertex/index data into buffers
-		std::memcpy (&s_vtxData[offsetVtx],
-		    cmdList.VtxBuffer.Data,
-		    sizeof (ImDrawVert) * cmdList.VtxBuffer.Size);
-		std::memcpy (&s_idxData[offsetIdx],
-		    cmdList.IdxBuffer.Data,
-		    sizeof (ImDrawIdx) * cmdList.IdxBuffer.Size);
-
-		offsetVtx += cmdList.VtxBuffer.Size;
-		offsetIdx += cmdList.IdxBuffer.Size;
-	}
+	setupProjection (*drawData);
+	prepareBuffers (*drawData);
 
 	auto const slider = osGet3DSliderState ();
 
-	for (auto const &[target, screen, side] : {
-	         // clang-format off
-	         std::make_tuple (topLeft_, GFX_TOP, GFX_LEFT),
-	         std::make_tuple (slider ? topRight_ : nullptr, GFX_TOP, GFX_RIGHT),
-	         std::make_tuple (bottom_, GFX_BOTTOM, GFX_LEFT)
-	         // clang-format on
-	     })
+	for (auto const &[target, screen] : {std::make_tuple (topLeft_, GFX_TOP),
+	         std::make_tuple (slider ? topRight_ : nullptr, GFX_TOP),
+	         std::make_tuple (bottom_, GFX_BOTTOM)})
 	{
 		if (!target)
 			continue;
 
-		// clear frame/depth buffers
-		C3D_RenderTargetClear (target, C3D_CLEAR_ALL, CLEAR_COLOR, 0);
+		auto const targetSlider = target == topLeft_    ? slider
+		                          : target == topRight_ ? -slider
+		                                                : 0.0f;
 
-		if (target == topLeft_)
-			s_slider = slider;
-		else if (target == topRight_)
-			s_slider = -slider;
-		else
-			s_slider = 0.0f;
-
-		C3D_FrameDrawOn (target);
-
-		setupRenderState (screen);
-
-		offsetVtx = 0;
-		offsetIdx = 0;
-
-		// render command lists
-		for (int i = 0; i < drawData->CmdListsCount; ++i)
-		{
-			auto const &cmdList = *drawData->CmdLists[i];
-			for (auto const &cmd : cmdList.CmdBuffer)
-			{
-				if (cmd.UserCallback)
-				{
-					// user callback, registered via ImDrawList::AddCallback()
-					// (ImDrawCallback_ResetRenderState is a special callback value used by the user
-					// to request the renderer to reset render state.)
-					if (cmd.UserCallback == ImDrawCallback_ResetRenderState)
-						setupRenderState (screen);
-					else
-						cmd.UserCallback (&cmdList, &cmd);
-				}
-				else
-				{
-					// project scissor/clipping rectangles into framebuffer space
-					ImVec4 clip;
-					clip.x = (cmd.ClipRect.x - clipOff.x) * clipScale.x;
-					clip.y = (cmd.ClipRect.y - clipOff.y) * clipScale.y;
-					clip.z = (cmd.ClipRect.z - clipOff.x) * clipScale.x;
-					clip.w = (cmd.ClipRect.w - clipOff.y) * clipScale.y;
-
-					if (s_slider && s_z && screen == GFX_TOP)
-					{
-						clip.x -= s_slider * s_z;
-						clip.z += s_slider * s_z;
-					}
-
-					if (clip.x >= width || clip.y >= height || clip.z < 0.0f || clip.w < 0.0f)
-						continue;
-
-					if (clip.x < 0.0f)
-						clip.x = 0.0f;
-
-					if (clip.y < 0.0f)
-						clip.y = 0.0f;
-
-					if (clip.z > width)
-						clip.z = width;
-
-					if (clip.w > height)
-						clip.z = height;
-
-					if (screen == GFX_TOP)
-					{
-						// check if clip starts on bottom screen
-						if (clip.y > height * 0.5f)
-							continue;
-
-						// convert from framebuffer space to screen space (3DS screen rotation)
-						auto const x1 =
-						    std::clamp<unsigned> (height * 0.5f - clip.w, 0, height * 0.5f);
-						auto const y1 = std::clamp<unsigned> (width - clip.z, 0, width);
-						auto const x2 =
-						    std::clamp<unsigned> (height * 0.5f - clip.y, 0, height * 0.5f);
-						auto const y2 = std::clamp<unsigned> (width - clip.x, 0, width);
-
-						// check if scissor needs to be updated
-						if (s_boundScissor[0] != x1 || s_boundScissor[1] != y1 ||
-						    s_boundScissor[2] != x2 || s_boundScissor[3] != y2)
-						{
-							s_boundScissor[0] = x1;
-							s_boundScissor[1] = y1;
-							s_boundScissor[2] = x2;
-							s_boundScissor[3] = y2;
-							C3D_SetScissor (GPU_SCISSOR_NORMAL, x1, y1, x2, y2);
-						}
-					}
-					else
-					{
-						// check if clip ends on top screen
-						if (clip.w < height * 0.5f)
-							continue;
-
-						// check if clip ends before left edge of bottom screen
-						if (clip.z < width * 0.1f)
-							continue;
-
-						// check if clip starts after right edge of bottom screen
-						if (clip.x > width * 0.9f)
-							continue;
-
-						// convert from framebuffer space to screen space
-						// (3DS screen rotation + bottom screen offset)
-						auto const x1 = std::clamp<unsigned> (height - clip.w, 0, height * 0.5f);
-						auto const y1 =
-						    std::clamp<unsigned> (width * 0.9f - clip.z, 0, width * 0.8f);
-						auto const x2 = std::clamp<unsigned> (height - clip.y, 0, height * 0.5f);
-						auto const y2 =
-						    std::clamp<unsigned> (width * 0.9f - clip.x, 0, width * 0.8f);
-
-						// check if scissor needs to be updated
-						if (s_boundScissor[0] != x1 || s_boundScissor[1] != y1 ||
-						    s_boundScissor[2] != x2 || s_boundScissor[3] != y2)
-						{
-							s_boundScissor[0] = x1;
-							s_boundScissor[1] = y1;
-							s_boundScissor[2] = x2;
-							s_boundScissor[3] = y2;
-							C3D_SetScissor (GPU_SCISSOR_NORMAL, x1, y1, x2, y2);
-						}
-					}
-
-					// check if we need to update vertex data binding
-					auto const vtxData = &s_vtxData[cmd.VtxOffset + offsetVtx];
-					if (vtxData != s_boundVtxData)
-					{
-						s_boundVtxData     = vtxData;
-						auto const bufInfo = C3D_GetBufInfo ();
-						BufInfo_Init (bufInfo);
-						BufInfo_Add (bufInfo, vtxData, sizeof (ImDrawVert), 3, 0x210);
-					}
-
-					// check if we need to update texture binding
-					auto tex = cmd.TextureId;
-					if (tex == s_fontTextures.data ())
-					{
-						assert (cmd.ElemCount % 3 == 0);
-
-						// get sheet number from uv coords
-						auto const getSheet = [] (auto const vtx_, auto const idx_) {
-							unsigned const sheet = std::min (
-							    {vtx_[idx_[0]].uv.y, vtx_[idx_[1]].uv.y, vtx_[idx_[2]].uv.y});
-
-							// assert that these three vertices use the same sheet
-							for (unsigned i = 0; i < 3; ++i)
-								assert (vtx_[idx_[i]].uv.y - sheet <= 1.0f);
-
-							assert (sheet < s_fontTextures.size ());
-							return sheet;
-						};
-
-						/// \todo avoid repeating this work?
-						for (unsigned i = 0; i < cmd.ElemCount; i += 3)
-						{
-							auto const idx = &cmdList.IdxBuffer.Data[cmd.IdxOffset + i];
-							auto const vtx = &cmdList.VtxBuffer.Data[cmd.VtxOffset];
-							auto drawVtx   = &s_vtxData[cmd.VtxOffset + offsetVtx];
-
-							auto const sheet = getSheet (vtx, idx);
-							if (sheet != 0)
-							{
-								float dummy;
-								drawVtx[idx[0]].uv.y = std::modf (drawVtx[idx[0]].uv.y, &dummy);
-								drawVtx[idx[1]].uv.y = std::modf (drawVtx[idx[1]].uv.y, &dummy);
-								drawVtx[idx[2]].uv.y = std::modf (drawVtx[idx[2]].uv.y, &dummy);
-							}
-						}
-
-						// initialize texture binding
-						unsigned boundSheet = getSheet (&cmdList.VtxBuffer.Data[cmd.VtxOffset],
-						    &cmdList.IdxBuffer.Data[cmd.IdxOffset]);
-
-						assert (boundSheet < s_fontTextures.size ());
-						C3D_TexBind (0, &s_fontTextures[boundSheet]);
-
-						unsigned offset = 0;
-
-						// update texture environment for non-image drawing
-						auto const env = C3D_GetTexEnv (0);
-						C3D_TexEnvInit (env);
-						C3D_TexEnvSrc (
-						    env, C3D_RGB, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
-						C3D_TexEnvFunc (env, C3D_RGB, GPU_REPLACE);
-						C3D_TexEnvSrc (
-						    env, C3D_Alpha, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
-						C3D_TexEnvFunc (env, C3D_Alpha, GPU_MODULATE);
-
-						// process one triangle at a time
-						for (unsigned i = 3; i < cmd.ElemCount; i += 3)
-						{
-							// get sheet for this triangle
-							unsigned const sheet = getSheet (&cmdList.VtxBuffer.Data[cmd.VtxOffset],
-							    &cmdList.IdxBuffer.Data[cmd.IdxOffset + i]);
-
-							// check if we're changing textures
-							if (boundSheet != sheet)
-							{
-								// draw everything up until now
-								C3D_DrawElements (GPU_TRIANGLES,
-								    i - offset,
-								    C3D_UNSIGNED_SHORT,
-								    &s_idxData[cmd.IdxOffset + offsetIdx + offset]);
-
-								// bind texture for next draw call
-								boundSheet = sheet;
-								offset     = i;
-								C3D_TexBind (0, &s_fontTextures[boundSheet]);
-							}
-						}
-
-						// draw the final set of triangles
-						assert ((cmd.ElemCount - offset) % 3 == 0);
-						C3D_DrawElements (GPU_TRIANGLES,
-						    cmd.ElemCount - offset,
-						    C3D_UNSIGNED_SHORT,
-						    &s_idxData[cmd.IdxOffset + offsetIdx + offset]);
-					}
-					else
-					{
-						// drawing an image; check if we need to change texture binding
-						if (tex != s_boundTexture)
-						{
-							// bind new texture
-							C3D_TexBind (0, tex);
-
-							// update texture environment for drawing images
-							auto const env = C3D_GetTexEnv (0);
-							C3D_TexEnvInit (env);
-							C3D_TexEnvSrc (
-							    env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
-							C3D_TexEnvFunc (env, C3D_Both, GPU_MODULATE);
-						}
-
-						// draw triangles
-						C3D_DrawElements (GPU_TRIANGLES,
-						    cmd.ElemCount,
-						    C3D_UNSIGNED_SHORT,
-						    &s_idxData[cmd.IdxOffset + offsetIdx]);
-					}
-
-					s_boundTexture = tex;
-				}
-			}
-
-			offsetVtx += cmdList.VtxBuffer.Size;
-			offsetIdx += cmdList.IdxBuffer.Size;
-		}
+		renderTarget (*drawData, target, screen, targetSlider, width, height);
 	}
 }
 
-void imgui::citro3d::setZ (ImDrawList const *const drawList_, ImDrawCmd const *const drawCmd_)
+void imgui::citro3d::setZ (ImDrawList const *const, ImDrawCmd const *const cmd_)
 {
-	(void)drawList_;
-
-	s_z = std::bit_cast<float> (drawCmd_->UserCallbackData);
-
+	s_z = std::bit_cast<float> (
+	    static_cast<std::uint32_t> (reinterpret_cast<std::uintptr_t> (cmd_->UserCallbackData)));
 	C3D_FVUnifSet (GPU_VERTEX_SHADER, s_zLocation, s_slider * s_z, 0.0f, 0.0f, 0.0f);
 }
 #endif

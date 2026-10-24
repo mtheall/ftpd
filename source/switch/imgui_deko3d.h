@@ -7,7 +7,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,26 +41,27 @@ namespace imgui
 namespace deko3d
 {
 /// \brief Initialize deko3d
-/// \param device_ deko3d device (used to allocate vertex/index and font texture buffers)
-/// \param queue_ deko3d queue (used to run command lists)
-/// \param cmdBuf_ Command buffer (used to build command lists)
-/// \param[out] samplerDescriptor_ Sampler descriptor for font texture
-/// \param[out] imageDescriptor_ Image descriptor for font texture
-/// \param fontTextureHandle_ Texture handle that references samplerDescriptor_ and imageDescriptor_
+/// \param device_ deko3d device (used to allocate shaders and vertex/index buffers)
 /// \param imageCount_ Images in the swapchain
-void init (dk::UniqueDevice &device_,
+void init (dk::UniqueDevice &device_, unsigned imageCount_);
+
+/// \brief Process a texture's create, update or destroy request immediately
+/// \param device_ Device used for allocation
+/// \param queue_ Queue used for command submission and GPU synchronization
+/// \param cmdBuf_ Command buffer whose pending commands may be submitted
+/// \param texture_ Caller-owned texture; keep its address stable until GPU resources are
+/// released by a WantDestroy request or renderer shutdown
+/// \note Set WantCreate explicitly after Create(), which only allocates CPU pixels
+void updateTexture (dk::UniqueDevice &device_,
     dk::UniqueQueue &queue_,
     dk::UniqueCmdBuf &cmdBuf_,
-    dk::SamplerDescriptor &samplerDescriptor_,
-    dk::ImageDescriptor &imageDescriptor_,
-    DkResHandle fontTextureHandle_,
-    unsigned imageCount_);
+    ImTextureData &texture_);
 
-/// \brief Deinitialize deko3d
-void exit ();
+/// \brief Wait for the GPU and release all renderer-owned resources
+void exit (dk::UniqueQueue &queue_);
 
 /// \brief Render ImGui draw list
-/// \param device_ deko3d device (used to reallocate vertex/index buffers)
+/// \param device_ deko3d device (used to allocate textures and vertex/index buffers)
 /// \param queue_ deko3d queue (used to run command lists)
 /// \param cmdBuf_ Command buffer (used to build command lists)
 /// \param slot_ Image slot
@@ -68,13 +69,6 @@ void render (dk::UniqueDevice &device_,
     dk::UniqueQueue &queue_,
     dk::UniqueCmdBuf &cmdBuf_,
     unsigned slot_);
-
-/// \brief Make ImGui texture id from deko3d texture handle
-/// \param handle_ Texture handle
-inline ImTextureID makeTextureID (DkResHandle handle_)
-{
-	return static_cast<ImTextureID> (handle_);
-}
 
 /// \brief Align power-of-two value
 /// \tparam T Value type

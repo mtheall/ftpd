@@ -7,7 +7,7 @@
 //
 // The MIT License (MIT)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,9 @@
 #ifndef CLASSIC
 #include <citro3d.h>
 
-struct ImDrawList;
-struct ImDrawCmd;
+#include <imgui.h>
+
+#include <memory>
 
 namespace imgui
 {
@@ -41,8 +42,19 @@ namespace citro3d
 {
 /// \brief Initialize citro3d
 void init ();
+
 /// \brief Deinitialize citro3d
 void exit ();
+
+/// \brief Process a texture's create, update or destroy request immediately
+/// \param texture_ Caller-owned texture with stable storage until GPU resources are released
+/// \note Set WantCreate explicitly after Create(); call before recording GPU draws
+void updateTexture (ImTextureData &texture_);
+
+/// \brief Import an existing C3D texture into ImGui
+/// \param tex_ Existing C3D texture
+/// \note The imported texture will take ownership of the C3D_Tex and clear the original tex_
+std::unique_ptr<ImTextureData> importTexture (C3D_Tex *tex_);
 
 /// \brief Render ImGui draw list
 /// \param topLeft_ Top left render target

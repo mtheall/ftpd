@@ -497,8 +497,11 @@ void FtpSession::draw ()
 		auto const rateString = fs::printSize (m_xferRate) + "/s";
 
 		ImGui::SameLine ();
-		ImGui::PlotLines (
-		    "", m_filePositionDeltas, IM_ARRAYSIZE (m_filePositionDeltas), 0, rateString.c_str ());
+		ImGui::PlotLines ("##transferRate",
+		    m_filePositionDeltas,
+		    IM_ARRAYSIZE (m_filePositionDeltas),
+		    0,
+		    rateString.c_str ());
 	}
 
 	ImGui::EndChild ();
