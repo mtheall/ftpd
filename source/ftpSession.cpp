@@ -2739,15 +2739,19 @@ void FtpSession::OPTS (char const *args_)
 	}
 
 	// check MLST options
-	if (::strncasecmp (args_, "MLST ", 5) == 0)
+	if (::strncasecmp (args_, "MLST", 4) == 0 && (args_[4] == '\0' || args_[4] == ' '))
 	{
+		// reset MLST options
 		m_mlstType     = false;
 		m_mlstSize     = false;
 		m_mlstModify   = false;
 		m_mlstPerm     = false;
 		m_mlstUnixMode = false;
 
-		auto p = args_ + 5;
+		auto p = args_ + 4;
+		if (*p == ' ')
+			++p;
+
 		while (*p)
 		{
 			auto const match = [] (auto const &name_, auto const &arg_) {
