@@ -3013,6 +3013,12 @@ void FtpSession::PORT (char const *args_)
 		}
 		else
 		{
+			if (val > UINT8_MAX / 10)
+			{
+				sendResponse ("501 %s\r\n", std::strerror (EINVAL));
+				return;
+			}
+
 			val *= 10;
 			val += *p - '0';
 		}
