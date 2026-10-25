@@ -1603,18 +1603,29 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 
 	if (std::strlen (args_) > 0)
 	{
-		// work around broken clients that think LIST -a/-l is valid
-		auto const needWorkaround = workaround_ && args_[0] == '-' &&
-		                            (args_[1] == 'a' || args_[1] == 'l') &&
-		                            (args_[2] == '\0' || args_[2] == ' ');
+		// Prefer literal paths, but accept combined or separate LIST -a/-l options.
+		char const *workaroundArgs = nullptr;
+		if (workaround_)
+		{
+			auto args = args_;
+			while (*args == '-')
+			{
+				auto const end = args + 1 + std::strspn (args + 1, "al");
+				if (end == args + 1 || (*end != '\0' && *end != ' ' && *end != '\t'))
+					break;
+
+				args           = end + std::strspn (end, " \t");
+				workaroundArgs = args;
+			}
+		}
 
 		// an argument was provided
 		auto const path = buildResolvedPath (m_cwd, args_);
 		if (path.empty ())
 		{
-			if (needWorkaround)
+			if (workaroundArgs)
 			{
-				xferDir (args_ + 2 + (args_[2] == ' '), mode_, false);
+				xferDir (workaroundArgs, mode_, false);
 				return;
 			}
 
@@ -1626,9 +1637,9 @@ void FtpSession::xferDir (char const *const args_, XferDirMode const mode_, bool
 		stat_t st;
 		if (tzStat (path.c_str (), &st) != 0)
 		{
-			if (needWorkaround)
+			if (workaroundArgs)
 			{
-				xferDir (args_ + 2 + (args_[2] == ' '), mode_, false);
+				xferDir (workaroundArgs, mode_, false);
 				return;
 			}
 
