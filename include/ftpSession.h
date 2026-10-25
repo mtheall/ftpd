@@ -326,6 +326,17 @@ private:
 	/// \brief Session state
 	State m_state = State::COMMAND;
 
+	/// \brief Quit state for the session
+	enum class QuitState
+	{
+		NONE,
+		WAIT_TRANSFER,
+		WAIT_RESPONSE,
+	};
+
+	/// \brief Current quit state
+	QuitState m_quitState = QuitState::NONE;
+
 	/// \brief File being transferred
 	fs::File m_file;
 

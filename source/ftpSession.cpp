@@ -720,7 +720,9 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 	{
 		if (session->m_commandSocket)
 		{
-			pollInfo.emplace_back (*session->m_commandSocket, POLLIN | POLLPRI, 0);
+			pollInfo.emplace_back (*session->m_commandSocket,
+			    session->m_quitState == QuitState::NONE ? POLLIN | POLLPRI : 0,
+			    0);
 			if (session->m_responseBuffer.usedSize () != 0)
 				pollInfo.back ().events |= POLLOUT;
 		}
@@ -856,6 +858,20 @@ bool FtpSession::poll (std::vector<UniqueFtpSession> const &sessions_)
 					break;
 				}
 			}
+		}
+
+		if (session->m_commandSocket && session->m_quitState == QuitState::WAIT_TRANSFER &&
+		    session->m_state == State::COMMAND)
+		{
+			session->m_quitState = QuitState::WAIT_RESPONSE;
+			session->sendResponse ("221 Disconnecting\r\n");
+		}
+
+		if (session->m_commandSocket && session->m_quitState == QuitState::WAIT_RESPONSE &&
+		    session->m_responseBuffer.empty ())
+		{
+			session->closePasv ();
+			session->closeCommand ();
 		}
 
 		if (!handled && now - session->m_timestamp >= IDLE_TIMEOUT)
@@ -1932,6 +1948,9 @@ void FtpSession::readCommand (int const events_)
 
 		m_commandBuffer.markFree (next - buffer);
 		m_commandBuffer.coalesce ();
+
+		if (m_quitState != QuitState::NONE || !m_commandSocket)
+			return;
 	}
 }
 
@@ -1940,6 +1959,9 @@ void FtpSession::writeResponse ()
 	auto const rc = m_commandSocket->write (m_responseBuffer);
 	if (rc <= 0)
 	{
+		if (rc < 0 && errno == EWOULDBLOCK)
+			return;
+
 		closeCommand ();
 		return;
 	}
@@ -3282,8 +3304,7 @@ void FtpSession::QUIT (char const *args_)
 {
 	(void)args_;
 
-	sendResponse ("221 Disconnecting\r\n");
-	closeCommand ();
+	m_quitState = QuitState::WAIT_TRANSFER;
 }
 
 void FtpSession::REST (char const *args_)
