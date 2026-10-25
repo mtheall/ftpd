@@ -2597,9 +2597,9 @@ void FtpSession::ABOR (char const *args_)
 	}
 
 	// abort the transfer
-	sendResponse ("225 Aborted\r\n");
-	sendResponse ("425 Transfer aborted\r\n");
 	setState (State::COMMAND, true, true);
+	sendResponse ("426 Transfer aborted\r\n");
+	sendResponse ("226 Abort successful\r\n");
 }
 
 void FtpSession::ALLO (char const *args_)
