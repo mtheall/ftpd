@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -54,6 +54,12 @@ int main ()
 
 	// turn off window rounding
 	style.WindowRounding = 0.0f;
+
+	// Keep input frames distinct from window and popup backgrounds.
+	style.FrameBorderSize                 = 1.0f;
+	style.Colors[ImGuiCol_FrameBg]        = ImVec4 (0.30f, 0.30f, 0.34f, 1.0f);
+	style.Colors[ImGuiCol_FrameBgHovered] = ImVec4 (0.34f, 0.42f, 0.52f, 1.0f);
+	style.Colors[ImGuiCol_FrameBgActive]  = ImVec4 (0.38f, 0.50f, 0.66f, 1.0f);
 #endif
 
 	auto server = FtpServer::create ();

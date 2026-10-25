@@ -134,18 +134,12 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 	{
 		auto const pos = line.find_first_of ('=');
 		if (pos == std::string::npos)
-		{
-			error ("Ignoring '%s'\n", line.c_str ());
 			continue;
-		}
 
 		auto const key = strip (std::string_view (line).substr (0, pos));
 		auto const val = strip (std::string_view (line).substr (pos + 1));
 		if (key.empty () || val.empty ())
-		{
-			error ("Ignoring '%s'\n", line.c_str ());
 			continue;
-		}
 
 		if (key == "user")
 			config->m_user = val;
@@ -284,19 +278,19 @@ std::string const &FtpConfig::passphrase () const
 }
 #endif
 
-void FtpConfig::setUser (std::string user_)
+void FtpConfig::setUser (std::string_view const user_)
 {
-	m_user = std::move (user_);
+	m_user = user_.substr (0, user_.find_first_of ('\0'));
 }
 
-void FtpConfig::setPass (std::string pass_)
+void FtpConfig::setPass (std::string_view const pass_)
 {
-	m_pass = std::move (pass_);
+	m_pass = pass_.substr (0, pass_.find_first_of ('\0'));
 }
 
-void FtpConfig::setHostname (std::string hostname_)
+void FtpConfig::setHostname (std::string_view const hostname_)
 {
-	m_hostname = std::move (hostname_);
+	m_hostname = hostname_.substr (0, hostname_.find_first_of ('\0'));
 }
 
 bool FtpConfig::setPort (std::string_view const port_)

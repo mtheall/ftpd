@@ -93,15 +93,18 @@ public:
 
 	/// \brief Set user
 	/// \param user_ User
-	void setUser (std::string user_);
+	/// \note Stops at the first null character
+	void setUser (std::string_view user_);
 
 	/// \brief Set password
 	/// \param pass_ Password
-	void setPass (std::string pass_);
+	/// \note Stops at the first null character
+	void setPass (std::string_view pass_);
 
 	/// \brief Set hostname
 	/// \param hostname_ Hostname
-	void setHostname (std::string hostname_);
+	/// \note Stops at the first null character
+	void setHostname (std::string_view hostname_);
 
 	/// \brief Set listen port
 	/// \param port_ Listen port

@@ -648,6 +648,9 @@ bool platform::init ()
 	// citro3d logo doesn't quite show with the default transparency
 	style.Colors[ImGuiCol_WindowBg].w = 0.8f;
 	style.ScaleAllSizes (0.5f);
+
+	// ImGui's navigation cursor extends four pixels beyond each widget, even at half scale.
+	style.ItemSpacing.y = 4.0f;
 #endif
 
 	return true;
