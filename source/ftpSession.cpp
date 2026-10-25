@@ -483,6 +483,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_zStream (nullptr, nullptr),
       m_authorizedUser (false),
       m_authorizedPass (false),
+      m_passwordPending (false),
       m_pasv (false),
       m_port (false),
       m_recv (false),
@@ -1904,6 +1905,10 @@ void FtpSession::readCommand (int const events_)
 		    [] (auto const &lhs_, auto const &rhs_) { return compare (lhs_.first, rhs_) < 0; });
 
 		m_timestamp = std::time (nullptr);
+
+		if (compare (command, "PASS") != 0)
+			m_passwordPending = false;
+
 		if (it == std::end (handlers) || compare (it->first, command) != 0)
 		{
 			std::string response = "502 Invalid command \"";
@@ -3081,7 +3086,14 @@ void FtpSession::PASS (char const *args_)
 {
 	setState (State::COMMAND, false, false);
 
-	m_authorizedPass = false;
+	if (!m_passwordPending)
+	{
+		sendResponse ("503 Send USER before PASS\r\n");
+		return;
+	}
+
+	m_authorizedPass  = false;
+	m_passwordPending = false;
 
 	std::string user;
 	std::string pass;
@@ -3783,6 +3795,7 @@ void FtpSession::USER (char const *args_)
 	setState (State::COMMAND, false, false);
 
 	m_authorizedUser = false;
+	m_authorizedPass = false;
 
 	std::string user;
 	std::string pass;
@@ -3800,10 +3813,12 @@ void FtpSession::USER (char const *args_)
 		m_authorizedUser = true;
 		if (pass.empty ())
 		{
+			m_authorizedPass = true;
 			sendResponse ("230 OK\r\n");
 			return;
 		}
 
+		m_passwordPending = true;
 		sendResponse ("331 Need password\r\n");
 		return;
 	}

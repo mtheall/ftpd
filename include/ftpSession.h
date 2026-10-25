@@ -387,6 +387,8 @@ private:
 	bool m_authorizedUser : 1;
 	/// \brief Whether password has been authorized
 	bool m_authorizedPass : 1;
+	/// \brief Whether the preceding USER command requested a password
+	bool m_passwordPending : 1;
 	/// \brief Whether previous command was PASV
 	bool m_pasv : 1;
 	/// \brief Whether previous command was PORT
