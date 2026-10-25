@@ -2619,7 +2619,8 @@ void FtpSession::ABOR (char const *args_)
 
 	if (m_state == State::COMMAND)
 	{
-		sendResponse ("225 No transfer to abort\r\n");
+		setState (State::COMMAND, true, true);
+		sendResponse ("226 Abort successful\r\n");
 		return;
 	}
 
