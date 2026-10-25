@@ -2786,8 +2786,15 @@ void FtpSession::OPTS (char const *args_)
 		return;
 	}
 
-	if (::strncasecmp (args_, "MODE Z ", 7) == 0)
+	if (::strncasecmp (args_, "MODE Z", 6) == 0 && (args_[6] == '\0' || args_[6] == ' '))
 	{
+		if (args_[6] == '\0')
+		{
+			m_config.setDeflateLevel (FtpConfig::DEFAULT_DEFLATE_LEVEL);
+			sendResponse ("200 MODE Z settings reset to default\r\n");
+			return;
+		}
+
 		auto p = args_ + 7;
 
 		auto const nextWord = [] (char const *&p_) {

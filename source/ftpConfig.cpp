@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2025 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -47,7 +47,6 @@ using stat_t = struct stat;
 namespace
 {
 constexpr std::uint16_t DEFAULT_PORT = 5000;
-constexpr int DEFAULT_DEFLATE_LEVEL  = 6;
 
 bool mkdirParent (std::string_view const path_)
 {
@@ -128,7 +127,7 @@ UniqueFtpConfig FtpConfig::load (gsl::not_null<gsl::czstring> const path_)
 		return config;
 
 	std::uint16_t port = DEFAULT_PORT;
-	int deflateLevel   = DEFAULT_DEFLATE_LEVEL;
+	int deflateLevel   = FtpConfig::DEFAULT_DEFLATE_LEVEL;
 
 	std::string line;
 	while (!(line = fp.readLine ()).empty ())

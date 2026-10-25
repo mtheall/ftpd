@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2024 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@ using UniqueFtpConfig = std::unique_ptr<FtpConfig>;
 class FtpConfig
 {
 public:
+	/// \brief Default deflate level
+	constexpr static int DEFAULT_DEFLATE_LEVEL = 6;
+
 	~FtpConfig ();
 
 	/// \brief Create config
