@@ -1135,7 +1135,7 @@ int FtpSession::fillDirent (stat_t const &st_, std::string_view const path_, cha
 		}
 
 		// size fact
-		if (m_mlstSize)
+		if (m_mlstSize && !S_ISDIR (st_.st_mode))
 		{
 			auto const rc = std::snprintf (&buffer[pos],
 			    size - pos,
