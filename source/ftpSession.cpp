@@ -2701,6 +2701,7 @@ void FtpSession::FEAT (char const *args_)
 	              " MLST Type%s;Size%s;Modify%s;Perm%s;UNIX.mode%s;\r\n"
 	              " MODE Z\r\n"
 	              " PASV\r\n"
+	              " REST STREAM\r\n"
 	              " SIZE\r\n"
 	              " TVFS\r\n"
 	              " UTF8\r\n"
