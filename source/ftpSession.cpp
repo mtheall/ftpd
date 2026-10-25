@@ -1170,7 +1170,7 @@ int FtpSession::fillDirent (stat_t const &st_, std::string_view const path_, cha
 		}
 
 		// make sure space precedes name
-		if (buffer[pos - 1] != ' ')
+		if (pos == 0 || buffer[pos - 1] != ' ')
 		{
 			if (pos >= size)
 				return EAGAIN;
