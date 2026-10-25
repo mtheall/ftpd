@@ -48,6 +48,7 @@
 #include <cstring>
 #include <ctime>
 #include <mutex>
+#include <numeric>
 #include <string>
 using namespace std::chrono_literals;
 
@@ -304,6 +305,103 @@ std::string buildResolvedPath (std::string_view const cwd_, std::string_view con
 {
 	return resolvePath (buildPath (cwd_, args_));
 }
+
+/// \brief Encode local text as NVT-ASCII
+/// \param source_ Source buffer
+/// \param destination_ Destination buffer
+bool encodeAscii (IOBuffer &source_, IOBuffer &destination_)
+{
+	// ensure we have enough space in the destination buffer
+	auto const input = source_.usedSpan<char> ();
+
+	auto const outputSize = std::accumulate (
+	    std::begin (input), std::end (input), 0u, [] (std::size_t const acc_, char const c_) {
+		    return acc_ + (c_ == '\r' || c_ == '\n' ? 2u : 1u);
+	    });
+
+	if (destination_.freeSize () < outputSize)
+	{
+		errno = ENOMEM;
+		return false;
+	}
+
+	// encode ASCII to NVT-ASCII
+	auto out = destination_.freeArea ();
+	for (auto const &c : input)
+	{
+		if (c == '\r') // convert CR to CRNUL
+		{
+			*out++ = '\r';
+			*out++ = '\0';
+		}
+		else if (c == '\n') // convert LF to CRLF
+		{
+			*out++ = '\r';
+			*out++ = '\n';
+		}
+		else
+			*out++ = c;
+	}
+
+	destination_.markUsed (out - destination_.freeArea ());
+	source_.clear ();
+	return true;
+}
+
+/// \brief Decode NVT-ASCII into local text
+/// \param source_ Source buffer
+/// \param destination_ Destination buffer
+bool decodeAscii (IOBuffer &source_, IOBuffer &destination_)
+{
+	auto const input  = source_.usedSpan<char> ();
+	auto const output = destination_.freeSpan<char> ();
+
+	if (output.empty ())
+	{
+		errno = ENOMEM;
+		return false;
+	}
+
+	auto in  = std::begin (input);
+	auto out = std::begin (output);
+
+	auto const inEnd  = std::end (input);
+	auto const outEnd = std::end (output);
+
+	while (in < inEnd && out < outEnd)
+	{
+		auto const c = *in++;
+		if (c != '\r')
+		{
+			*out++ = c;
+			continue;
+		}
+
+		// if we encounter a CR at the end of the input, we need to backtrack and fetch more data
+		if (in == inEnd)
+		{
+			--in;
+			break;
+		}
+
+		// decode NVT-ASCII to ASCII
+		auto const next = *in++;
+		if (next == '\n')
+			*out++ = '\n';
+		else if (next == '\0')
+			*out++ = '\r';
+		else
+		{
+			errno = EILSEQ;
+			return false;
+		}
+	}
+
+	source_.markFree (in - std::begin (input));
+	destination_.markUsed (out - std::begin (output));
+
+	return true;
+}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -381,6 +479,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_responseBuffer (RESPONSE_BUFFERSIZE),
       m_xferBuffer (XFER_BUFFERSIZE),
       m_zStreamBuffer (XFER_BUFFERSIZE),
+      m_asciiBuffer (XFER_BUFFERSIZE),
       m_zStream (nullptr, nullptr),
       m_authorizedUser (false),
       m_authorizedPass (false),
@@ -392,6 +491,7 @@ FtpSession::FtpSession (FtpConfig &config_, UniqueSocket commandSocket_)
       m_deflate (false),
       m_zFlushed (false),
       m_eof (false),
+      m_ascii (true),
       m_mlstType (true),
       m_mlstSize (true),
       m_mlstModify (true),
@@ -791,9 +891,9 @@ void FtpSession::setState (State const state_, bool const closePasv_, bool const
 			auto const lock = std::scoped_lock (m_lock);
 #endif
 
-			m_restartPosition = 0;
-			m_fileSize        = 0;
-			m_filePosition    = 0;
+			m_restartPosition.reset ();
+			m_fileSize     = 0;
+			m_filePosition = 0;
 
 			for (auto &pos : m_filePositionHistory)
 				pos = 0;
@@ -1280,11 +1380,14 @@ int FtpSession::fillDirent (std::string const &path_, char const *type_)
 
 void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 {
+	auto const restartPosition = m_restartPosition.value_or (0);
+
 	m_zFlushed = false;
 	m_eof      = false;
 
 	m_xferBuffer.clear ();
 	m_zStreamBuffer.clear ();
+	m_asciiBuffer.clear ();
 
 	if (m_deflate)
 	{
@@ -1355,9 +1458,9 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 
 		m_file.setBufferSize (FILE_BUFFERSIZE);
 
-		if (m_restartPosition != 0)
+		if (restartPosition != 0)
 		{
-			if (m_file.seek (m_restartPosition, SEEK_SET) != 0)
+			if (m_file.seek (restartPosition, SEEK_SET) != 0)
 			{
 				sendResponse ("450 %s\r\n", std::strerror (errno));
 				return;
@@ -1366,13 +1469,15 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 	}
 	else
 	{
-		auto const append = mode_ == XferFileMode::APPE;
+		// RFC 3659: "If APPE (append) is permitted, it MUST act identically to STOR when a restart
+		// marker has been set."
+		auto const append = mode_ == XferFileMode::APPE && !m_restartPosition.has_value ();
 
-		char const *mode = "wb";
+		char const *mode = "wb"; // truncates
 		if (append)
-			mode = "ab";
-		else if (m_restartPosition != 0)
-			mode = "r+b";
+			mode = "ab"; // append mode
+		else if (restartPosition != 0)
+			mode = "r+b"; // write at offset without truncation
 
 		// open file in write mode
 		if (!m_file.open (path.c_str (), mode))
@@ -1385,11 +1490,10 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 
 		m_file.setBufferSize (FILE_BUFFERSIZE);
 
-		// check if this had REST but not APPE
-		if (m_restartPosition != 0 && !append)
+		if (restartPosition != 0)
 		{
 			// seek to the REST offset
-			if (m_file.seek (m_restartPosition, SEEK_SET) != 0)
+			if (m_file.seek (restartPosition, SEEK_SET) != 0)
 			{
 				sendResponse ("450 %s\r\n", std::strerror (errno));
 				return;
@@ -1403,7 +1507,7 @@ void FtpSession::xferFile (char const *const args_, XferFileMode const mode_)
 #endif
 
 		// start progress and rate history at the resume offset for all file transfers
-		m_filePosition = m_restartPosition;
+		m_filePosition = restartPosition;
 
 		for (auto &pos : m_filePositionHistory)
 			pos = m_filePosition;
@@ -2252,7 +2356,27 @@ bool FtpSession::retrieveTransfer ()
 			}
 
 			// we have sent all the data, so read some more
-			auto const rc = m_file.read (ioBuffer);
+			std::make_signed_t<std::size_t> rc;
+			if (m_ascii)
+			{
+				// we don't know what we will receive, so we limit the read size to worst-case
+				auto const maxSize = std::min (m_asciiBuffer.freeSize (), ioBuffer.freeSize () / 2);
+
+				rc = maxSize ? m_file.read (m_asciiBuffer.freeArea (), maxSize) : 0;
+				if (rc > 0)
+				{
+					m_asciiBuffer.markUsed (rc);
+					if (!encodeAscii (m_asciiBuffer, ioBuffer))
+					{
+						sendResponse ("451 %s\r\n", std::strerror (errno));
+						setState (State::COMMAND, true, true);
+						return false;
+					}
+				}
+			}
+			else
+				rc = m_file.read (ioBuffer);
+
 			if (rc < 0)
 			{
 				// failed to read data
@@ -2314,9 +2438,39 @@ bool FtpSession::retrieveTransfer ()
 
 bool FtpSession::storeTransfer ()
 {
-	if (m_xferBuffer.empty ())
+	if (m_ascii && !m_asciiBuffer.empty ())
 	{
-		m_xferBuffer.clear ();
+		if (!m_devZero)
+		{
+			auto const rc = m_file.write (m_asciiBuffer);
+			if (rc <= 0)
+			{
+				sendResponse (
+				    "426 %s\r\n", rc < 0 ? std::strerror (errno) : "Failed to write data");
+				setState (State::COMMAND, true, true);
+				return false;
+			}
+
+			LOCKED (m_filePosition += rc);
+		}
+		else
+		{
+			LOCKED (m_filePosition += m_asciiBuffer.usedSize ());
+			m_asciiBuffer.clear ();
+		}
+
+		return true;
+	}
+
+	auto const needsMoreAsciiInput =
+	    m_ascii && m_xferBuffer.usedSize () == 1 && m_xferBuffer.usedArea ()[0] == '\r';
+
+	if (m_xferBuffer.empty () || needsMoreAsciiInput)
+	{
+		if (needsMoreAsciiInput)
+			m_xferBuffer.coalesce ();
+		else
+			m_xferBuffer.clear ();
 
 		auto &ioBuffer = m_deflate ? m_zStreamBuffer : m_xferBuffer;
 
@@ -2326,8 +2480,22 @@ bool FtpSession::storeTransfer ()
 		if (m_deflate && !m_zFlushed && m_eof)
 			return inflateBuffer ();
 
+		if (needsMoreAsciiInput && (m_eof || (m_deflate && m_zFlushed)))
+		{
+			sendResponse ("426 Invalid ASCII representation\r\n");
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
 		if (m_eof && (m_deflate == m_zFlushed))
 		{
+			if (m_asciiBuffer.usedSize ())
+			{
+				sendResponse ("426 Invalid ASCII representation\r\n");
+				setState (State::COMMAND, true, true);
+				return false;
+			}
+
 			sendResponse ("226 OK\r\n");
 			setState (State::COMMAND, true, true);
 			return false;
@@ -2357,6 +2525,40 @@ bool FtpSession::storeTransfer ()
 
 		if (m_deflate)
 			return true;
+	}
+
+	if (m_ascii)
+	{
+		if (!decodeAscii (m_xferBuffer, m_asciiBuffer))
+		{
+			sendResponse ("426 Invalid ASCII representation\r\n");
+			setState (State::COMMAND, true, true);
+			return false;
+		}
+
+		if (m_asciiBuffer.empty ())
+			return true;
+
+		if (!m_devZero)
+		{
+			auto const rc = m_file.write (m_asciiBuffer);
+			if (rc <= 0)
+			{
+				sendResponse (
+				    "426 %s\r\n", rc < 0 ? std::strerror (errno) : "Failed to write data");
+				setState (State::COMMAND, true, true);
+				return false;
+			}
+
+			LOCKED (m_filePosition += rc);
+		}
+		else
+		{
+			LOCKED (m_filePosition += m_asciiBuffer.usedSize ());
+			m_asciiBuffer.clear ();
+		}
+
+		return true;
 	}
 
 	if (!m_devZero)
@@ -3111,6 +3313,12 @@ void FtpSession::REST (char const *args_)
 		pos += (*p - '0');
 	}
 
+	if (m_ascii && pos != 0)
+	{
+		sendResponse ("504 REST unavailable in ASCII mode\r\n");
+		return;
+	}
+
 	// set the restart offset
 	m_restartPosition = pos;
 	sendResponse ("350 OK\r\n");
@@ -3389,6 +3597,12 @@ void FtpSession::SIZE (char const *args_)
 		return;
 	}
 
+	if (m_ascii)
+	{
+		sendResponse ("504 SIZE unavailable in ASCII mode\r\n");
+		return;
+	}
+
 	// build the path to stat
 	auto const path = buildResolvedPath (m_cwd, args_);
 	if (path.empty ())
@@ -3514,12 +3728,23 @@ void FtpSession::SYST (char const *args_)
 
 void FtpSession::TYPE (char const *args_)
 {
-	(void)args_;
-
 	setState (State::COMMAND, false, false);
 
-	// we always transfer in binary mode
-	sendResponse ("200 OK\r\n");
+	if (compare (args_, "A") == 0 || compare (args_, "A N") == 0)
+	{
+		m_ascii = true;
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+
+	if (compare (args_, "I") == 0)
+	{
+		m_ascii = false;
+		sendResponse ("200 OK\r\n");
+		return;
+	}
+
+	sendResponse ("504 Unavailable\r\n");
 }
 
 void FtpSession::USER (char const *args_)

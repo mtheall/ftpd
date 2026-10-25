@@ -276,6 +276,8 @@ private:
 	IOBuffer m_xferBuffer;
 	/// \brief z-stream buffer
 	IOBuffer m_zStreamBuffer;
+	/// \brief ASCII conversion buffer
+	IOBuffer m_asciiBuffer;
 
 	/// \brief Address from last PORT command
 	SockAddr m_portAddr;
@@ -298,8 +300,8 @@ private:
 	/// \brief ImGui plot widget name
 	std::string m_plotName;
 
-	/// \brief Position from REST command
-	std::uint64_t m_restartPosition = 0;
+	/// \brief Pending position from REST command, including zero
+	std::optional<std::uint64_t> m_restartPosition;
 
 	/// \brief Current file position
 	std::uint64_t m_filePosition = 0;
@@ -390,6 +392,8 @@ private:
 	bool m_zFlushed : 1;
 	/// \brief Whether we finished reading data
 	bool m_eof : 1;
+	/// \brief Whether to transfer files as ASCII
+	bool m_ascii : 1;
 
 	/// \brief Whether MLST type fact is enabled
 	bool m_mlstType : 1;

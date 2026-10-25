@@ -5,7 +5,7 @@
 // - Deflate transmission mode for FTP
 //   (https://tools.ietf.org/html/draft-preston-ftpext-deflate-04)
 //
-// Copyright (C) 2020 Michael Theall
+// Copyright (C) 2026 Michael Theall
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <span>
+#include <type_traits>
 
 /// \brief I/O buffer
 /// [unusable][usedArea][freeArea]
@@ -40,11 +42,25 @@ public:
 	char *freeArea () const;
 	/// \brief Get size of writable area
 	std::size_t freeSize () const;
+	/// \brief Get span of writable area
+	template <typename T>
+	    requires (sizeof (T) == 1)
+	std::span<T> freeSpan () const
+	{
+		return {reinterpret_cast<T *> (m_buffer.get () + m_end), m_size - m_end};
+	}
 
 	/// \brief Get pointer to readable area
 	char *usedArea () const;
 	/// \brief Get size of readable area
 	std::size_t usedSize () const;
+	/// \brief Get span of readable area
+	template <typename T>
+	    requires (sizeof (T) == 1)
+	std::span<T const> usedSpan () const
+	{
+		return {reinterpret_cast<T const *> (m_buffer.get () + m_start), m_end - m_start};
+	}
 
 	/// \brief Consume data from the beginning of usedArea
 	/// \param size_ Size to consume
