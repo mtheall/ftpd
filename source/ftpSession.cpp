@@ -2825,7 +2825,10 @@ void FtpSession::MKD (char const *args_)
 	}
 
 	FtpServer::updateFreeSpace ();
-	sendResponse ("250 OK\r\n");
+	std::string response = "257 \"";
+	response += encodePath (path, true);
+	response += "\" directory created\r\n";
+	sendResponse (response);
 }
 
 void FtpSession::MLSD (char const *args_)
