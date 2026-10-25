@@ -79,6 +79,7 @@ public:
 	~Socket ();
 
 	/// \brief Accept connection
+	/// \note On failure, errno is preserved for the caller to inspect
 	UniqueSocket accept ();
 
 	/// \brief Whether socket is at out-of-band mark

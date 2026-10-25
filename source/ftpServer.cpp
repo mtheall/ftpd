@@ -62,6 +62,7 @@ using statvfs_t = struct statvfs;
 #include <array>
 #include <atomic>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -439,6 +440,9 @@ void FtpServer::handleNetworkFound ()
 	SockAddr addr;
 	if (!platform::networkAddress (addr))
 		return;
+
+	// Fresh listening socket: forget any earlier run of accept() failures.
+	m_acceptFailureStart = {};
 
 	std::uint16_t port;
 
@@ -1006,8 +1010,8 @@ void FtpServer::loop ()
 	}
 #endif
 
-	// poll listen socket
-	if (m_socket)
+	// poll listen socket (skipped briefly after a transient accept() failure)
+	if (m_socket && std::chrono::steady_clock::now () >= m_acceptRetryTime)
 	{
 		Socket::PollInfo info{*m_socket, POLLIN, 0};
 		auto const rc = Socket::poll (&info, 1, 0ms);
@@ -1022,11 +1026,42 @@ void FtpServer::loop ()
 			auto socket = m_socket->accept ();
 			if (socket)
 			{
+				m_acceptFailureStart = {};
+
 				auto session = FtpSession::create (*m_config, std::move (socket));
 				LOCKED (m_sessions.emplace_back (std::move (session)));
 			}
+			else if (errno == ECONNABORTED || errno == EINTR)
+			{
+				// peer dropped the connection before accept, or interrupted call: not a
+				// failure, just try again on the next loop
+				m_acceptFailureStart = {};
+			}
+			else if (errno == EMFILE || errno == ENFILE || errno == ENOBUFS || errno == ENOMEM ||
+			         errno == EAGAIN)
+			{
+				// out of sockets/buffers; clears once closed sockets leave TIME_WAIT, so
+				// keep serving and retry rather than tearing every transfer down, but give
+				// up if it never clears
+				auto const now = std::chrono::steady_clock::now ();
+				if (m_acceptFailureStart == std::chrono::steady_clock::time_point{})
+					m_acceptFailureStart = now;
+
+				if (now - m_acceptFailureStart >= ACCEPT_FAILURE_TIMEOUT)
+				{
+					m_acceptFailureStart = {};
+					handleNetworkLost ();
+					return;
+				}
+
+				// defer the next accept() so this loop keeps polling existing sessions
+				// instead of spinning on the still-queued connection
+				m_acceptRetryTime = now + ACCEPT_RETRY_DELAY;
+			}
 			else
 			{
+				// EBADF, ENOTSOCK, ENETDOWN, ... -- the listening socket is really gone.
+				m_acceptFailureStart = {};
 				handleNetworkLost ();
 				return;
 			}
