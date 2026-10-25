@@ -3293,6 +3293,12 @@ void FtpSession::REST (char const *args_)
 		return;
 	}
 
+	if (*args_ == '\0')
+	{
+		sendResponse ("501 Missing restart offset\r\n");
+		return;
+	}
+
 	// parse the offset
 	std::uint64_t pos = 0;
 	for (auto p = args_; *p; ++p)
